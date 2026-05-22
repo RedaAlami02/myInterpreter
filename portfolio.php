@@ -413,6 +413,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
             <th class="num">Val. Achat</th>
             <th class="num">Val. Actuelle</th>
             <th class="num">P/MV Latente</th>
+            <th class="num">%</th>
           </tr></thead>
           <tbody>
             <?php foreach ($holdings as $i => $h):
@@ -420,6 +421,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
               $buy = $chartBuys[$i];
               $pnl = $cur - $buy;
               $cls = $pnl > 0 ? 'pos' : ($pnl < 0 ? 'neg' : 'zero');
+              $pct = ($cur > 0 && $buy > 0) ? ($pnl / $buy) * 100 : null;
             ?>
             <tr>
               <td class="label-cell"><?= htmlspecialchars($h['C_NAME']) ?></td>
@@ -427,6 +429,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
               <td class="num mono"><?= number_format($buy, 2) ?></td>
               <td class="num mono"><?= $cur > 0 ? number_format($cur, 2) : '<span class="muted">—</span>' ?></td>
               <td class="num mono <?= $cls ?>"><?= $cur > 0 ? ($pnl>=0?'+':'') . number_format($pnl,2) : '<span class="muted">—</span>' ?></td>
+              <td class="num mono <?= $pct !== null ? $cls : '' ?>"><?= $pct !== null ? ($pct>=0?'+':'') . number_format($pct,2) . '%' : '<span class="muted">—</span>' ?></td>
             </tr>
             <?php endforeach; ?>
           </tbody>
