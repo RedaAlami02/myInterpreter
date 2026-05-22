@@ -1,0 +1,113 @@
+/* portfolio.css */
+.portfolio-wrap { max-width: 1100px; margin: 0 auto; padding: 2rem 20px 60px; }
+
+/* Tab navigation */
+.tab-nav {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  margin-bottom: 28px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 10px 16px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition);
+  background: transparent;
+  color: var(--text-mute);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.tab-btn.active { background: var(--surface-3); color: var(--text); }
+.tab-btn:hover:not(.active) { color: var(--text-dim); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; animation: fadeIn 0.3s ease; }
+
+/* Portfolio summary bar */
+.pf-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+@media (max-width: 600px) { .pf-summary { grid-template-columns: 1fr 1fr; } }
+
+/* Charts grid */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+@media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
+
+.chart-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+.chart-card h5 {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-mute);
+  margin-bottom: 20px;
+}
+
+/* Transaction forms */
+.forms-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 700px) { .forms-grid { grid-template-columns: 1fr; } }
+
+.form-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+}
+.form-card h4 {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Sync row */
+.sync-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 24px;
+  font-size: 0.85rem;
+}
+.sync-row .divider { width: 1px; height: 18px; background: var(--border-hi); }
+.sync-label { color: var(--text-mute); }
+.sync-value { font-family: var(--font-mono); color: var(--cyan); }
+
+/* Profit indicators */
+.pos { color: var(--green) !important; }
+.neg { color: var(--rose)  !important; }
+.zero{ color: var(--text-mute)!important; }
+
+/* FIFO table */
+.tbl td.montant-buy  { color: var(--cyan);    font-weight: 600; }
+.tbl td.montant-sell { color: var(--emerald); font-weight: 600; }
+.tbl td.dur          { color: var(--text-mute); text-align: center; font-size: 0.78rem; }
+.tbl td.benefice     { text-align: right; font-weight: 700; }
+.badge-split         { font-size: 0.7rem; background: var(--surface-3); color: var(--text-mute); padding: 1px 5px; border-radius: 4px; }

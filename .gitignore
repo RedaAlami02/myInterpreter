@@ -1,0 +1,57 @@
+# Virtual Environments
+.venv/
+.venv_linux/
+.venv_windows/
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+.env.local
+.env.*.local
+
+# PHP
+*.log
+session/
+tmp/
+
+# Database (keep schema, ignore backups and local copies)
+stock_backup.sql
+*.sql.bak
+
+# Node (if frontend added later)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Composer (if added)
+vendor/
+composer.lock
+
+
+#scrapping
+/scrapping

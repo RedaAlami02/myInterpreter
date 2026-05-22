@@ -1,0 +1,58 @@
+/* infoAction.css */
+.search-wrap { max-width: 900px; margin: 0 auto; padding: 2.5rem 20px 60px; }
+
+.search-hero {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+.search-hero h1 {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.search-hero p { color: var(--text-mute); font-size: 0.9rem; }
+
+.search-bar-wrap {
+  background: var(--surface-1);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 2rem;
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+@media (max-width: 580px) { .search-bar-wrap { flex-direction: column; align-items: stretch; } }
+
+.search-result { animation: fadeUp 0.4s ease both; }
+
+/* Historical table color bars */
+.tbl td.col-per,
+.tbl td.col-peg,
+.tbl td.col-pr,
+.tbl td.col-pb {
+  border-left: 3px solid var(--border);
+  font-weight: 600;
+}
+.c-green  { color: var(--green)  !important; border-left-color: var(--green)  !important; }
+.c-orange { color: var(--orange) !important; border-left-color: var(--orange) !important; }
+.c-red    { color: var(--red)    !important; border-left-color: var(--red)    !important; }
+
+/* Sparkline canvas */
+.sparkline-wrap {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 28px;
+}
+.sparkline-wrap h5 {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
