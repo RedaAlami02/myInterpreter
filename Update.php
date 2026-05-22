@@ -61,7 +61,7 @@ $saved = isset($_GET['saved']);
         <div class="field-group-title cyan"><i class="fas fa-building"></i> Société <span class="required-dot">requise</span></div>
         <?php
           $db   = (new Database())->opendb();
-          $stmt = $db->query('SELECT NAME FROM COMPANY ORDER BY NAME ASC');
+          $stmt = $db->query('SELECT NAME FROM company ORDER BY NAME ASC');
           $companies = $stmt->fetchAll(PDO::FETCH_COLUMN);
         ?>
         <div class="form-floating">

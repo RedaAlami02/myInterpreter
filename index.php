@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_form'])) {
     $password = $_POST['password'] ?? '';
 
     $db   = (new Database())->opendb();
-    $stmt = $db->prepare('SELECT * FROM UTILISATEUR WHERE USERNAME = ?');
+    $stmt = $db->prepare('SELECT * FROM utilisateur WHERE USERNAME = ?');
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_form'])) {
         } elseif ($user['PASSWORD'] === $password) {
             // Plain-text (legacy) — verify and migrate to bcrypt immediately
             $hash = password_hash($password, PASSWORD_BCRYPT);
-            $db->prepare('UPDATE UTILISATEUR SET PASSWORD = ? WHERE ID_USER = ?')
+            $db->prepare('UPDATE utilisateur SET PASSWORD = ? WHERE ID_USER = ?')
                ->execute([$hash, $user['ID_USER']]);
             $verified = true;
         }
@@ -66,8 +66,8 @@ $companyCount = 0; $dataCount = 0;
 if ($isLoggedIn) {
     try {
         $db = (new Database())->opendb();
-        $companyCount = $db->query('SELECT COUNT(*) FROM COMPANY')->fetchColumn();
-        $dataCount    = $db->query('SELECT COUNT(*) FROM DATA')->fetchColumn();
+        $companyCount = $db->query('SELECT COUNT(*) FROM company')->fetchColumn();
+        $dataCount    = $db->query('SELECT COUNT(*) FROM data')->fetchColumn();
     } catch (Exception $e) {}
 }
 ?>

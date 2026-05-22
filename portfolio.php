@@ -18,15 +18,15 @@ if (isset($_POST['add_buy'])) {
     $number = (int)   ($_POST['NUMBER']    ?? 0);
     $price  = (float) ($_POST['PRIX_ACHAT']?? 0);
     if ($name && $number > 0 && $price > 0) {
-        $db->prepare('INSERT INTO ACHATS(`DATE`,C_NAME,`NUMBER`,PRIX_ACHAT,ID_USER) VALUES(CURRENT_DATE,?,?,?,?)')
+        $db->prepare('INSERT INTO achats(`DATE`,C_NAME,`NUMBER`,PRIX_ACHAT,ID_USER) VALUES(CURRENT_DATE,?,?,?,?)')
            ->execute([$name,$number,$price,$uid]);
-        $check = $db->prepare('SELECT * FROM PORTEFEUILLE WHERE C_NAME=? AND ID_USER=?');
+        $check = $db->prepare('SELECT * FROM portefeuille WHERE C_NAME=? AND ID_USER=?');
         $check->execute([$name,$uid]);
         if ($check->fetch()) {
-            $db->prepare('UPDATE PORTEFEUILLE SET `NUMBER`=`NUMBER`+?,MONTANT=MONTANT+? WHERE C_NAME=? AND ID_USER=?')
+            $db->prepare('UPDATE portefeuille SET `NUMBER`=`NUMBER`+?,MONTANT=MONTANT+? WHERE C_NAME=? AND ID_USER=?')
                ->execute([$number,$price*$number,$name,$uid]);
         } else {
-            $db->prepare('INSERT INTO PORTEFEUILLE(C_NAME,`NUMBER`,MONTANT,ID_USER) VALUES(?,?,?,?)')
+            $db->prepare('INSERT INTO portefeuille(C_NAME,`NUMBER`,MONTANT,ID_USER) VALUES(?,?,?,?)')
                ->execute([$name,$number,$price*$number,$uid]);
         }
         $flash[] = ['type'=>'success','msg'=>"Achat de {$number} × {$name} enregistré."];
@@ -40,17 +40,17 @@ if (isset($_POST['add_sell'])) {
     $number = (int)   ($_POST['NUMBER2']   ?? 0);
     $price  = (float) ($_POST['PRIX_VENTE']?? 0);
     if ($name && $number > 0 && $price > 0) {
-        $check = $db->prepare('SELECT `NUMBER`,MONTANT FROM PORTEFEUILLE WHERE C_NAME=? AND ID_USER=?');
+        $check = $db->prepare('SELECT `NUMBER`,MONTANT FROM portefeuille WHERE C_NAME=? AND ID_USER=?');
         $check->execute([$name,$uid]);
         $current = $check->fetch();
         if ($current && $number <= (int)$current['NUMBER']) {
-            $db->prepare('INSERT INTO VENTES(`DATE`,C_NAME,`NUMBER`,PRIX_VENTE,ID_USER) VALUES(CURRENT_DATE,?,?,?,?)')
+            $db->prepare('INSERT INTO ventes(`DATE`,C_NAME,`NUMBER`,PRIX_VENTE,ID_USER) VALUES(CURRENT_DATE,?,?,?,?)')
                ->execute([$name,$number,$price,$uid]);
             if ($number == (int)$current['NUMBER']) {
-                $db->prepare('DELETE FROM PORTEFEUILLE WHERE C_NAME=? AND ID_USER=?')->execute([$name,$uid]);
+                $db->prepare('DELETE FROM portefeuille WHERE C_NAME=? AND ID_USER=?')->execute([$name,$uid]);
             } else {
                 $avg  = $current['MONTANT'] / $current['NUMBER'];
-                $db->prepare('UPDATE PORTEFEUILLE SET `NUMBER`=`NUMBER`-?,MONTANT=MONTANT-? WHERE C_NAME=? AND ID_USER=?')
+                $db->prepare('UPDATE portefeuille SET `NUMBER`=`NUMBER`-?,MONTANT=MONTANT-? WHERE C_NAME=? AND ID_USER=?')
                    ->execute([$number,$avg*$number,$name,$uid]);
             }
             $flash[] = ['type'=>'success','msg'=>"Vente de {$number} × {$name} enregistrée."];
@@ -61,17 +61,17 @@ if (isset($_POST['add_sell'])) {
     }
 }
 
-// ─── Save portfolio snapshot to BENEFITS ─────────────────
+// ─── Save portfolio snapshot to benefits ─────────────────
 if (isset($_POST['save_snapshot'])) {
     csrf_verify();
     // Only save once per calendar day
-    $lastDate = $db->prepare('SELECT `DATE` FROM BENEFITS WHERE ID_USER=? ORDER BY `DATE` DESC LIMIT 1');
+    $lastDate = $db->prepare('SELECT `DATE` FROM benefits WHERE ID_USER=? ORDER BY `DATE` DESC LIMIT 1');
     $lastDate->execute([$uid]);
     $lastSaved = $lastDate->fetchColumn();
     $today     = date('Y-m-d');
     if ($lastSaved !== $today) {
         $snapValue = (float) ($_POST['snapshot_value'] ?? 0);
-        $db->prepare('INSERT INTO BENEFITS(`DATE`, VALUE, ID_USER) VALUES (CURRENT_DATE, ?, ?)')
+        $db->prepare('INSERT INTO benefits(`DATE`, VALUE, ID_USER) VALUES (CURRENT_DATE, ?, ?)')
            ->execute([$snapValue, $uid]);
         $flash[] = ['type' => 'success', 'msg' => 'Snapshot P&L enregistré pour aujourd\'hui.'];
     } else {
@@ -206,7 +206,7 @@ if (isset($_POST['sync_market'])) {
     if ($alreadyUp || $weStartedIt) {
 
         // Row counts BEFORE the call so we can compare after
-        $rowsBefore = (int) $db->query('SELECT COUNT(*) FROM `DATA`')->fetchColumn();
+        $rowsBefore = (int) $db->query('SELECT COUNT(*) FROM `data`')->fetchColumn();
 
         $response = httpGet($flaskApi, 30);
 
@@ -217,7 +217,7 @@ if (isset($_POST['sync_market'])) {
                          'Vérifiez que la route <code>/api/get-stocks</code> existe dans GETjson.py.</small>'];
         } else {
             // Row counts AFTER — this is ground truth regardless of what Flask says
-            $rowsAfter = (int) $db->query('SELECT COUNT(*) FROM `DATA`')->fetchColumn();
+            $rowsAfter = (int) $db->query('SELECT COUNT(*) FROM `data`')->fetchColumn();
             $newRows   = $rowsAfter - $rowsBefore;
 
             $result  = json_decode($response, true);
@@ -262,11 +262,11 @@ if (isset($_POST['sync_market'])) {
 }
 
 // ─── Load portfolio data ─────────────────────────────────
-$stmtPf  = $db->prepare('SELECT * FROM PORTEFEUILLE WHERE ID_USER=?');
+$stmtPf  = $db->prepare('SELECT * FROM portefeuille WHERE ID_USER=?');
 $stmtPf->execute([$uid]);
 $holdings = $stmtPf->fetchAll();
 
-$stmtPA = $db->prepare('SELECT PA FROM `DATA` WHERE C_NAME=? ORDER BY DATE DESC LIMIT 1');
+$stmtPA = $db->prepare('SELECT PA FROM `data` WHERE C_NAME=? ORDER BY DATE DESC LIMIT 1');
 
 $chartNames = []; $chartValues = []; $chartBuys = [];
 $totalCurrentVal = 0.0; $totalBuyVal = 0.0;
@@ -290,19 +290,19 @@ $difference  = $totalBuyVal - $totalCurrentVal;  // negative = gain
 $diffDisplay = $difference * (-1);               // positive = gain
 
 // Last snapshot / sync dates
-$lastSnap = $db->prepare('SELECT `DATE` FROM BENEFITS WHERE ID_USER=? ORDER BY `DATE` DESC LIMIT 1');
+$lastSnap = $db->prepare('SELECT `DATE` FROM benefits WHERE ID_USER=? ORDER BY `DATE` DESC LIMIT 1');
 $lastSnap->execute([$uid]);
 $lastSnapDate = $lastSnap->fetchColumn();
 
-$lastSync = $db->query('SELECT `DATE` FROM `DATA` ORDER BY `DATE` DESC LIMIT 1')->fetchColumn();
+$lastSync = $db->query('SELECT `DATE` FROM `data` ORDER BY `DATE` DESC LIMIT 1')->fetchColumn();
 
 // Earnings history
-$benStmt = $db->prepare('SELECT `DATE`,VALUE FROM BENEFITS WHERE ID_USER=? ORDER BY `DATE` DESC');
+$benStmt = $db->prepare('SELECT `DATE`,VALUE FROM benefits WHERE ID_USER=? ORDER BY `DATE` DESC');
 $benStmt->execute([$uid]);
 $earnings = $benStmt->fetchAll();
 
 // Companies list for datalist
-$allCompanies = $db->query('SELECT NAME FROM COMPANY ORDER BY NAME ASC')->fetchAll(PDO::FETCH_COLUMN);
+$allCompanies = $db->query('SELECT NAME FROM company ORDER BY NAME ASC')->fetchAll(PDO::FETCH_COLUMN);
 
 // Default active tab
 $activeTab = $_GET['tab'] ?? 'portfolio';

@@ -64,12 +64,12 @@ function stats(): void
     $pdo = (new Database())->opendb();
     $uid = $_SESSION['ID_USER'];
 
-    $stmt = $pdo->prepare('SELECT DISTINCT C_NAME FROM VENTES WHERE ID_USER = ? ORDER BY C_NAME');
+    $stmt = $pdo->prepare('SELECT DISTINCT C_NAME FROM ventes WHERE ID_USER = ? ORDER BY C_NAME');
     $stmt->execute([$uid]);
     $stocks = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-    $stmtA = $pdo->prepare('SELECT DATE, C_NAME, NUMBER, PRIX_ACHAT FROM ACHATS WHERE C_NAME=? AND ID_USER=? ORDER BY DATE');
-    $stmtV = $pdo->prepare('SELECT DATE, C_NAME, NUMBER, PRIX_VENTE FROM VENTES WHERE C_NAME=? AND ID_USER=? ORDER BY DATE');
+    $stmtA = $pdo->prepare('SELECT DATE, C_NAME, NUMBER, PRIX_ACHAT FROM achats WHERE C_NAME=? AND ID_USER=? ORDER BY DATE');
+    $stmtV = $pdo->prepare('SELECT DATE, C_NAME, NUMBER, PRIX_VENTE FROM ventes WHERE C_NAME=? AND ID_USER=? ORDER BY DATE');
 
     $allBuys  = [];
     $allSells = [];
