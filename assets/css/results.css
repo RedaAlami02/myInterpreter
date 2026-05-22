@@ -1,0 +1,93 @@
+/* results.css */
+.results-wrap { max-width: 860px; margin: 2.5rem auto; padding: 0 20px 60px; }
+
+.company-headline {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+.company-headline h2 {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.company-headline p { color: var(--text-mute); font-size: 0.9rem; margin-top: 6px; }
+
+/* Ratio cards */
+.ratio-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 2.5rem;
+}
+@media (max-width: 768px) { .ratio-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.ratio-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
+  text-align: center;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.ratio-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.ratio-card.green::before  { background: var(--green); }
+.ratio-card.orange::before { background: var(--orange); }
+.ratio-card.red::before    { background: var(--red); }
+.ratio-card:hover { transform: translateY(-5px); box-shadow: var(--shadow); }
+
+.ratio-icon {
+  font-size: 1.4rem;
+  margin-bottom: 12px;
+  opacity: 0.7;
+}
+.ratio-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-mute);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.ratio-value {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.ratio-card.green  .ratio-value { color: var(--green); }
+.ratio-card.orange .ratio-value { color: var(--orange); }
+.ratio-card.red    .ratio-value { color: var(--red); }
+
+/* Save confirm card */
+.save-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0;
+  overflow: hidden;
+}
+@media (max-width: 600px) { .save-card { grid-template-columns: 1fr; } }
+.save-card__info { padding: 32px; }
+.save-card__info h4 { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; margin-bottom: 10px; }
+.save-card__info p  { color: var(--text-dim); font-size: 0.9rem; line-height: 1.6; }
+.save-card__actions {
+  background: rgba(255,255,255,0.02);
+  border-left: 1px solid var(--border);
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+  min-width: 220px;
+}
+@media (max-width: 600px) {
+  .save-card__actions { border-left: none; border-top: 1px solid var(--border); }
+}

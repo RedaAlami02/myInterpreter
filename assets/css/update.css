@@ -1,0 +1,48 @@
+/* update.css */
+.update-wrap { max-width: 680px; margin: 2.5rem auto; padding: 0 20px 40px; }
+
+.field-group {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 20px;
+  transition: border-color 0.2s;
+}
+.field-group:focus-within { border-color: var(--border-hi); }
+
+.field-group-title {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.field-group-title i { font-size: 0.9rem; }
+.field-group-title.cyan   { color: var(--cyan); }
+.field-group-title.violet { color: var(--violet); }
+.field-group-title.emerald{ color: var(--emerald); }
+.field-group-title.amber  { color: var(--amber); }
+
+.required-dot::after {
+  content: '●';
+  color: var(--rose);
+  font-size: 0.5rem;
+  vertical-align: super;
+  margin-left: 4px;
+}
+
+.action-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-top: 28px;
+}
+
+/* Company name input large */
+#floatName { font-family: var(--font-display); font-size: 1.05rem; font-weight: 500; }
