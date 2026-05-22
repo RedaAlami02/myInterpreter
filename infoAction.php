@@ -20,7 +20,7 @@ $dbError      = null;
 // ─── Initial company list ─────────────────────────────────
 try {
     $db           = (new Database())->opendb();
-    $stmt         = $db->query('SELECT NAME FROM COMPANY ORDER BY NAME ASC');
+    $stmt         = $db->query('SELECT NAME FROM company ORDER BY NAME ASC');
     $allCompanies = $stmt->fetchAll(PDO::FETCH_COLUMN);
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
@@ -38,12 +38,12 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
     $name     = trim($_POST['NAME']);
 
     try {
-        $q = $db->prepare('SELECT * FROM COMPANY WHERE NAME = ?');
+        $q = $db->prepare('SELECT * FROM company WHERE NAME = ?');
         $q->execute([$name]);
         $company = $q->fetch();
 
         if ($company) {
-            $q2 = $db->prepare('SELECT * FROM `DATA` WHERE C_NAME = ? ORDER BY `DATE` DESC');
+            $q2 = $db->prepare('SELECT * FROM `data` WHERE C_NAME = ? ORDER BY `DATE` DESC');
             $q2->execute([$name]);
             $history = $q2->fetchAll();
 

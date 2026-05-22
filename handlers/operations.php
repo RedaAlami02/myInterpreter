@@ -59,7 +59,7 @@ $db  = (new Database())->opendb();
 
 $company = new Company($inputs);
 
-$stmt = $db->prepare('SELECT * FROM COMPANY WHERE NAME = ?');
+$stmt = $db->prepare('SELECT * FROM company WHERE NAME = ?');
 $stmt->execute([$inputs['NAME']]);
 $row = $stmt->fetch();
 

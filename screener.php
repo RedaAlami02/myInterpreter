@@ -36,15 +36,15 @@ try {
             d.PB,
             d.DATE,
             (SELECT d2.PA
-             FROM `DATA` d2
+             FROM `data` d2
              WHERE d2.C_NAME = d.C_NAME
                AND d2.DATE < d.DATE
              ORDER BY d2.DATE DESC
              LIMIT 1) AS prev_PA
-        FROM `DATA` d
+        FROM `data` d
         INNER JOIN (
             SELECT C_NAME, MAX(`DATE`) AS latest
-            FROM `DATA`
+            FROM `data`
             GROUP BY C_NAME
         ) m ON d.C_NAME = m.C_NAME AND d.`DATE` = m.latest
         WHERE d.PER > 0

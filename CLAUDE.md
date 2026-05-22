@@ -77,16 +77,16 @@ myInterpreter/
   - Thresholds defined in `config/config.php` (PER_GREEN, PEG_ORANGE, etc.)
 
 #### Portfolio Management
-- **ACHATS** table: buy transactions (date, symbol, quantity, price, user)
-- **VENTES** table: sell transactions (date, symbol, quantity, price, user)
-- **PORTEFEUILLE** table: current holdings (symbol, quantity, total cost basis, user)
+- **achats** table: buy transactions (date, symbol, quantity, price, user)
+- **ventes** table: sell transactions (date, symbol, quantity, price, user)
+- **portefeuille** table: current holdings (symbol, quantity, total cost basis, user)
 - Buy/sell operations in portfolio.php with CSRF protection and validation
 
 #### Data Scraping
 - **GETjson.py**: Fetches live quotes from `https://www.cdgcapitalbourse.ma/api/`
 - Spoofs browser headers (User-Agent, Referer, etc.)
 - Returns JSON with stock symbols, prices, and metrics
-- Can be called from handlers or Update.php to refresh the DATA table
+- Can be called from handlers or Update.php to refresh the data table
 
 ### Page Flows
 
@@ -96,12 +96,12 @@ myInterpreter/
    - Legacy password auto-upgrade on successful login
 
 2. **portfolio.php** (protected)
-   - Add buy: insert into ACHATS and update PORTEFEUILLE
-   - Add sell: validate shares available, insert into VENTES, update PORTEFEUILLE
+   - Add buy: insert into achats and update portefeuille
+   - Add sell: validate shares available, insert into ventes, update portefeuille
    - Flash messages for success/error feedback
 
 3. **screener.php** (protected)
-   - Fetch latest DATA snapshot per company
+   - Fetch latest data snapshot per company
    - Display ratios with color-coded health (green/orange/red)
    - Sort/filter by symbol or metric
 
@@ -124,7 +124,7 @@ Edit `config/config.php` to:
 ## Database Setup
 
 1. Create the `stock` database in MySQL
-2. Import `stock.sql` to set up tables (UTILISATEUR, DATA, ACHATS, VENTES, PORTEFEUILLE, etc.)
+2. Import `stock.sql` to set up tables (utilisateur, data, achats, ventes, portefeuille, etc.)
 3. Update `config/config.php` with your DB credentials
 
 ## Running the Application
@@ -195,7 +195,7 @@ mysql -u root -p stock < stock.sql
 
 ## Performance Considerations
 
-- **Database indexes**: Add on UTILISATEUR.USERNAME, DATA.C_NAME, PORTEFEUILLE.ID_USER
+- **Database indexes**: Add on utilisateur.USERNAME, data.C_NAME, portefeuille.ID_USER
 - **Ratio calculations**: Currently in-memory per page; no caching layer
 - **Scraper API calls**: Rate-limited by CDG Bourse; consider batch/scheduled updates
 - **Session handling**: PHP's default file-based; upgrade to Redis if scaling
@@ -206,6 +206,7 @@ mysql -u root -p stock < stock.sql
 - **Manual password upgrade**: Legacy plain-text passwords auto-convert to bcrypt on login (no separate migration script)
 - **Ratio color coding**: Duplicated in both Company::test() and rateColor() function in screener.php; consider consolidating
 - **Python 2 vs 3**: Scraper uses Python 3 (requires `python3` command)
+- **Table name casing**: All table names are lowercase. Windows MySQL exports them lowercase naturally; Linux imports as-is (no transformation). Never use uppercase table names in SQL queries.
 
 ## Future Improvements
 
