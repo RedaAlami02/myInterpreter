@@ -55,3 +55,6 @@ composer.lock
 
 #scrapping
 /scrapping
+
+#git
+.gitignore
