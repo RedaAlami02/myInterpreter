@@ -538,6 +538,14 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
 
     <!-- ── Tab 3: FIFO History ───────────────────────────────── -->
     <div id="tab-history" class="tab-panel <?= $activeTab==='history'?'active':'' ?>">
+
+      <?php if (!empty($earnings)): ?>
+      <div class="chart-card mb-4">
+        <h5><i class="fas fa-chart-line me-2 t-emerald"></i>Évolution P&L (snapshots)</h5>
+        <canvas id="chartPnl"></canvas>
+      </div>
+      <?php endif; ?>
+
       <div class="card-glass overflow-x-auto">
         <?php require_once 'statistics.php'; stats(); ?>
       </div>
@@ -598,6 +606,57 @@ function makeDoughnut(id, labels, data) {
 
 makeDoughnut('chartCurrent', <?= json_encode($chartNames) ?>, <?= json_encode($chartValues) ?>);
 makeDoughnut('chartBuy',     <?= json_encode($chartNames) ?>, <?= json_encode($chartBuys) ?>);
+<?php endif; ?>
+
+<?php if (!empty($earnings)):
+  $earningsAsc = array_reverse($earnings);
+?>
+const pnlDates  = <?= json_encode(array_column($earningsAsc, 'DATE')) ?>;
+const pnlValues = <?= json_encode(array_map('floatval', array_column($earningsAsc, 'VALUE'))) ?>;
+
+new Chart(document.getElementById('chartPnl'), {
+  type: 'line',
+  data: {
+    labels: pnlDates,
+    datasets: [{
+      data: pnlValues,
+      borderColor: pnlValues[pnlValues.length - 1] >= 0 ? '#10b981' : '#f43f5e',
+      backgroundColor: pnlValues[pnlValues.length - 1] >= 0
+        ? 'rgba(16,185,129,0.08)' : 'rgba(244,63,94,0.08)',
+      borderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      pointBackgroundColor: pnlValues.map(v => v >= 0 ? '#10b981' : '#f43f5e'),
+      fill: true,
+      tension: 0.3,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      datalabels: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => (ctx.parsed.y >= 0 ? '+' : '') + ctx.parsed.y.toFixed(2) + ' MAD'
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#94a3b8', font: { family: 'Inter', size: 11 } },
+        grid:  { color: 'rgba(148,163,184,0.1)' }
+      },
+      y: {
+        ticks: {
+          color: '#94a3b8', font: { family: 'JetBrains Mono', size: 11 },
+          callback: v => (v >= 0 ? '+' : '') + v.toFixed(0)
+        },
+        grid: { color: 'rgba(148,163,184,0.1)' }
+      }
+    }
+  }
+});
 <?php endif; ?>
 </script>
 </body>
