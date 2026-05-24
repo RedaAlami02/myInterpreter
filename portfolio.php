@@ -28,9 +28,9 @@ if (isset($_POST['add_buy'])) {
 
         // Upsert portefeuille
         $pf = aw_list_docs('portefeuille', [
-            'equal("c_name","' . addslashes($name) . '")',
-            'equal("user_id","' . $uid . '")',
-            'limit(1)',
+            q_equal('c_name', $name),
+            q_equal('user_id', $uid),
+            q_limit(1),
         ], $session);
 
         if (!empty($pf)) {
@@ -59,9 +59,9 @@ if (isset($_POST['add_sell'])) {
     $price  = (float) ($_POST['PRIX_VENTE']?? 0);
     if ($name && $number > 0 && $price > 0) {
         $pf = aw_list_docs('portefeuille', [
-            'equal("c_name","' . addslashes($name) . '")',
-            'equal("user_id","' . $uid . '")',
-            'limit(1)',
+            q_equal('c_name', $name),
+            q_equal('user_id', $uid),
+            q_limit(1),
         ], $session);
 
         if (!empty($pf) && $number <= $pf[0]['quantity']) {
@@ -97,9 +97,9 @@ if (isset($_POST['save_snapshot'])) {
     csrf_verify();
     $today    = date('Y-m-d');
     $existing = aw_list_docs('benefits', [
-        'equal("user_id","' . $uid . '")',
-        'equal("date","' . $today . '")',
-        'limit(1)',
+        q_equal('user_id', $uid),
+        q_equal('date', $today),
+        q_limit(1),
     ], $session);
     if (empty($existing)) {
         $snapValue = (float) ($_POST['snapshot_value'] ?? 0);
@@ -116,15 +116,15 @@ if (isset($_POST['save_snapshot'])) {
 
 // ─── Load portfolio data ─────────────────────────────────
 $holdingsDocs = aw_list_docs('portefeuille', [
-    'equal("user_id","' . $uid . '")',
-    'limit(200)',
+    q_equal('user_id', $uid),
+    q_limit(200),
 ], $session);
 
 // Fetch latest price per held company (batch via single data call)
 $heldNames = array_map(fn($h) => $h['c_name'], $holdingsDocs);
 $priceMap  = [];
 if (!empty($heldNames)) {
-    $latestData = aw_list_docs('data', ['orderDesc("date")', 'limit(500)']);
+    $latestData = aw_list_docs('data', [q_order_desc('date'), q_limit(500)]);
     foreach ($latestData as $d) {
         $n = $d['c_name'] ?? '';
         if (!isset($priceMap[$n]) && in_array($n, $heldNames)) {
@@ -160,26 +160,26 @@ $diffDisplay = $totalCurrentVal - $totalBuyVal;  // positive = gain
 
 // Last snapshot date
 $lastSnapDocs = aw_list_docs('benefits', [
-    'equal("user_id","' . $uid . '")',
-    'orderDesc("date")',
-    'limit(1)',
+    q_equal('user_id', $uid),
+    q_order_desc('date'),
+    q_limit(1),
 ], $session);
 $lastSnapDate = $lastSnapDocs[0]['date'] ?? null;
 
 // Last data sync date
-$lastSyncDocs = aw_list_docs('data', ['orderDesc("date")', 'limit(1)']);
+$lastSyncDocs = aw_list_docs('data', [q_order_desc('date'), q_limit(1)]);
 $lastSync = $lastSyncDocs[0]['date'] ?? null;
 
 // Earnings history
 $earningsDocs = aw_list_docs('benefits', [
-    'equal("user_id","' . $uid . '")',
-    'orderDesc("date")',
-    'limit(500)',
+    q_equal('user_id', $uid),
+    q_order_desc('date'),
+    q_limit(500),
 ], $session);
 $earnings = array_map(fn($d) => ['DATE' => $d['date'], 'VALUE' => $d['value']], $earningsDocs);
 
 // Companies list for datalist
-$companyDocs  = aw_list_docs('company', ['orderAsc("name")', 'limit(200)']);
+$companyDocs  = aw_list_docs('company', [q_order_asc('name'), q_limit(200)]);
 $allCompanies = array_column($companyDocs, 'name');
 
 // Default active tab

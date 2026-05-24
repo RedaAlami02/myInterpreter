@@ -25,7 +25,7 @@ $dbError = null;
 try {
     // Fetch up to 500 records ordered newest-first.
     // First occurrence of each c_name = latest; second = previous (for Δ%).
-    $docs = aw_list_docs('data', ['orderDesc("date")', 'limit(500)']);
+    $docs = aw_list_docs('data', [q_order_desc('date'), q_limit(500)]);
 
     $latest = [];  // c_name => doc
     $prev   = [];  // c_name => doc (second occurrence)
