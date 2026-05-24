@@ -1,8 +1,8 @@
 <?php
 session_start();
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../core/Appwrite.php';
 require_once __DIR__ . '/../core/auth.php';
-require_once __DIR__ . '/../core/Database.php';
 require_once __DIR__ . '/../core/Action.php';
 
 requireLogin();
@@ -54,22 +54,19 @@ if (!empty($errors)) {
     exit();
 }
 
-// ─── Build company object, filling blanks from DB ────────────────────────────
-$db  = (new Database())->opendb();
-
+// ─── Build company object, filling blanks from Appwrite ──────────────────────
 $company = new Company($inputs);
 
-$stmt = $db->prepare('SELECT * FROM company WHERE NAME = ?');
-$stmt->execute([$inputs['NAME']]);
-$row = $stmt->fetch();
-
-if ($row) {
-    $company->stored = true;
-    // Fill any blank inputs from the DB record
-    foreach ($inputs as $key => $val) {
-        if ($key === 'NAME') continue;
-        if (empty($val) && isset($row[$key])) {
-            $company->$key = (float) $row[$key];
+$docs = aw_list_docs('company', [q_equal('name', $inputs['NAME']), q_limit(1)]);
+if (!empty($docs)) {
+    $row = $docs[0];
+    $company->stored  = true;
+    $company->_awId   = $row['$id'];   // store doc ID for update later
+    // Map lowercase Appwrite fields to Company uppercase properties
+    $fieldMap = ['BPA' => 'bpa', 'TC5' => 'tc5', 'ROE' => 'roe', 'NA' => 'na', 'CP' => 'cp'];
+    foreach ($fieldMap as $prop => $awField) {
+        if (empty($inputs[$prop]) && isset($row[$awField])) {
+            $company->$prop = (float) $row[$awField];
         }
     }
 }

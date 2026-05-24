@@ -14,8 +14,8 @@ $dbError      = null;
 
 // ─── Initial company list ─────────────────────────────────
 try {
-    $companyDocs  = aw_list_docs('company', [q_order_asc('name'), q_limit(200)]);
-    $allCompanies = array_column($companyDocs, 'name');
+    $companyDocs  = aw_list_docs('company', [q_order_asc('name'), q_limit(500)]);
+    $allCompanies = array_values(array_unique(array_filter(array_column($companyDocs, 'name'))));
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
 }
