@@ -3,6 +3,7 @@ ob_start();
 session_start();
 require_once 'config/config.php';
 require_once 'core/Appwrite.php';
+require_once 'core/auth.php';
 
 // ─── Restore session from cookie ─────────────────────────
 if (!isset($_SESSION['logged_in']) && isset($_COOKIE['aw_session'])) {
