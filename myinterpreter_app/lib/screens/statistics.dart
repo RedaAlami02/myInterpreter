@@ -18,14 +18,18 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   Future<Map<String, dynamic>> _load() async {
+    try {
+    print('DEBUG stats: getting user...');
     final me = await account.get();
     final userId = me.$id;
+    print('DEBUG stats: user=$userId');
 
     final dataRes = await databases.listDocuments(
       databaseId: dbId,
       collectionId: 'data',
       queries: [Query.orderDesc('date'), Query.limit(500)],
     );
+    print('DEBUG stats: got ${dataRes.documents.length} data docs');
     final latest = <String, Map<String, dynamic>>{};
     for (final d in dataRes.documents) {
       final n = d.data['c_name'] as String?;
@@ -75,6 +79,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final taxOwed = totalGain > 0 ? totalGain * taxRate : 0.0;
 
     return {'counts': counts, 'gains': gains, 'totalGain': totalGain, 'taxOwed': taxOwed};
+    } catch (e, st) {
+      print('DEBUG stats ERROR: $e');
+      print('DEBUG stats STACK: $st');
+      rethrow;
+    }
   }
 
   @override
