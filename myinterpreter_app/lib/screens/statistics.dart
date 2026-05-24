@@ -91,23 +91,30 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Widget _perRatingCard(String label, int count, Color color) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 3),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: kSurface,
         borderRadius: BorderRadius.circular(10),
-        border: Border(
-          left: BorderSide(color: color, width: 3),
-          top: const BorderSide(color: kBorder),
-          right: const BorderSide(color: kBorder),
-          bottom: const BorderSide(color: kBorder),
+        border: Border.all(color: kBorder),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: IntrinsicHeight(
+          child: Row(children: [
+            Container(width: 4, color: color),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(children: [
+                  Text(label, style: GoogleFonts.inter(color: kTextMuted, fontSize: 13)),
+                  const Spacer(),
+                  Text('$count', style: GoogleFonts.inter(
+                    color: color, fontSize: 18, fontWeight: FontWeight.w700)),
+                ]),
+              ),
+            ),
+          ]),
         ),
       ),
-      child: Row(children: [
-        Text(label, style: GoogleFonts.inter(color: kTextMuted, fontSize: 13)),
-        const Spacer(),
-        Text('$count', style: GoogleFonts.inter(
-          color: color, fontSize: 18, fontWeight: FontWeight.w700)),
-      ]),
     );
   }
 
