@@ -1,10 +1,5 @@
 <?php
-// ─── Database ─────────────────────────────────────────────────────────────────
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'stock');
-define('DB_PORT', '3306');
+// ─── Appwrite connection constants are defined in core/Appwrite.php ───────────
 
 // ─── App base URL — derived from the HTTP request, never from __FILE__ ────────
 // Using __FILE__ or realpath() follows symlinks, giving the real filesystem path
@@ -24,11 +19,6 @@ if (in_array(basename($_snDir), $_subdirs, true)) {
 }
 define('BASE_URL', $_root === '/' ? '' : rtrim($_root, '/'));
 unset($_subdirs, $_snDir, $_root);
-
-// ─── Scraper API key (used by handlers/GETjson.php) ───────────────────────────
-// Set this to a long random string and use it in your Python scraper:
-//   headers = {'X-API-Key': 'YOUR_SECRET_HERE'}
-define('SCRAPER_API_KEY', 'REPLACE_WITH_A_LONG_RANDOM_SECRET');
 
 // ─── Portfolio ────────────────────────────────────────────────────────────────
 define('TAX_RATE', 0.10);   // 10 % tax applied to gross profit

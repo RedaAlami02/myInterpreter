@@ -1,9 +1,9 @@
 <?php
 /**
  * FIFO statistics partial — included by portfolio.php.
- * session_start() and DB connection are assumed to be active.
+ * session_start() and Appwrite are assumed to be active.
  */
-require_once 'core/Database.php';
+require_once 'core/Appwrite.php';
 
 /* ── FIFO matching ───────────────────────────────────────── */
 function fifoMatch(array $achats, array $ventes): array
@@ -59,23 +59,63 @@ function monofmt(float $n, int $dec = 2): string
     return number_format($n, $dec, '.', ' ');
 }
 
+// Normalize Appwrite document to the format fifoMatch expects
+function normalizeAchat(array $doc): array {
+    return [
+        'DATE'       => $doc['date'] ?? '',
+        'C_NAME'     => $doc['c_name'] ?? '',
+        'NUMBER'     => $doc['quantity'] ?? $doc['number'] ?? 0,
+        'PRIX_ACHAT' => $doc['price'] ?? $doc['prix_achat'] ?? 0,
+    ];
+}
+function normalizeVente(array $doc): array {
+    return [
+        'DATE'       => $doc['date'] ?? '',
+        'C_NAME'     => $doc['c_name'] ?? '',
+        'NUMBER'     => $doc['quantity'] ?? $doc['number'] ?? 0,
+        'PRIX_VENTE' => $doc['price'] ?? $doc['prix_vente'] ?? 0,
+    ];
+}
+
 function stats(): void
 {
-    $pdo = (new Database())->opendb();
-    $uid = $_SESSION['ID_USER'];
+    $uid     = aw_user_id();
+    $session = aw_session();
 
-    $stmt = $pdo->prepare('SELECT DISTINCT C_NAME FROM ventes WHERE ID_USER = ? ORDER BY C_NAME');
-    $stmt->execute([$uid]);
-    $stocks = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    // Fetch all achats and ventes for this user
+    $achatDocs = aw_list_docs('achats', [
+        'equal("user_id","' . $uid . '")',
+        'orderAsc("date")',
+        'limit(500)',
+    ], $session);
+    $venteDocs = aw_list_docs('ventes', [
+        'equal("user_id","' . $uid . '")',
+        'orderAsc("date")',
+        'limit(500)',
+    ], $session);
 
-    $stmtA = $pdo->prepare('SELECT DATE, C_NAME, NUMBER, PRIX_ACHAT FROM achats WHERE C_NAME=? AND ID_USER=? ORDER BY DATE');
-    $stmtV = $pdo->prepare('SELECT DATE, C_NAME, NUMBER, PRIX_VENTE FROM ventes WHERE C_NAME=? AND ID_USER=? ORDER BY DATE');
+    // Get distinct stocks that have been sold
+    $soldStocks = [];
+    foreach ($venteDocs as $v) {
+        $n = $v['c_name'] ?? '';
+        if ($n && !in_array($n, $soldStocks)) $soldStocks[] = $n;
+    }
+    sort($soldStocks);
 
-    $allBuys  = [];
-    $allSells = [];
-    foreach ($stocks as $s) {
-        $stmtA->execute([$s, $uid]); $allBuys[$s]  = $stmtA->fetchAll();
-        $stmtV->execute([$s, $uid]); $allSells[$s] = $stmtV->fetchAll();
+    if (empty($soldStocks)) {
+        echo '<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>Aucune vente enregistrée.</div>';
+        return;
+    }
+
+    // Group by c_name
+    $allBuys = $allSells = [];
+    foreach ($achatDocs as $d) {
+        $n = $d['c_name'] ?? '';
+        if ($n) $allBuys[$n][]  = normalizeAchat($d);
+    }
+    foreach ($venteDocs as $d) {
+        $n = $d['c_name'] ?? '';
+        if ($n) $allSells[$n][] = normalizeVente($d);
     }
 
     $grandTotal = 0.0;
@@ -83,11 +123,6 @@ function stats(): void
     <div class="stats-wrap">
       <h2><i class="fas fa-chart-bar me-2 t-amber"></i>Statistiques P&L</h2>
       <p class="sub">Correspondance FIFO des achats et des ventes par valeur.</p>
-
-      <?php if (empty($stocks)): ?>
-        <div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>Aucune vente enregistrée.</div>
-        <?php return; ?>
-      <?php endif; ?>
 
       <div class="overflow-x-auto">
         <table class="tbl">
@@ -105,8 +140,8 @@ function stats(): void
             </tr>
           </thead>
           <tbody>
-            <?php foreach ($stocks as $stock):
-              $rows = fifoMatch($allBuys[$stock], $allSells[$stock]);
+            <?php foreach ($soldStocks as $stock):
+              $rows = fifoMatch($allBuys[$stock] ?? [], $allSells[$stock] ?? []);
               if (empty($rows)) continue;
               $first = true;
             ?>

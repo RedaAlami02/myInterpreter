@@ -1,12 +1,7 @@
 <?php
-// ── Expose real errors so we can diagnose the 500 ────────────────────────────
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
-
 session_start();
 require_once 'config/config.php';
-require_once 'core/Database.php';
+require_once 'core/Appwrite.php';
 require_once 'core/Action.php';
 
 $allCompanies = [];
@@ -19,18 +14,16 @@ $dbError      = null;
 
 // ─── Initial company list ─────────────────────────────────
 try {
-    $db           = (new Database())->opendb();
-    $stmt         = $db->query('SELECT NAME FROM company ORDER BY NAME ASC');
-    $allCompanies = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $companyDocs  = aw_list_docs('company', ['orderAsc("name")', 'limit(200)']);
+    $allCompanies = array_column($companyDocs, 'name');
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
 }
 
 // ─── Handle search ────────────────────────────────────────
-// Also accept ?name= from screener deep-links (GET parameter)
 if (!$dbError && isset($_GET['name']) && !empty($_GET['name']) && $_SERVER['REQUEST_METHOD'] === 'GET') {
     $_POST['NAME'] = trim($_GET['name']);
-    $_SERVER['REQUEST_METHOD'] = 'POST';   // reuse POST handler
+    $_SERVER['REQUEST_METHOD'] = 'POST';
 }
 
 if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])) {
@@ -38,18 +31,22 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
     $name     = trim($_POST['NAME']);
 
     try {
-        $q = $db->prepare('SELECT * FROM company WHERE NAME = ?');
-        $q->execute([$name]);
-        $company = $q->fetch();
+        $companyRes = aw_list_docs('company', [
+            'equal("name","' . addslashes($name) . '")',
+            'limit(1)',
+        ]);
+        $company = !empty($companyRes) ? $companyRes[0] : null;
 
         if ($company) {
-            $q2 = $db->prepare('SELECT * FROM `data` WHERE C_NAME = ? ORDER BY `DATE` DESC');
-            $q2->execute([$name]);
-            $history = $q2->fetchAll();
+            $history = aw_list_docs('data', [
+                'equal("c_name","' . addslashes($name) . '")',
+                'orderDesc("date")',
+                'limit(500)',
+            ]);
 
             foreach (array_reverse($history) as $row) {
-                $sparkLabels[] = $row['DATE'];
-                $sparkData[]   = (float) $row['PA'];
+                $sparkLabels[] = $row['date'] ?? '';
+                $sparkData[]   = (float)($row['pa'] ?? 0);
             }
         }
     } catch (Throwable $e) {
@@ -171,27 +168,30 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
                 </tr></thead>
                 <tbody>
                   <?php foreach ($history as $row):
-                    $tmp       = $company;
-                    $tmp['PA'] = $row['PA'];
-                    $obj       = new Company($tmp);
-                    $obj->calcul();
-                    $rc        = $obj->test();
+                    $per = (float)($row['per'] ?? 0);
+                    $peg = (float)($row['peg'] ?? 0);
+                    $pr  = (float)($row['pr']  ?? 0);
+                    $pb  = (float)($row['pb']  ?? 0);
+                    $perColor = $per == 0 ? 'none' : ($per < PER_GREEN ? 'green' : ($per < PER_ORANGE ? 'orange' : 'red'));
+                    $pegColor = $peg <= 0 ? 'none' : ($peg < PEG_GREEN ? 'green' : ($peg < PEG_ORANGE ? 'orange' : 'red'));
+                    $prColor  = $pr  == 0 ? 'none' : ($pr  < PR_GREEN  ? 'green' : ($pr  < PR_ORANGE  ? 'orange' : 'red'));
+                    $pbColor  = $pb  == 0 ? 'none' : ($pb  < PB_GREEN  ? 'green' : ($pb  < PB_ORANGE  ? 'orange' : 'red'));
                   ?>
                   <tr>
-                    <td class="date"><?= htmlspecialchars($row['DATE']) ?></td>
-                    <td class="num mono"><?= number_format((float)$row['PA'], 2) ?></td>
-                    <td class="num mono"><?= number_format((float)$row['CB'], 0, ',', ' ') ?></td>
-                    <td class="num mono col-per c-<?= $rc['PER'] ?>">
-                      <?= ((float)$row['PER'] == 0) ? '—' : number_format((float)$row['PER'], 2) ?>
+                    <td class="date"><?= htmlspecialchars($row['date'] ?? '') ?></td>
+                    <td class="num mono"><?= number_format((float)($row['pa'] ?? 0), 2) ?></td>
+                    <td class="num mono"><?= number_format((float)($row['cb'] ?? 0), 0, ',', ' ') ?></td>
+                    <td class="num mono col-per c-<?= $perColor ?>">
+                      <?= $per == 0 ? '—' : number_format($per, 2) ?>
                     </td>
-                    <td class="num mono col-peg c-<?= $rc['PEG'] ?>">
-                      <?= ((float)$row['PEG'] == 0) ? '—' : number_format((float)$row['PEG'], 2) ?>
+                    <td class="num mono col-peg c-<?= $pegColor ?>">
+                      <?= $peg == 0 ? '—' : number_format($peg, 2) ?>
                     </td>
-                    <td class="num mono col-pr c-<?= $rc['PR'] ?>">
-                      <?= ((float)$row['PR']  == 0) ? '—' : number_format((float)$row['PR'],  2) ?>
+                    <td class="num mono col-pr c-<?= $prColor ?>">
+                      <?= $pr == 0 ? '—' : number_format($pr, 2) ?>
                     </td>
-                    <td class="num mono col-pb c-<?= $rc['PB'] ?>">
-                      <?= ((float)$row['PB']  == 0) ? '—' : number_format((float)$row['PB'],  2) ?>
+                    <td class="num mono col-pb c-<?= $pbColor ?>">
+                      <?= $pb == 0 ? '—' : number_format($pb, 2) ?>
                     </td>
                   </tr>
                   <?php endforeach; ?>

@@ -1,7 +1,7 @@
 <?php
 session_start();
 require_once 'config/config.php';
-require_once 'core/Database.php';
+require_once 'core/Appwrite.php';
 require_once 'core/Action.php';
 
 // ─── Helper: color rating for a ratio ────────────────────
@@ -18,84 +18,62 @@ function rateColor(string $ratio, float $val): string {
     return 'none';
 }
 
-// ─── Fetch: latest snapshot per company + previous PA ─────
+// ─── Fetch: latest + previous snapshot per company ────────
 $rows    = [];
 $dbError = null;
 
 try {
-    $db = (new Database())->opendb();
+    // Fetch up to 500 records ordered newest-first.
+    // First occurrence of each c_name = latest; second = previous (for Δ%).
+    $docs = aw_list_docs('data', ['orderDesc("date")', 'limit(500)']);
 
-    $sql = "
-        SELECT
-            d.C_NAME,
-            d.PA,
-            d.CB,
-            d.PER,
-            d.PEG,
-            d.PR,
-            d.PB,
-            d.DATE,
-            (SELECT d2.PA
-             FROM `data` d2
-             WHERE d2.C_NAME = d.C_NAME
-               AND d2.DATE < d.DATE
-             ORDER BY d2.DATE DESC
-             LIMIT 1) AS prev_PA
-        FROM `data` d
-        INNER JOIN (
-            SELECT C_NAME, MAX(`DATE`) AS latest
-            FROM `data`
-            GROUP BY C_NAME
-        ) m ON d.C_NAME = m.C_NAME AND d.`DATE` = m.latest
-        WHERE d.PER > 0
-        ORDER BY d.PER ASC
-    ";
+    $latest = [];  // c_name => doc
+    $prev   = [];  // c_name => doc (second occurrence)
 
-    $stmt = $db->query($sql);
-    $allFetched = $stmt->fetchAll();
-
-    // Deduplicate: keep only the first (= latest) row per company.
-    // Guards against multiple rows sharing the same MAX(DATE) when the DATE
-    // column stores date-only values and several snapshots were inserted same day.
-    $seen    = [];
-    $rawRows = [];
-    foreach ($allFetched as $row) {
-        if (!isset($seen[$row['C_NAME']])) {
-            $seen[$row['C_NAME']] = true;
-            $rawRows[] = $row;
+    foreach ($docs as $d) {
+        $n = $d['c_name'] ?? '';
+        if (!$n) continue;
+        if (!isset($latest[$n])) {
+            $latest[$n] = $d;
+        } elseif (!isset($prev[$n])) {
+            $prev[$n] = $d;
         }
     }
 
-    // Enrich each row with colors and score
-    foreach ($rawRows as $r) {
+    foreach ($latest as $name => $r) {
+        $per = (float)($r['per'] ?? 0);
+        if ($per <= 0) continue;
+
         $colors = [
-            'PER' => rateColor('PER', (float)$r['PER']),
-            'PEG' => rateColor('PEG', (float)$r['PEG']),
-            'PR'  => rateColor('PR',  (float)$r['PR']),
-            'PB'  => rateColor('PB',  (float)$r['PB']),
+            'PER' => rateColor('PER', $per),
+            'PEG' => rateColor('PEG', (float)($r['peg'] ?? 0)),
+            'PR'  => rateColor('PR',  (float)($r['pr']  ?? 0)),
+            'PB'  => rateColor('PB',  (float)($r['pb']  ?? 0)),
         ];
         $score = count(array_filter($colors, fn($c) => $c === 'green'));
 
-        // Price trend
-        $trend = null;
-        if ($r['prev_PA'] !== null && (float)$r['prev_PA'] > 0) {
-            $trend = (((float)$r['PA'] - (float)$r['prev_PA']) / (float)$r['prev_PA']) * 100;
-        }
+        $pa      = (float)($r['pa'] ?? 0);
+        $prevPA  = isset($prev[$name]) ? (float)($prev[$name]['pa'] ?? 0) : 0;
+        $trend   = ($prevPA > 0) ? (($pa - $prevPA) / $prevPA * 100) : null;
 
         $rows[] = [
-            'name'    => $r['C_NAME'],
-            'PA'      => (float)$r['PA'],
-            'CB'      => (float)$r['CB'],
-            'PER'     => (float)$r['PER'],
-            'PEG'     => (float)$r['PEG'],
-            'PR'      => (float)$r['PR'],
-            'PB'      => (float)$r['PB'],
-            'date'    => $r['DATE'],
-            'colors'  => $colors,
-            'score'   => $score,
-            'trend'   => $trend,
+            'name'   => $name,
+            'PA'     => $pa,
+            'CB'     => (float)($r['cb'] ?? 0),
+            'PER'    => $per,
+            'PEG'    => (float)($r['peg'] ?? 0),
+            'PR'     => (float)($r['pr']  ?? 0),
+            'PB'     => (float)($r['pb']  ?? 0),
+            'date'   => $r['date'] ?? '',
+            'colors' => $colors,
+            'score'  => $score,
+            'trend'  => $trend,
         ];
     }
+
+    // Sort by PER ascending
+    usort($rows, fn($a, $b) => $a['PER'] <=> $b['PER']);
+
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
 }
