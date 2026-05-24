@@ -31,7 +31,7 @@ try {
     $prev   = [];  // c_name => doc (second occurrence)
 
     foreach ($docs as $d) {
-        $n = $d['c_name'] ?? '';
+        $n = trim($d['c_name'] ?? '');
         if (!$n) continue;
         if (!isset($latest[$n])) {
             $latest[$n] = $d;

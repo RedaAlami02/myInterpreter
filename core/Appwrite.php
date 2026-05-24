@@ -90,22 +90,22 @@ function aw_list_docs(string $collectionId, array $queries = [], ?string $sessio
 }
 
 // ─── Query builder helpers ─────────────────────────────────────────────────────
-// Appwrite REST API expects JSON-encoded query objects.
+// Use the same string format that Appwrite's official SDKs generate.
 
 function q_equal(string $attr, $val): string {
-    return json_encode(['method' => 'equal', 'attribute' => $attr, 'values' => [$val]]);
+    return sprintf('equal("%s", [%s])', $attr, json_encode($val));
 }
 function q_order_desc(string $attr): string {
-    return json_encode(['method' => 'orderDesc', 'attribute' => $attr, 'values' => []]);
+    return sprintf('orderDesc("%s")', $attr);
 }
 function q_order_asc(string $attr): string {
-    return json_encode(['method' => 'orderAsc', 'attribute' => $attr, 'values' => []]);
+    return sprintf('orderAsc("%s")', $attr);
 }
 function q_limit(int $n): string {
-    return json_encode(['method' => 'limit', 'attribute' => '', 'values' => [$n]]);
+    return sprintf('limit(%d)', $n);
 }
 function q_greater_than(string $attr, $val): string {
-    return json_encode(['method' => 'greaterThan', 'attribute' => $attr, 'values' => [$val]]);
+    return sprintf('greaterThan("%s", [%s])', $attr, json_encode($val));
 }
 
 /**
