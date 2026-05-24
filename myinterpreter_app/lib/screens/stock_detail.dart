@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:appwrite/appwrite.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../appwrite_client.dart';
+import '../main.dart' show kAccent, kBorder, kNegative, kPositive, kSurface, kSurfaceHigh, kTextMuted;
 import 'buy_sell_sheet.dart';
 
 class StockDetailScreen extends StatefulWidget {
@@ -53,12 +55,15 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   void _refresh() => setState(() => _future = _load());
-
   void _setRange(String range) => setState(() { _range = range; _future = _load(); });
 
   Widget _buildChart(List<Map<String, dynamic>> rows) {
     if (rows.isEmpty) {
-      return const SizedBox(height: 220, child: Center(child: Text('No data for this range')));
+      return SizedBox(
+        height: 220,
+        child: Center(child: Text('No data for this range',
+          style: GoogleFonts.inter(color: kTextMuted))),
+      );
     }
     final reversed = rows.reversed.toList();
     final spots = <FlSpot>[];
@@ -77,71 +82,81 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       return date.length >= 10 ? date.substring(0, 10) : date;
     }
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
-        child: SizedBox(
-          height: 220,
-          child: LineChart(
-            LineChartData(
-              minX: 0,
-              maxX: (spots.length - 1).toDouble(),
-              minY: minY - padding,
-              maxY: maxY + padding,
-              gridData: const FlGridData(show: true, drawVerticalLine: false),
-              borderData: FlBorderData(show: false),
-              titlesData: FlTitlesData(
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 48,
-                    getTitlesWidget: (v, _) => Text(v.toStringAsFixed(0),
-                      style: const TextStyle(fontSize: 10)),
-                  ),
-                ),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 28,
-                    interval: spots.length <= 1 ? 1 : (spots.length - 1) / 2,
-                    getTitlesWidget: (v, _) {
-                      final idx = v.round();
-                      if (idx < 0 || idx >= reversed.length) return const SizedBox();
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(labelAt(idx), style: const TextStyle(fontSize: 9)),
-                      );
-                    },
-                  ),
-                ),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              ),
-              lineTouchData: LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipItems: (spots) => spots.map((s) {
-                    final idx = s.x.round();
-                    final date = idx < reversed.length ? labelAt(idx) : '';
-                    return LineTooltipItem('$date\n${s.y.toStringAsFixed(2)} MAD',
-                      const TextStyle(fontSize: 12, color: Colors.white));
-                  }).toList(),
-                ),
-              ),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: spots,
-                  isCurved: true,
-                  color: Theme.of(context).colorScheme.primary,
-                  barWidth: 2,
-                  dotData: const FlDotData(show: false),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-                  ),
-                ),
-              ],
+      padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kBorder),
+      ),
+      child: SizedBox(
+        height: 220,
+        child: LineChart(
+          LineChartData(
+            minX: 0,
+            maxX: (spots.length - 1).toDouble(),
+            minY: minY - padding,
+            maxY: maxY + padding,
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              getDrawingHorizontalLine: (_) => const FlLine(color: kBorder, strokeWidth: 1),
             ),
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 52,
+                  getTitlesWidget: (v, _) => Text(v.toStringAsFixed(0),
+                    style: GoogleFonts.inter(color: kTextMuted, fontSize: 10)),
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 28,
+                  interval: spots.length <= 1 ? 1 : (spots.length - 1) / 2,
+                  getTitlesWidget: (v, _) {
+                    final idx = v.round();
+                    if (idx < 0 || idx >= reversed.length) return const SizedBox();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(labelAt(idx),
+                        style: GoogleFonts.inter(color: kTextMuted, fontSize: 9)),
+                    );
+                  },
+                ),
+              ),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            ),
+            lineTouchData: LineTouchData(
+              touchTooltipData: LineTouchTooltipData(
+                tooltipRoundedRadius: 8,
+                tooltipBorder: const BorderSide(color: kBorder),
+                getTooltipItems: (spots) => spots.map((s) {
+                  final idx = s.x.round();
+                  final date = idx < reversed.length ? labelAt(idx) : '';
+                  return LineTooltipItem('$date\n${s.y.toStringAsFixed(2)} MAD',
+                    GoogleFonts.inter(fontSize: 12, color: kAccent, fontWeight: FontWeight.w600));
+                }).toList(),
+              ),
+            ),
+            lineBarsData: [
+              LineChartBarData(
+                spots: spots,
+                isCurved: true,
+                color: kAccent,
+                barWidth: 2,
+                dotData: const FlDotData(show: false),
+                belowBarData: BarAreaData(
+                  show: true,
+                  color: kAccent.withValues(alpha: 0.10),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -156,7 +171,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 3),
             child: ChoiceChip(
-              label: Text(label, style: const TextStyle(fontSize: 12)),
+              label: Text(label),
               selected: _range == label,
               onSelected: (_) => _setRange(label),
             ),
@@ -188,14 +203,16 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   children: [
                     FloatingActionButton.small(
                       heroTag: 'sell',
-                      backgroundColor: Colors.red,
+                      backgroundColor: kNegative,
+                      foregroundColor: Colors.white,
                       onPressed: () => _openSheet(rows, false),
                       child: const Icon(Icons.remove),
                     ),
                     const SizedBox(height: 8),
                     FloatingActionButton.small(
                       heroTag: 'buy',
-                      backgroundColor: Colors.green,
+                      backgroundColor: kPositive,
+                      foregroundColor: Colors.white,
                       onPressed: () => _openSheet(rows, true),
                       child: const Icon(Icons.add),
                     ),
@@ -206,29 +223,57 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             if (snap.hasError) {
               return Center(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const Icon(Icons.error_outline, size: 48, color: kNegative),
                   const SizedBox(height: 12),
-                  Text('${snap.error}', textAlign: TextAlign.center),
+                  Text('${snap.error}', textAlign: TextAlign.center,
+                    style: const TextStyle(color: kTextMuted)),
                   const SizedBox(height: 12),
                   ElevatedButton(onPressed: _refresh, child: const Text('Retry')),
                 ]),
               );
             }
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+            if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kAccent));
             return RefreshIndicator(
+              color: kAccent,
               onRefresh: () { _refresh(); return Future.value(); },
               child: ListView(
                 children: [
                   _buildChart(rows),
                   _buildRangeSelector(),
-                  const Divider(),
-                  ...rows.map((r) => ListTile(
-                    title: Text('${(r['date']?.toString() ?? '').length >= 10 ? r['date'].toString().substring(0, 10) : (r['date']?.toString() ?? '')} — PA ${r['pa']}'),
-                    subtitle: Text('PER ${r['per']?.toStringAsFixed(2) ?? '-'}  '
-                        'PEG ${r['peg']?.toStringAsFixed(2) ?? '-'}  '
-                        'PR ${r['pr']?.toStringAsFixed(2) ?? '-'}  '
-                        'PB ${r['pb']?.toStringAsFixed(2) ?? '-'}'),
-                  )),
+                  const Divider(height: 16),
+                  ...rows.map((r) {
+                    final date = (r['date']?.toString() ?? '');
+                    final dateShort = date.length >= 10 ? date.substring(0, 10) : date;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: kSurface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: kBorder),
+                      ),
+                      child: Row(children: [
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(dateShort, style: GoogleFonts.inter(
+                            color: kTextMuted, fontSize: 12)),
+                          const SizedBox(height: 2),
+                          Text(
+                            'PER ${r['per']?.toStringAsFixed(2) ?? '-'}  '
+                            'PEG ${r['peg']?.toStringAsFixed(2) ?? '-'}  '
+                            'PR ${r['pr']?.toStringAsFixed(2) ?? '-'}  '
+                            'PB ${r['pb']?.toStringAsFixed(2) ?? '-'}',
+                            style: GoogleFonts.inter(color: kTextMuted, fontSize: 11),
+                          ),
+                        ])),
+                        Text(
+                          r['pa'] != null ? '${r['pa']} MAD' : '—',
+                          style: GoogleFonts.inter(
+                            color: kAccent, fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                      ]),
+                    );
+                  }),
+                  const SizedBox(height: 80),
                 ],
               ),
             );
