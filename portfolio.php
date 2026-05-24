@@ -179,8 +179,8 @@ $earningsDocs = aw_list_docs('benefits', [
 $earnings = array_map(fn($d) => ['DATE' => $d['date'], 'VALUE' => $d['value']], $earningsDocs);
 
 // Companies list for datalist
-$companyDocs  = aw_list_docs('company', [q_order_asc('name'), q_limit(200)]);
-$allCompanies = array_column($companyDocs, 'name');
+$companyDocs  = aw_list_docs('company', [q_order_asc('name'), q_limit(500)]);
+$allCompanies = array_values(array_unique(array_filter(array_column($companyDocs, 'name'))));
 
 // Default active tab
 $activeTab = $_GET['tab'] ?? 'portfolio';
