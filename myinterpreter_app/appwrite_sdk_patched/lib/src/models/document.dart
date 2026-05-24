@@ -48,7 +48,7 @@ class Document implements Model {
       data: Map<String, dynamic>.from(
         map["data"] != null && (map["data"] as Map).isNotEmpty
             ? map["data"]
-            : Map.fromEntries(map.entries.where((e) => !e.key.startsWith("$"))),
+            : Map.fromEntries(map.entries.where((e) => !e.key.startsWith("\$"))),
       ),
     );
   }
