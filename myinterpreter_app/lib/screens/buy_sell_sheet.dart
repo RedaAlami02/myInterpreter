@@ -58,66 +58,66 @@ class _BuySellSheetState extends State<_BuySellSheet> {
       final now = DateTime.now().toUtc().toIso8601String();
 
       if (widget.isBuy) {
-        await tablesDB.createRow(
+        await databases.createDocument(
           databaseId: dbId,
-          tableId: 'achats',
-          rowId: ID.unique(),
+          collectionId: 'achats',
+          documentId: ID.unique(),
           permissions: [Permission.read(Role.user(userId)), Permission.write(Role.user(userId))],
           data: {'user_id': userId, 'c_name': widget.cName, 'quantity': qty, 'price': price, 'date': now},
         );
-        final existing = await tablesDB.listRows(
+        final existing = await databases.listDocuments(
           databaseId: dbId,
-          tableId: 'portefeuille',
+          collectionId: 'portefeuille',
           queries: [Query.equal('user_id', userId), Query.equal('c_name', widget.cName), Query.limit(1)],
         );
-        if (existing.rows.isEmpty) {
-          await tablesDB.createRow(
+        if (existing.documents.isEmpty) {
+          await databases.createDocument(
             databaseId: dbId,
-            tableId: 'portefeuille',
-            rowId: ID.unique(),
+            collectionId: 'portefeuille',
+            documentId: ID.unique(),
             permissions: [Permission.read(Role.user(userId)), Permission.write(Role.user(userId))],
             data: {'user_id': userId, 'c_name': widget.cName, 'quantity': qty, 'total_cost': qty * price},
           );
         } else {
-          final row = existing.rows.first;
-          final oldQty = (row.data['quantity'] as num?)?.toDouble() ?? 0;
-          final oldCost = (row.data['total_cost'] as num?)?.toDouble() ?? 0;
-          await tablesDB.updateRow(
+          final doc = existing.documents.first;
+          final oldQty = (doc.data['quantity'] as num?)?.toDouble() ?? 0;
+          final oldCost = (doc.data['total_cost'] as num?)?.toDouble() ?? 0;
+          await databases.updateDocument(
             databaseId: dbId,
-            tableId: 'portefeuille',
-            rowId: row.$id,
+            collectionId: 'portefeuille',
+            documentId: doc.$id,
             data: {'quantity': oldQty + qty, 'total_cost': oldCost + qty * price},
           );
         }
       } else {
-        final existing = await tablesDB.listRows(
+        final existing = await databases.listDocuments(
           databaseId: dbId,
-          tableId: 'portefeuille',
+          collectionId: 'portefeuille',
           queries: [Query.equal('user_id', userId), Query.equal('c_name', widget.cName), Query.limit(1)],
         );
-        if (existing.rows.isEmpty) throw Exception('No holdings for ${widget.cName}');
-        final row = existing.rows.first;
-        final oldQty = (row.data['quantity'] as num?)?.toDouble() ?? 0;
+        if (existing.documents.isEmpty) throw Exception('No holdings for ${widget.cName}');
+        final doc = existing.documents.first;
+        final oldQty = (doc.data['quantity'] as num?)?.toDouble() ?? 0;
         if (oldQty <= 0) throw Exception('Invalid holding quantity');
         if (qty > oldQty) throw Exception('Cannot sell more than held ($oldQty)');
 
-        await tablesDB.createRow(
+        await databases.createDocument(
           databaseId: dbId,
-          tableId: 'ventes',
-          rowId: ID.unique(),
+          collectionId: 'ventes',
+          documentId: ID.unique(),
           permissions: [Permission.read(Role.user(userId)), Permission.write(Role.user(userId))],
           data: {'user_id': userId, 'c_name': widget.cName, 'quantity': qty, 'price': price, 'date': now},
         );
         final newQty = oldQty - qty;
-        final oldCost = (row.data['total_cost'] as num?)?.toDouble() ?? 0;
+        final oldCost = (doc.data['total_cost'] as num?)?.toDouble() ?? 0;
         final newCost = oldCost * (newQty / oldQty);
         if (newQty <= 0) {
-          await tablesDB.deleteRow(databaseId: dbId, tableId: 'portefeuille', rowId: row.$id);
+          await databases.deleteDocument(databaseId: dbId, collectionId: 'portefeuille', documentId: doc.$id);
         } else {
-          await tablesDB.updateRow(
+          await databases.updateDocument(
             databaseId: dbId,
-            tableId: 'portefeuille',
-            rowId: row.$id,
+            collectionId: 'portefeuille',
+            documentId: doc.$id,
             data: {'quantity': newQty, 'total_cost': newCost},
           );
         }

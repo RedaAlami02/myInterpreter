@@ -31,9 +31,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       _       => DateTime(now.year - 1, now.month, now.day),
     };
     final cutoffStr = cutoff.toUtc().toIso8601String();
-    final res = await tablesDB.listRows(
+    final res = await databases.listDocuments(
       databaseId: dbId,
-      tableId: 'data',
+      collectionId: 'data',
       queries: [
         Query.equal('c_name', widget.name),
         Query.greaterThanEqual('date', cutoffStr),
@@ -41,7 +41,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         Query.limit(2000),
       ],
     );
-    return res.rows.map((d) => d.data).toList();
+    return res.documents.map((d) => d.data).toList();
   }
 
   void _refresh() => setState(() => _future = _load());

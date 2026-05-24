@@ -20,12 +20,12 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
   Future<List<Map<String, dynamic>>> _load() async {
     final me = await account.get();
-    final res = await tablesDB.listRows(
+    final res = await databases.listDocuments(
       databaseId: dbId,
-      tableId: 'portefeuille',
+      collectionId: 'portefeuille',
       queries: [Query.equal('user_id', me.$id), Query.limit(200)],
     );
-    return res.rows.map((d) => d.data).toList();
+    return res.documents.map((d) => d.data).toList();
   }
 
   @override

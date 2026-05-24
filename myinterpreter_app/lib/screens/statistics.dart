@@ -21,13 +21,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final me = await account.get();
     final userId = me.$id;
 
-    final dataRes = await tablesDB.listRows(
+    final dataRes = await databases.listDocuments(
       databaseId: dbId,
-      tableId: 'data',
+      collectionId: 'data',
       queries: [Query.orderDesc('date'), Query.limit(500)],
     );
     final latest = <String, Map<String, dynamic>>{};
-    for (final d in dataRes.rows) {
+    for (final d in dataRes.documents) {
       final n = d.data['c_name'] as String?;
       if (n != null && !latest.containsKey(n)) latest[n] = d.data;
     }
@@ -37,25 +37,25 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       if (k != null && counts.containsKey(k)) counts[k] = counts[k]! + 1;
     }
 
-    final ventesRes = await tablesDB.listRows(
+    final ventesRes = await databases.listDocuments(
       databaseId: dbId,
-      tableId: 'ventes',
+      collectionId: 'ventes',
       queries: [Query.equal('user_id', userId), Query.limit(500)],
     );
-    final achatsRes = await tablesDB.listRows(
+    final achatsRes = await databases.listDocuments(
       databaseId: dbId,
-      tableId: 'achats',
+      collectionId: 'achats',
       queries: [Query.equal('user_id', userId), Query.limit(500)],
     );
 
     final buyMap = <String, List<Map<String, dynamic>>>{};
-    for (final d in achatsRes.rows) {
+    for (final d in achatsRes.documents) {
       final name = d.data['c_name'] as String? ?? '';
       buyMap.putIfAbsent(name, () => []).add(d.data);
     }
 
     final gains = <Map<String, dynamic>>[];
-    for (final d in ventesRes.rows) {
+    for (final d in ventesRes.documents) {
       final name = d.data['c_name'] as String? ?? '';
       final sellPrice = (d.data['price'] as num?)?.toDouble() ?? 0;
       final sellQty = (d.data['quantity'] as num?)?.toDouble() ?? 0;
