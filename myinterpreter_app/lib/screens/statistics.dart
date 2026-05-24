@@ -81,8 +81,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: () {
-        setState(() => _future = _load());
-        return _future;
+        final f = _load();
+        setState(() => _future = f);
+        return f;
       },
       child: FutureBuilder<Map<String, dynamic>>(
         future: _future,
