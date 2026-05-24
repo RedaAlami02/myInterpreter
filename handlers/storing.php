@@ -22,9 +22,16 @@ function store(Company $company): string {
             aw_update_doc('company', $company->_awId, $fundamentals);
         }
     } else {
-        $fundamentals['name'] = $company->NAME;
-        $fundamentals['date'] = date('Y-m-d');
-        aw_create_doc('company', $fundamentals);
+        $existing = aw_list_docs('company', [q_equal('name', $company->NAME), q_limit(1)]);
+        if (!empty($existing)) {
+            if (!empty($fundamentals)) {
+                aw_update_doc('company', $existing[0]['$id'], $fundamentals);
+            }
+        } else {
+            $fundamentals['name'] = $company->NAME;
+            $fundamentals['date'] = date('Y-m-d');
+            aw_create_doc('company', $fundamentals);
+        }
     }
 
     aw_create_doc('data', [

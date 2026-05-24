@@ -220,10 +220,10 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
     <!-- Info row -->
     <div class="sync-row">
       <span class="sync-label"><i class="fas fa-save me-1"></i>Dernier snapshot :</span>
-      <span class="sync-value"><?= htmlspecialchars($lastSnapDate ?: '—') ?></span>
+      <span class="sync-value"><?= fmt_date($lastSnapDate) ?></span>
       <div class="divider"></div>
       <span class="sync-label"><i class="fas fa-sync me-1"></i>Dernier sync :</span>
-      <span class="sync-value"><?= htmlspecialchars($lastSync ?: '—') ?></span>
+      <span class="sync-value"><?= fmt_date($lastSync) ?></span>
     </div>
 
     <!-- Tab navigation -->

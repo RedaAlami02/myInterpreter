@@ -32,6 +32,17 @@ define('PEG_GREEN',   1);   define('PEG_ORANGE',   2);
 define('PR_GREEN',  1.5);   define('PR_ORANGE',  2.0);
 define('PB_GREEN',  2.0);   define('PB_ORANGE',  3.0);
 
+// ─── Date formatting ──────────────────────────────────────────────────────────
+// Converts Appwrite ISO timestamps (2026-05-22T00:00:00.000+00:00) to dd/mm/yyyy
+function fmt_date(?string $iso, string $fallback = '—'): string {
+    if (!$iso) return $fallback;
+    try {
+        return (new DateTime($iso))->format('d/m/Y');
+    } catch (Exception $e) {
+        return $fallback;
+    }
+}
+
 // ─── CSRF helpers ─────────────────────────────────────────────────────────────
 function csrf_token(): string {
     if (session_status() === PHP_SESSION_NONE) session_start();

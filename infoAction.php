@@ -178,7 +178,7 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
                     $pbColor  = $pb  == 0 ? 'none' : ($pb  < PB_GREEN  ? 'green' : ($pb  < PB_ORANGE  ? 'orange' : 'red'));
                   ?>
                   <tr>
-                    <td class="date"><?= htmlspecialchars($row['date'] ?? '') ?></td>
+                    <td class="date"><?= fmt_date($row['date'] ?? '') ?></td>
                     <td class="num mono"><?= number_format((float)($row['pa'] ?? 0), 2) ?></td>
                     <td class="num mono"><?= number_format((float)($row['cb'] ?? 0), 0, ',', ' ') ?></td>
                     <td class="num mono col-per c-<?= $perColor ?>">

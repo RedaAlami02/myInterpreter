@@ -282,7 +282,7 @@ $defaultBelow22 = count(array_filter($rows, fn($r) => $r['PER'] < 22));
                 </td>
                 <!-- 8: Date -->
                 <td class="date-cell" data-val="<?= $r['date'] ?>">
-                  <?= htmlspecialchars($r['date']) ?>
+                  <?= fmt_date($r['date']) ?>
                 </td>
               </tr>
               <?php endforeach; ?>
