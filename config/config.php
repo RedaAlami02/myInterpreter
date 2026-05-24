@@ -20,6 +20,9 @@ if (in_array(basename($_snDir), $_subdirs, true)) {
 define('BASE_URL', $_root === '/' ? '' : rtrim($_root, '/'));
 unset($_subdirs, $_snDir, $_root);
 
+// ─── Admin ────────────────────────────────────────────────────────────────────
+define('ADMIN_USER_ID', '6a124b8900257649d4c1');
+
 // ─── Portfolio ────────────────────────────────────────────────────────────────
 define('TAX_RATE', 0.10);   // 10 % tax applied to gross profit
 

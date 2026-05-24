@@ -2,7 +2,7 @@
 session_start();
 require_once 'config/config.php';
 require_once 'core/auth.php';
-requireLogin();
+requireAdmin();
 
 $old = $_SESSION['old_post'] ?? [];
 unset($_SESSION['old_post']);

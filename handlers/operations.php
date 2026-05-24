@@ -5,7 +5,7 @@ require_once __DIR__ . '/../core/Appwrite.php';
 require_once __DIR__ . '/../core/auth.php';
 require_once __DIR__ . '/../core/Action.php';
 
-requireLogin();
+requireAdmin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ' . BASE_URL . '/Update.php');

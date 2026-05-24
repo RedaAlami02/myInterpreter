@@ -6,22 +6,22 @@ require_once 'core/Appwrite.php';
 
 // ─── Restore session from cookie ─────────────────────────
 if (!isset($_SESSION['logged_in']) && isset($_COOKIE['aw_session'])) {
-    $_SESSION['aw_secret'] = $_COOKIE['aw_session'];
-    $me = aw_get('/account', $_SESSION['aw_secret']);
+    $_SESSION['aw_cookie'] = $_COOKIE['aw_session'];
+    $me = aw_get('/account', $_SESSION['aw_cookie']);
     if (isset($me['body']['$id'])) {
         $_SESSION['logged_in'] = true;
         $_SESSION['USER_ID']   = $me['body']['$id'];
         $_SESSION['USER_EMAIL']= $me['body']['email'] ?? '';
     } else {
         setcookie('aw_session', '', time() - 3600, '/', '', false, true);
-        unset($_SESSION['aw_secret']);
+        unset($_SESSION['aw_cookie']);
     }
 }
 
 // ─── Logout ───────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
-    if (!empty($_SESSION['aw_secret'])) {
-        aw_delete('/account/sessions/current', $_SESSION['aw_secret']);
+    if (!empty($_SESSION['aw_cookie'])) {
+        aw_delete('/account/sessions/current', $_SESSION['aw_cookie']);
     }
     session_destroy();
     setcookie('aw_session', '', time() - 3600, '/', '', false, true);
@@ -63,14 +63,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['login_form']) || iss
 
     $res = aw_post('/account/sessions/email', ['email' => $email, 'password' => $password]);
 
-    if (isset($res['body']['secret'])) {
-        $secret = $res['body']['secret'];
+    if (isset($res['body']['$id'])) {
+        // Store Appwrite session cookies captured from Set-Cookie headers
         $_SESSION['logged_in']  = true;
         $_SESSION['USER_ID']    = $res['body']['userId'];
         $_SESSION['USER_EMAIL'] = $email;
-        $_SESSION['aw_secret']  = $secret;
-        $cookieExpiry = $stay ? time() + 86400 * 30 : 0;  // 0 = session cookie
-        setcookie('aw_session', $secret, $cookieExpiry, '/', '', false, true);
+        $_SESSION['aw_cookie']  = $res['cookies'];  // e.g. "a_session_xxx=...; a_session_xxx_legacy=..."
+        // Also persist in browser cookie for session restore
+        $cookieExpiry = $stay ? time() + 86400 * 30 : 0;
+        setcookie('aw_session', $res['cookies'], $cookieExpiry, '/', '', false, true);
         header('Location: ' . BASE_URL . '/index.php');
         exit();
     } else {
@@ -364,6 +365,7 @@ if ($isLoggedIn) {
       <?php endif; ?>
 
       <div class="nav-cards stagger-children">
+        <?php if (is_admin()): ?>
         <a href="Update.php" class="nav-card c1">
           <div class="nav-icon cyan"><i class="fas fa-plus-circle"></i></div>
           <div class="nav-text">
@@ -372,6 +374,7 @@ if ($isLoggedIn) {
           </div>
           <i class="fas fa-chevron-right nav-arrow"></i>
         </a>
+        <?php endif; ?>
         <a href="infoAction.php" class="nav-card c2">
           <div class="nav-icon emerald"><i class="fas fa-search"></i></div>
           <div class="nav-text">
