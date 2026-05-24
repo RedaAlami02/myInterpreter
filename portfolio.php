@@ -2,61 +2,92 @@
 ob_start();
 session_start();
 require_once 'config/config.php';
+require_once 'core/Appwrite.php';
 require_once 'core/auth.php';
-require_once 'core/Database.php';
 requireLogin();
 
-$db  = (new Database())->opendb();
-$uid = (int) $_SESSION['ID_USER'];
-
-$flash = [];
+$uid     = aw_user_id();
+$session = aw_session();
+$flash   = [];
 
 // ─── Add buy ──────────────────────────────────────────────
 if (isset($_POST['add_buy'])) {
     csrf_verify();
-    $name   = trim($_POST['NAME']     ?? '');
-    $number = (int)   ($_POST['NUMBER']    ?? 0);
+    $name   = trim($_POST['NAME']      ?? '');
+    $number = (float) ($_POST['NUMBER']    ?? 0);
     $price  = (float) ($_POST['PRIX_ACHAT']?? 0);
     if ($name && $number > 0 && $price > 0) {
-        $db->prepare('INSERT INTO achats(`DATE`,C_NAME,`NUMBER`,PRIX_ACHAT,ID_USER) VALUES(CURRENT_DATE,?,?,?,?)')
-           ->execute([$name,$number,$price,$uid]);
-        $check = $db->prepare('SELECT * FROM portefeuille WHERE C_NAME=? AND ID_USER=?');
-        $check->execute([$name,$uid]);
-        if ($check->fetch()) {
-            $db->prepare('UPDATE portefeuille SET `NUMBER`=`NUMBER`+?,MONTANT=MONTANT+? WHERE C_NAME=? AND ID_USER=?')
-               ->execute([$number,$price*$number,$name,$uid]);
+        $perms = aw_user_permissions($uid);
+        aw_create_doc('achats', [
+            'date'      => date('Y-m-d'),
+            'c_name'    => $name,
+            'quantity'  => $number,
+            'price'     => $price,
+            'user_id'   => $uid,
+        ], $perms, $session);
+
+        // Upsert portefeuille
+        $pf = aw_list_docs('portefeuille', [
+            'equal("c_name","' . addslashes($name) . '")',
+            'equal("user_id","' . $uid . '")',
+            'limit(1)',
+        ], $session);
+
+        if (!empty($pf)) {
+            $doc = $pf[0];
+            aw_update_doc('portefeuille', $doc['$id'], [
+                'quantity'   => $doc['quantity'] + $number,
+                'total_cost' => $doc['total_cost'] + $price * $number,
+            ], $session);
         } else {
-            $db->prepare('INSERT INTO portefeuille(C_NAME,`NUMBER`,MONTANT,ID_USER) VALUES(?,?,?,?)')
-               ->execute([$name,$number,$price*$number,$uid]);
+            aw_create_doc('portefeuille', [
+                'c_name'     => $name,
+                'quantity'   => $number,
+                'total_cost' => $price * $number,
+                'user_id'    => $uid,
+            ], $perms, $session);
         }
-        $flash[] = ['type'=>'success','msg'=>"Achat de {$number} × {$name} enregistré."];
+        $flash[] = ['type' => 'success', 'msg' => "Achat de {$number} × {$name} enregistré."];
     }
 }
 
 // ─── Add sell ─────────────────────────────────────────────
 if (isset($_POST['add_sell'])) {
     csrf_verify();
-    $name   = trim($_POST['NAME2']     ?? '');
-    $number = (int)   ($_POST['NUMBER2']   ?? 0);
+    $name   = trim($_POST['NAME2']      ?? '');
+    $number = (float) ($_POST['NUMBER2']   ?? 0);
     $price  = (float) ($_POST['PRIX_VENTE']?? 0);
     if ($name && $number > 0 && $price > 0) {
-        $check = $db->prepare('SELECT `NUMBER`,MONTANT FROM portefeuille WHERE C_NAME=? AND ID_USER=?');
-        $check->execute([$name,$uid]);
-        $current = $check->fetch();
-        if ($current && $number <= (int)$current['NUMBER']) {
-            $db->prepare('INSERT INTO ventes(`DATE`,C_NAME,`NUMBER`,PRIX_VENTE,ID_USER) VALUES(CURRENT_DATE,?,?,?,?)')
-               ->execute([$name,$number,$price,$uid]);
-            if ($number == (int)$current['NUMBER']) {
-                $db->prepare('DELETE FROM portefeuille WHERE C_NAME=? AND ID_USER=?')->execute([$name,$uid]);
+        $pf = aw_list_docs('portefeuille', [
+            'equal("c_name","' . addslashes($name) . '")',
+            'equal("user_id","' . $uid . '")',
+            'limit(1)',
+        ], $session);
+
+        if (!empty($pf) && $number <= $pf[0]['quantity']) {
+            $doc   = $pf[0];
+            $perms = aw_user_permissions($uid);
+            aw_create_doc('ventes', [
+                'date'     => date('Y-m-d'),
+                'c_name'   => $name,
+                'quantity' => $number,
+                'price'    => $price,
+                'user_id'  => $uid,
+            ], $perms, $session);
+
+            if ($number == $doc['quantity']) {
+                aw_delete_doc('portefeuille', $doc['$id'], $session);
             } else {
-                $avg  = $current['MONTANT'] / $current['NUMBER'];
-                $db->prepare('UPDATE portefeuille SET `NUMBER`=`NUMBER`-?,MONTANT=MONTANT-? WHERE C_NAME=? AND ID_USER=?')
-                   ->execute([$number,$avg*$number,$name,$uid]);
+                $avg = $doc['total_cost'] / $doc['quantity'];
+                aw_update_doc('portefeuille', $doc['$id'], [
+                    'quantity'   => $doc['quantity'] - $number,
+                    'total_cost' => $doc['total_cost'] - $avg * $number,
+                ], $session);
             }
-            $flash[] = ['type'=>'success','msg'=>"Vente de {$number} × {$name} enregistrée."];
+            $flash[] = ['type' => 'success', 'msg' => "Vente de {$number} × {$name} enregistrée."];
             header('Location: portfolio.php'); exit();
         } else {
-            $flash[] = ['type'=>'error','msg'=>'Quantité insuffisante en portefeuille.'];
+            $flash[] = ['type' => 'error', 'msg' => 'Quantité insuffisante en portefeuille.'];
         }
     }
 }
@@ -64,245 +95,92 @@ if (isset($_POST['add_sell'])) {
 // ─── Save portfolio snapshot to benefits ─────────────────
 if (isset($_POST['save_snapshot'])) {
     csrf_verify();
-    // Only save once per calendar day
-    $lastDate = $db->prepare('SELECT `DATE` FROM benefits WHERE ID_USER=? ORDER BY `DATE` DESC LIMIT 1');
-    $lastDate->execute([$uid]);
-    $lastSaved = $lastDate->fetchColumn();
-    $today     = date('Y-m-d');
-    if ($lastSaved !== $today) {
+    $today    = date('Y-m-d');
+    $existing = aw_list_docs('benefits', [
+        'equal("user_id","' . $uid . '")',
+        'equal("date","' . $today . '")',
+        'limit(1)',
+    ], $session);
+    if (empty($existing)) {
         $snapValue = (float) ($_POST['snapshot_value'] ?? 0);
-        $db->prepare('INSERT INTO benefits(`DATE`, VALUE, ID_USER) VALUES (CURRENT_DATE, ?, ?)')
-           ->execute([$snapValue, $uid]);
-        $flash[] = ['type' => 'success', 'msg' => 'Snapshot P&L enregistré pour aujourd\'hui.'];
+        aw_create_doc('benefits', [
+            'date'    => $today,
+            'value'   => $snapValue,
+            'user_id' => $uid,
+        ], aw_user_permissions($uid), $session);
+        $flash[] = ['type' => 'success', 'msg' => "Snapshot P&L enregistré pour aujourd'hui."];
     } else {
         $flash[] = ['type' => 'warn', 'msg' => 'Un snapshot a déjà été enregistré aujourd\'hui.'];
     }
 }
 
-// ─── HTTP helpers that bypass allow_url_fopen restrictions ───────────────────
-// Uses cURL when available, falls back to raw fsockopen — never needs
-// allow_url_fopen=On, unlike file_get_contents(http://...).
-
-function flaskPortOpen(string $host = '127.0.0.1', int $port = 5000, float $timeout = 1.5): bool {
-    $sock = @fsockopen($host, $port, $errno, $errstr, $timeout);
-    if ($sock) { fclose($sock); return true; }
-    return false;
-}
-
-function httpGet(string $url, int $timeout = 30): ?string {
-    // ── cURL (preferred) ──────────────────────────────────
-    if (function_exists('curl_init')) {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => $timeout,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_FOLLOWLOCATION => true,
-        ]);
-        $body = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        return ($body !== false && $code >= 200 && $code < 300) ? $body : null;
-    }
-
-    // ── Raw fsockopen fallback ────────────────────────────
-    $parts = parse_url($url);
-    $host  = $parts['host'] ?? '127.0.0.1';
-    $port  = (int) ($parts['port'] ?? 80);
-    $path  = ($parts['path'] ?? '/') .
-             (isset($parts['query']) ? '?' . $parts['query'] : '');
-
-    $sock = @fsockopen($host, $port, $errno, $errstr, 5);
-    if (!$sock) return null;
-
-    stream_set_timeout($sock, $timeout);
-    fwrite($sock, "GET {$path} HTTP/1.0
-Host: {$host}
-Connection: close
-
-");
-
-    $raw = '';
-    while (!feof($sock)) { $raw .= fread($sock, 8192); }
-    fclose($sock);
-
-    // Strip HTTP response headers, return body only
-    $sep = strpos($raw, "\r\n\r\n");
-    return $sep !== false ? substr($raw, $sep + 4) : $raw;
-}
-
-// ─── Sync market data: auto-start Flask, call API, then stop Flask ───────────
-if (isset($_POST['sync_market'])) {
-    csrf_verify();
-
-    $flaskBase  = 'http://127.0.0.1:5000';
-    $flaskApi   = $flaskBase . '/api/get-stocks';
-    $scriptPath = __DIR__ . '/scrapping/GETjson.py';  // user drops file here
-    $pidFile    = sys_get_temp_dir() . '/myinterpreter_flask.pid';
-    // 1. Check if Flask is already running
-    $alreadyUp   = flaskPortOpen();
-    $weStartedIt = false;
-
-    // 2. If not running, start GETjson.py in the background
-    if (!$alreadyUp) {
-        if (!file_exists($scriptPath)) {
-            $flash[] = ['type' => 'warn',
-                'msg' => 'GETjson.py introuvable dans scrapping/. Déposez le fichier et réessayez.'];
-        } else {
-            // Use the project's own venv; fall back to system python3 / python
-            $venvPython = __DIR__ . '/scrapping/.venv_linux/bin/python';
-            if (file_exists($venvPython)) {
-                $python = $venvPython;
-            } else {
-                exec('python3 --version 2>&1', $_, $pyCode);
-                $python = ($pyCode === 0) ? 'python3' : 'python';
-            }
-            $real = realpath($scriptPath);
-
-            if (PHP_OS_FAMILY === 'Windows') {
-                // wmic lets us capture the PID of the spawned process
-                $wmicCmd = 'wmic process call create ' .
-                           '"cmd /c ' . $python . ' "' . str_replace('"', '\\"', $real) . '"' . '" 2>NUL';
-                exec($wmicCmd, $wmicOut);
-                foreach ($wmicOut as $line) {
-                    if (preg_match('/ProcessId\s*=\s*(\d+)/i', $line, $m)) {
-                        file_put_contents($pidFile, trim($m[1]));
-                        break;
-                    }
-                }
-            } else {
-                // Linux/macOS: run in background, capture PID via $!
-                $logFile = sys_get_temp_dir() . '/myinterpreter_flask.log';
-                exec($python . ' ' . escapeshellarg($real) . ' > ' . escapeshellarg($logFile) . ' 2>&1 & echo $!', $pidOut);
-                if (!empty($pidOut[0])) {
-                    file_put_contents($pidFile, trim($pidOut[0]));
-                }
-            }
-            $weStartedIt = true;
-
-            // 3. Poll until Flask responds (max 10 s, every 0.5 s)
-            $ready = false;
-            for ($i = 0; $i < 20; $i++) {
-                usleep(500_000);
-                if (flaskPortOpen()) {
-                    $ready = true;
-                    break;
-                }
-            }
-            if (!$ready) {
-                $pythonLog = (!empty($logFile) && file_exists($logFile))
-                    ? trim(file_get_contents($logFile)) : '';
-                $errDetail = $pythonLog
-                    ? '<br><code style="font-size:0.8rem">' . htmlspecialchars(substr($pythonLog, 0, 400)) . '</code>'
-                    : 'Consultez <a href="debug_sync.php" class="t-cyan">debug_sync.php</a> pour diagnostiquer.';
-                $flash[] = ['type' => 'error',
-                    'msg' => 'Flask n\'a pas démarré dans les délais. ' . $errDetail];
-                $weStartedIt = false;
-            }
-        }
-    }
-
-    // 4. Call the sync endpoint — verify result in the DB ourselves
-    if ($alreadyUp || $weStartedIt) {
-
-        // Row counts BEFORE the call so we can compare after
-        $rowsBefore = (int) $db->query('SELECT COUNT(*) FROM `data`')->fetchColumn();
-
-        $response = httpGet($flaskApi, 30);
-
-        if ($response === null) {
-            $flash[] = ['type' => 'error',
-                'msg' => 'Requête Flask échouée sur ' . $flaskApi .
-                         '<br><small class="muted">Flask tourne mais n\'a pas répondu. ' .
-                         'Vérifiez que la route <code>/api/get-stocks</code> existe dans GETjson.py.</small>'];
-        } else {
-            // Row counts AFTER — this is ground truth regardless of what Flask says
-            $rowsAfter = (int) $db->query('SELECT COUNT(*) FROM `data`')->fetchColumn();
-            $newRows   = $rowsAfter - $rowsBefore;
-
-            $result  = json_decode($response, true);
-            $flaskMsg = htmlspecialchars($result['message'] ?? '—');
-
-            // Build full raw response for transparency
-            $rawPreview = htmlspecialchars(substr($response, 0, 300));
-
-            if ($newRows > 0) {
-                $flash[] = ['type' => 'success',
-                    'msg' => "<i class='fas fa-check-circle me-1'></i> "
-                           . "<strong>{$newRows} nouveau(x) snapshot(s)</strong> insérés dans DATA. "
-                           . "Flask : <em>{$flaskMsg}</em>"];
-            } else {
-                // Flask said OK but nothing landed in DB
-                $flash[] = ['type' => 'warn',
-                    'msg' => "<i class='fas fa-exclamation-triangle me-1'></i>"
-                           . "<strong>Flask a répondu mais aucune ligne n'a été insérée dans DATA.</strong><br>"
-                           . "Message Flask : <em>{$flaskMsg}</em><br>"
-                           . "<small>Réponse brute : <code>{$rawPreview}</code></small><br>"
-                           . "<small>Causes possibles :<br>"
-                           . "① Flask se connecte à une DB différente (vérifiez les credentials dans GETjson.py)<br>"
-                           . "② La table <code>DATA</code> a un nom différent dans GETjson.py<br>"
-                           . "③ Flask fait un INSERT mais gère silencieusement l'erreur<br>"
-                           . "④ GETjson.py n'insère pas dans <code>DATA</code> — il met à jour une autre table</small>"];
-            }
-        }
-    }
-
-    // 5. Stop Flask if we were the ones who started it
-    if ($weStartedIt && file_exists($pidFile)) {
-        $pid = (int) trim(file_get_contents($pidFile));
-        if ($pid > 0) {
-            if (PHP_OS_FAMILY === 'Windows') {
-                exec("taskkill /F /PID {$pid} 2>NUL");
-            } else {
-                exec("kill {$pid} 2>/dev/null");
-            }
-        }
-        @unlink($pidFile);
-    }
-}
-
 // ─── Load portfolio data ─────────────────────────────────
-$stmtPf  = $db->prepare('SELECT * FROM portefeuille WHERE ID_USER=?');
-$stmtPf->execute([$uid]);
-$holdings = $stmtPf->fetchAll();
+$holdingsDocs = aw_list_docs('portefeuille', [
+    'equal("user_id","' . $uid . '")',
+    'limit(200)',
+], $session);
 
-$stmtPA = $db->prepare('SELECT PA FROM `data` WHERE C_NAME=? ORDER BY DATE DESC LIMIT 1');
+// Fetch latest price per held company (batch via single data call)
+$heldNames = array_map(fn($h) => $h['c_name'], $holdingsDocs);
+$priceMap  = [];
+if (!empty($heldNames)) {
+    $latestData = aw_list_docs('data', ['orderDesc("date")', 'limit(500)']);
+    foreach ($latestData as $d) {
+        $n = $d['c_name'] ?? '';
+        if (!isset($priceMap[$n]) && in_array($n, $heldNames)) {
+            $priceMap[$n] = (float)($d['pa'] ?? 0);
+        }
+    }
+}
 
+$holdings = [];
 $chartNames = []; $chartValues = []; $chartBuys = [];
 $totalCurrentVal = 0.0; $totalBuyVal = 0.0;
 
-foreach ($holdings as $h) {
-    $stmtPA->execute([$h['C_NAME']]);
-    $row    = $stmtPA->fetch();
-    $curVal = $row ? $h['NUMBER'] * (float)$row['PA'] : 0;
-    $buyVal = (float) $h['MONTANT'];
-    $chartNames[]  = $h['C_NAME'];
+foreach ($holdingsDocs as $h) {
+    $name   = $h['c_name'];
+    $qty    = (float)($h['quantity'] ?? 0);
+    $cost   = (float)($h['total_cost'] ?? 0);
+    $pa     = $priceMap[$name] ?? 0;
+    $curVal = $pa > 0 ? $qty * $pa : 0;
+
+    $holdings[]    = $h;
+    $chartNames[]  = $name;
     $chartValues[] = round($curVal, 2);
-    $chartBuys[]   = round($buyVal, 2);
+    $chartBuys[]   = round($cost, 2);
     $totalCurrentVal += $curVal;
-    $totalBuyVal     += $buyVal;
-    if (!$row) {
-        $flash[] = ['type' => 'warn', 'msg' => "Prix introuvable pour « {$h['C_NAME']} » — lancez une sync ou ajoutez un snapshot via Update Stock."];
+    $totalBuyVal     += $cost;
+
+    if ($pa <= 0) {
+        $flash[] = ['type' => 'warn', 'msg' => "Prix introuvable pour « {$name } »."];
     }
 }
 
-$difference  = $totalBuyVal - $totalCurrentVal;  // negative = gain
-$diffDisplay = $difference * (-1);               // positive = gain
+$diffDisplay = $totalCurrentVal - $totalBuyVal;  // positive = gain
 
-// Last snapshot / sync dates
-$lastSnap = $db->prepare('SELECT `DATE` FROM benefits WHERE ID_USER=? ORDER BY `DATE` DESC LIMIT 1');
-$lastSnap->execute([$uid]);
-$lastSnapDate = $lastSnap->fetchColumn();
+// Last snapshot date
+$lastSnapDocs = aw_list_docs('benefits', [
+    'equal("user_id","' . $uid . '")',
+    'orderDesc("date")',
+    'limit(1)',
+], $session);
+$lastSnapDate = $lastSnapDocs[0]['date'] ?? null;
 
-$lastSync = $db->query('SELECT `DATE` FROM `data` ORDER BY `DATE` DESC LIMIT 1')->fetchColumn();
+// Last data sync date
+$lastSyncDocs = aw_list_docs('data', ['orderDesc("date")', 'limit(1)']);
+$lastSync = $lastSyncDocs[0]['date'] ?? null;
 
 // Earnings history
-$benStmt = $db->prepare('SELECT `DATE`,VALUE FROM benefits WHERE ID_USER=? ORDER BY `DATE` DESC');
-$benStmt->execute([$uid]);
-$earnings = $benStmt->fetchAll();
+$earningsDocs = aw_list_docs('benefits', [
+    'equal("user_id","' . $uid . '")',
+    'orderDesc("date")',
+    'limit(500)',
+], $session);
+$earnings = array_map(fn($d) => ['DATE' => $d['date'], 'VALUE' => $d['value']], $earningsDocs);
 
 // Companies list for datalist
-$allCompanies = $db->query('SELECT NAME FROM company ORDER BY NAME ASC')->fetchAll(PDO::FETCH_COLUMN);
+$companyDocs  = aw_list_docs('company', ['orderAsc("name")', 'limit(200)']);
+$allCompanies = array_column($companyDocs, 'name');
 
 // Default active tab
 $activeTab = $_GET['tab'] ?? 'portfolio';
@@ -339,20 +217,13 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
       <div class="alert alert-<?= $f['type'] ?>"><i class="fas fa-<?= $f['type']==='success'?'check-circle':'exclamation-triangle' ?> me-2"></i><?= htmlspecialchars($f['msg']) ?></div>
     <?php endforeach; ?>
 
-    <!-- Sync row -->
+    <!-- Info row -->
     <div class="sync-row">
       <span class="sync-label"><i class="fas fa-save me-1"></i>Dernier snapshot :</span>
-      <span class="sync-value"><?= $lastSnapDate ?: '—' ?></span>
+      <span class="sync-value"><?= htmlspecialchars($lastSnapDate ?: '—') ?></span>
       <div class="divider"></div>
       <span class="sync-label"><i class="fas fa-sync me-1"></i>Dernier sync :</span>
-      <span class="sync-value"><?= $lastSync ?: '—' ?></span>
-      <div class="topbar-spacer"></div>
-      <form method="POST" style="display:inline">
-        <?= csrf_field() ?>
-        <button type="submit" name="sync_market" class="btn btn-ghost btn-sm">
-          <i class="fas fa-cloud-download-alt"></i> Sync marché
-        </button>
-      </form>
+      <span class="sync-value"><?= htmlspecialchars($lastSync ?: '—') ?></span>
     </div>
 
     <!-- Tab navigation -->
@@ -424,8 +295,8 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
               $pct = ($cur > 0 && $buy > 0) ? ($pnl / $buy) * 100 : null;
             ?>
             <tr>
-              <td class="label-cell"><?= htmlspecialchars($h['C_NAME']) ?></td>
-              <td class="num mono"><?= (int)$h['NUMBER'] ?></td>
+              <td class="label-cell"><?= htmlspecialchars($h['c_name']) ?></td>
+              <td class="num mono"><?= (int)$h['quantity'] ?></td>
               <td class="num mono"><?= number_format($buy, 2) ?></td>
               <td class="num mono"><?= $cur > 0 ? number_format($cur, 2) : '<span class="muted">—</span>' ?></td>
               <td class="num mono <?= $cls ?>"><?= $cur > 0 ? ($pnl>=0?'+':'') . number_format($pnl,2) : '<span class="muted">—</span>' ?></td>

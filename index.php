@@ -2,19 +2,29 @@
 ob_start();
 session_start();
 require_once 'config/config.php';
-require_once 'core/Database.php';
+require_once 'core/Appwrite.php';
 
 // ─── Restore session from cookie ─────────────────────────
-if (!isset($_SESSION['logged_in']) && isset($_COOKIE['logged_in']) && $_COOKIE['logged_in'] === '1') {
-    $_SESSION['logged_in'] = true;
-    $_SESSION['ID_USER']   = (int) ($_COOKIE['ID_USER'] ?? 0);
+if (!isset($_SESSION['logged_in']) && isset($_COOKIE['aw_session'])) {
+    $_SESSION['aw_secret'] = $_COOKIE['aw_session'];
+    $me = aw_get('/account', $_SESSION['aw_secret']);
+    if (isset($me['body']['$id'])) {
+        $_SESSION['logged_in'] = true;
+        $_SESSION['USER_ID']   = $me['body']['$id'];
+        $_SESSION['USER_EMAIL']= $me['body']['email'] ?? '';
+    } else {
+        setcookie('aw_session', '', time() - 3600, '/', '', false, true);
+        unset($_SESSION['aw_secret']);
+    }
 }
 
 // ─── Logout ───────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
+    if (!empty($_SESSION['aw_secret'])) {
+        aw_delete('/account/sessions/current', $_SESSION['aw_secret']);
+    }
     session_destroy();
-    setcookie('logged_in', '', time() - 3600, '/', '', false, true);
-    setcookie('ID_USER',   '', time() - 3600, '/', '', false, true);
+    setcookie('aw_session', '', time() - 3600, '/', '', false, true);
     header('Location: ' . BASE_URL . '/index.php');
     exit();
 }
@@ -22,53 +32,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
 // ─── Login ────────────────────────────────────────────────
 $loginError = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_form'])) {
-    $username = trim($_POST['username'] ?? '');
+    $email    = trim($_POST['email']    ?? '');
     $password = $_POST['password'] ?? '';
 
-    $db   = (new Database())->opendb();
-    $stmt = $db->prepare('SELECT * FROM utilisateur WHERE USERNAME = ?');
-    $stmt->execute([$username]);
-    $user = $stmt->fetch();
+    $res = aw_post('/account/sessions/email', ['email' => $email, 'password' => $password]);
 
-    $verified = false;
-    if ($user) {
-        if (password_verify($password, $user['PASSWORD'])) {
-            // Modern bcrypt hash — OK
-            $verified = true;
-        } elseif ($user['PASSWORD'] === $password) {
-            // Plain-text (legacy) — verify and migrate to bcrypt immediately
-            $hash = password_hash($password, PASSWORD_BCRYPT);
-            $db->prepare('UPDATE utilisateur SET PASSWORD = ? WHERE ID_USER = ?')
-               ->execute([$hash, $user['ID_USER']]);
-            $verified = true;
-        }
-    }
-
-    if ($verified) {
-        $_SESSION['logged_in'] = true;
-        $_SESSION['ID_USER']   = $user['ID_USER'];
-        $_SESSION['USERNAME']  = $user['USERNAME'];
-        // HttpOnly + SameSite cookies
-        setcookie('logged_in', '1',           time() + 86400 * 30, '/', '', false, true);
-        setcookie('ID_USER',   $user['ID_USER'], time() + 86400 * 30, '/', '', false, true);
+    if (isset($res['body']['secret'])) {
+        $secret = $res['body']['secret'];
+        $_SESSION['logged_in']  = true;
+        $_SESSION['USER_ID']    = $res['body']['userId'];
+        $_SESSION['USER_EMAIL'] = $email;
+        $_SESSION['aw_secret']  = $secret;
+        setcookie('aw_session', $secret, time() + 86400 * 30, '/', '', false, true);
         header('Location: ' . BASE_URL . '/index.php');
         exit();
     } else {
-        $loginError = 'Identifiants incorrects.';
+        $loginError = $res['body']['message'] ?? 'Identifiants incorrects.';
     }
 }
 
 $isLoggedIn = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
-$username   = htmlspecialchars($_SESSION['USERNAME'] ?? '');
+$username   = htmlspecialchars($_SESSION['USER_EMAIL'] ?? '');
 
 // ─── Quick stats for the dashboard ───────────────────────
 $companyCount = 0; $dataCount = 0;
 if ($isLoggedIn) {
-    try {
-        $db = (new Database())->opendb();
-        $companyCount = $db->query('SELECT COUNT(*) FROM company')->fetchColumn();
-        $dataCount    = $db->query('SELECT COUNT(*) FROM data')->fetchColumn();
-    } catch (Exception $e) {}
+    $base = '/databases/' . APPWRITE_DB_ID . '/collections/';
+    $r1   = aw_get($base . 'company/documents?queries[]=' . urlencode('limit(1)'));
+    $r2   = aw_get($base . 'data/documents?queries[]='    . urlencode('limit(1)'));
+    $companyCount = $r1['body']['total'] ?? 0;
+    $dataCount    = $r2['body']['total'] ?? 0;
 }
 ?>
 <!DOCTYPE html>
@@ -234,8 +227,8 @@ if ($isLoggedIn) {
           <?= csrf_field() ?>
           <input type="hidden" name="login_form" value="1">
           <div class="mb-3">
-            <label class="form-label small muted">Nom d'utilisateur</label>
-            <input type="text" name="username" class="form-control" placeholder="username" required autofocus>
+            <label class="form-label small muted">Email</label>
+            <input type="email" name="email" class="form-control" placeholder="email@example.com" required autofocus>
           </div>
           <div class="mb-4">
             <label class="form-label small muted">Mot de passe</label>
