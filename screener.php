@@ -74,6 +74,9 @@ try {
     // Sort by PER ascending
     usort($rows, fn($a, $b) => $a['PER'] <=> $b['PER']);
 
+    // Debug — remove after confirming counts
+    error_log('screener: docs=' . count($docs) . ' latest=' . count($latest) . ' rows=' . count($rows));
+
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
 }
