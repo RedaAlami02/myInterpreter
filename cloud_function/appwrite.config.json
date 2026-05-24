@@ -1,0 +1,32 @@
+{
+    "projectId": "6a12447800077d5113ae",
+    "projectName": "myInterpreter",
+    "endpoint": "https://fra.cloud.appwrite.io/v1",
+    "functions": [
+        {
+            "$id": "6a125537000a4c1668bf",
+            "name": "GETprice",
+            "runtime": "python-3.9",
+            "buildSpecification": "s-0.5vcpu-512mb",
+            "runtimeSpecification": "s-0.5vcpu-512mb",
+            "execute": [
+                "any"
+            ],
+            "events": [],
+            "scopes": [
+                "users.read"
+            ],
+            "schedule": "0 8,11,14 * * 1-5",
+            "timeout": 15,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "src/main.py",
+            "commands": "pip install -r requirements.txt",
+            "ignore": [
+                "__pypackages__"
+            ],
+            "deploymentRetention": 0,
+            "path": "functions/getprice"
+        }
+    ]
+}

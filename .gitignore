@@ -58,3 +58,12 @@ composer.lock
 
 #git
 .gitignore
+
+# Flutter
+myinterpreter_app/build/
+myinterpreter_app/.dart_tool/
+myinterpreter_app/.flutter-plugins
+myinterpreter_app/.flutter-plugins-dependencies
+myinterpreter_app/android/.gradle/
+myinterpreter_app/android/local.properties
+myinterpreter_app/android/.kotlin/
