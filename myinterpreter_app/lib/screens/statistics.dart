@@ -82,10 +82,16 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
 
     final totalGain = gains.fold<double>(0, (s, g) => s + (g['gain'] as double));
-    const taxRate = 0.15;
+    const taxRate = 0.10;
     final taxOwed = totalGain > 0 ? totalGain * taxRate : 0.0;
 
-    return {'counts': counts, 'gains': gains, 'totalGain': totalGain, 'taxOwed': taxOwed};
+    // PER-sorted company list (exclude stocks with null/zero PER)
+    final perList = latest.values
+        .where((r) => (r['per'] as num?) != null && (r['per'] as num) > 0)
+        .toList()
+      ..sort((a, b) => (a['per'] as num).compareTo(b['per'] as num));
+
+    return {'counts': counts, 'gains': gains, 'totalGain': totalGain, 'taxOwed': taxOwed, 'perList': perList};
     } catch (e, st) {
       print('DEBUG stats ERROR: $e');
       print('DEBUG stats STACK: $st');
@@ -155,6 +161,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           final gains = snap.data!['gains'] as List<Map<String, dynamic>>;
           final totalGain = snap.data!['totalGain'] as double;
           final taxOwed = snap.data!['taxOwed'] as double;
+          final perList = snap.data!['perList'] as List<Map<String, dynamic>>;
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -182,6 +189,57 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               _perRatingCard('Undervalued (green)', counts['green'] as int, kPositive),
               _perRatingCard('Fair value (orange)', counts['orange'] as int, const Color(0xFFE3A008)),
               _perRatingCard('Overvalued (red)', counts['red'] as int, kNegative),
+              const SizedBox(height: 20),
+              const Divider(height: 1),
+              const SizedBox(height: 16),
+              Text('Companies by PER', style: GoogleFonts.inter(
+                color: kTextPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text('Sorted lowest → highest (best value first)', style: GoogleFonts.inter(
+                color: kTextMuted, fontSize: 11)),
+              const SizedBox(height: 8),
+              ...perList.asMap().entries.map((entry) {
+                final i = entry.key;
+                final r = entry.value;
+                final per = (r['per'] as num).toDouble();
+                final rating = r['per_rating'] as String?;
+                final ratingColor = switch (rating) {
+                  'green'  => kPositive,
+                  'orange' => const Color(0xFFE3A008),
+                  'red'    => kNegative,
+                  _        => kTextMuted,
+                };
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: kSurface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: kBorder),
+                  ),
+                  child: Row(children: [
+                    SizedBox(
+                      width: 28,
+                      child: Text('${i + 1}', style: GoogleFonts.inter(
+                        color: kTextMuted, fontSize: 12)),
+                    ),
+                    Expanded(
+                      child: Text(r['c_name'] as String? ?? '?', style: GoogleFonts.inter(
+                        color: kTextPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: ratingColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: ratingColor.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(per.toStringAsFixed(1), style: GoogleFonts.inter(
+                        color: ratingColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                    ),
+                  ]),
+                );
+              }),
               const SizedBox(height: 20),
               const Divider(height: 1),
               const SizedBox(height: 16),
@@ -247,7 +305,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ),
                   ])),
                   Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text('Tax (15%)', style: GoogleFonts.inter(color: kTextMuted, fontSize: 12)),
+                    Text('Tax (10%)', style: GoogleFonts.inter(color: kTextMuted, fontSize: 12)),
                     const SizedBox(height: 4),
                     Text('${taxOwed.toStringAsFixed(2)} MAD',
                       style: GoogleFonts.inter(color: kTextMuted, fontSize: 14, fontWeight: FontWeight.w600)),
