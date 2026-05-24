@@ -63,13 +63,18 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final gains = <Map<String, dynamic>>[];
     for (final d in ventesRes.documents) {
       final name = d.data['c_name'] as String? ?? '';
-      final sellPrice = (d.data['price'] as num?)?.toDouble() ?? 0;
-      final sellQty = (d.data['quantity'] as num?)?.toDouble() ?? 0;
+      // Support both new records ('price'/'quantity') and migrated MySQL records ('prix_vente'/'number')
+      final sellPrice = (d.data['price'] as num?)?.toDouble()
+          ?? (d.data['prix_vente'] as num?)?.toDouble() ?? 0;
+      final sellQty = (d.data['quantity'] as num?)?.toDouble()
+          ?? (d.data['number'] as num?)?.toDouble() ?? 0;
       final buys = buyMap[name] ?? [];
       double totalCost = 0, totalQty = 0;
       for (final b in buys) {
-        totalCost += ((b['price'] as num?)?.toDouble() ?? 0) * ((b['quantity'] as num?)?.toDouble() ?? 0);
-        totalQty += (b['quantity'] as num?)?.toDouble() ?? 0;
+        final bp = (b['price'] as num?)?.toDouble() ?? (b['prix_achat'] as num?)?.toDouble() ?? 0;
+        final bq = (b['quantity'] as num?)?.toDouble() ?? (b['number'] as num?)?.toDouble() ?? 0;
+        totalCost += bp * bq;
+        totalQty += bq;
       }
       final avgCost = totalQty > 0 ? totalCost / totalQty : 0.0;
       final gain = (sellPrice - avgCost) * sellQty;
