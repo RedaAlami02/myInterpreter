@@ -208,7 +208,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             }
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
             return RefreshIndicator(
-              onRefresh: () async => _refresh(),
+              onRefresh: () { _refresh(); return Future.value(); },
               child: ListView(
                 children: [
                   _buildChart(rows),

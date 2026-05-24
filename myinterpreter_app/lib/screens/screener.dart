@@ -93,7 +93,11 @@ class _ScreenerScreenState extends State<ScreenerScreen> {
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () async => setState(() => _future = _loadLatest()),
+              onRefresh: () {
+                final f = _loadLatest();
+                setState(() => _future = f);
+                return f;
+              },
               child: ListView.builder(
                 itemCount: rows.length,
                 itemBuilder: (_, i) {

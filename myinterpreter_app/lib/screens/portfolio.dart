@@ -53,9 +53,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       final rows = snap.data!;
       if (rows.isEmpty) return const Center(child: Text('No holdings'));
       return RefreshIndicator(
-        onRefresh: () async {
+        onRefresh: () {
           setState(() => _future = _load());
-          await _future;
+          return _future;
         },
         child: ListView.builder(
           itemCount: rows.length,
