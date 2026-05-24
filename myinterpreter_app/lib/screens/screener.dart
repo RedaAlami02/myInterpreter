@@ -33,11 +33,14 @@ class _ScreenerScreenState extends State<ScreenerScreen> {
       tableId: 'data',
       queries: [Query.orderDesc('date'), Query.limit(500)],
     );
+    print('DEBUG screener: total=${res.total} rows=${res.rows.length}');
+    if (res.rows.isNotEmpty) print('DEBUG first row: ${res.rows.first.data}');
     final latest = <String, Map<String, dynamic>>{};
     for (final d in res.rows) {
       final name = d.data['c_name'] as String?;
       if (name != null && !latest.containsKey(name)) latest[name] = d.data;
     }
+    print('DEBUG deduped companies: ${latest.length}');
     return latest.values.toList();
   }
 
