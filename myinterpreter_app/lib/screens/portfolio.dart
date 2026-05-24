@@ -19,13 +19,23 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
-    final me = await account.get();
-    final res = await databases.listDocuments(
-      databaseId: dbId,
-      collectionId: 'portefeuille',
-      queries: [Query.equal('user_id', me.$id), Query.limit(200)],
-    );
-    return res.documents.map((d) => d.data).toList();
+    try {
+      print('DEBUG portfolio: getting user...');
+      final me = await account.get();
+      print('DEBUG portfolio: user=${me.$id}, fetching portefeuille...');
+      final res = await databases.listDocuments(
+        databaseId: dbId,
+        collectionId: 'portefeuille',
+        queries: [Query.equal('user_id', me.$id), Query.limit(200)],
+      );
+      print('DEBUG portfolio: got ${res.documents.length} rows');
+      if (res.documents.isNotEmpty) print('DEBUG portfolio first: ${res.documents.first.data}');
+      return res.documents.map((d) => d.data).toList();
+    } catch (e, st) {
+      print('DEBUG portfolio ERROR: $e');
+      print('DEBUG portfolio STACK: $st');
+      rethrow;
+    }
   }
 
   @override

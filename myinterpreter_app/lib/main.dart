@@ -23,7 +23,20 @@ class _AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<_AuthGate> {
-  late final Future _future = account.get();
+  late final Future _future = _checkAuth();
+
+  Future _checkAuth() async {
+    try {
+      print('DEBUG auth: checking session...');
+      final me = await account.get();
+      print('DEBUG auth: logged in as ${me.$id}');
+      return me;
+    } catch (e) {
+      print('DEBUG auth: not logged in — $e');
+      rethrow;
+    }
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder(
     future: _future,

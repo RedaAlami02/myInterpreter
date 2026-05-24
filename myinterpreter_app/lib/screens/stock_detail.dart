@@ -23,6 +23,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
+    try {
     final now = DateTime.now();
     final cutoff = switch (_range) {
       'Today' => DateTime(now.year, now.month, now.day),
@@ -41,7 +42,14 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         Query.limit(2000),
       ],
     );
+    print('DEBUG detail: got ${res.documents.length} docs for ${widget.name}');
+    if (res.documents.isNotEmpty) print('DEBUG detail first: ${res.documents.first.data}');
     return res.documents.map((d) => d.data).toList();
+    } catch (e, st) {
+      print('DEBUG detail ERROR: $e');
+      print('DEBUG detail STACK: $st');
+      rethrow;
+    }
   }
 
   void _refresh() => setState(() => _future = _load());
