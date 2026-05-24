@@ -62,6 +62,7 @@ class _BuySellSheetState extends State<_BuySellSheet> {
           databaseId: dbId,
           tableId: 'achats',
           rowId: ID.unique(),
+          permissions: [Permission.read(Role.user(userId)), Permission.write(Role.user(userId))],
           data: {'user_id': userId, 'c_name': widget.cName, 'quantity': qty, 'price': price, 'date': now},
         );
         final existing = await tablesDB.listRows(
@@ -74,6 +75,7 @@ class _BuySellSheetState extends State<_BuySellSheet> {
             databaseId: dbId,
             tableId: 'portefeuille',
             rowId: ID.unique(),
+            permissions: [Permission.read(Role.user(userId)), Permission.write(Role.user(userId))],
             data: {'user_id': userId, 'c_name': widget.cName, 'quantity': qty, 'total_cost': qty * price},
           );
         } else {
@@ -102,6 +104,7 @@ class _BuySellSheetState extends State<_BuySellSheet> {
           databaseId: dbId,
           tableId: 'ventes',
           rowId: ID.unique(),
+          permissions: [Permission.read(Role.user(userId)), Permission.write(Role.user(userId))],
           data: {'user_id': userId, 'c_name': widget.cName, 'quantity': qty, 'price': price, 'date': now},
         );
         final newQty = oldQty - qty;
