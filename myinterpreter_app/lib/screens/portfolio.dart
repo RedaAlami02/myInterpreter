@@ -74,13 +74,13 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   IconButton(
                     icon: const Icon(Icons.sell),
                     onPressed: () async {
-                      await showBuySellSheet(
-                        context,
-                        r['c_name'] as String,
-                        ((r['total_cost'] as num) / (r['quantity'] as num)).toDouble(),
-                        isBuy: false,
-                      );
-                      setState(() => _future = _load());
+                      final name = r['c_name'] as String? ?? '';
+                      final qty = (r['quantity'] as num?)?.toDouble() ?? 0;
+                      final cost = (r['total_cost'] as num?)?.toDouble() ?? 0;
+                      final avg = qty > 0 ? cost / qty : 0.0;
+                      if (name.isEmpty) return;
+                      await showBuySellSheet(context, name, avg, isBuy: false);
+                      if (mounted) setState(() => _future = _load());
                     },
                   ),
                 ],

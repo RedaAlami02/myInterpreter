@@ -115,21 +115,21 @@ class _ScreenerScreenState extends State<ScreenerScreen> {
                         IconButton(
                           icon: const Icon(Icons.add_shopping_cart),
                           onPressed: () async {
-                            await showBuySellSheet(
-                              context,
-                              r['c_name'] as String,
-                              (r['pa'] as num).toDouble(),
-                              isBuy: true,
-                            );
-                            setState(() => _future = _loadLatest());
+                            final name = r['c_name'] as String? ?? '';
+                            final pa = (r['pa'] as num?)?.toDouble() ?? 0.0;
+                            if (name.isEmpty) return;
+                            await showBuySellSheet(context, name, pa, isBuy: true);
+                            if (mounted) setState(() => _future = _loadLatest());
                           },
                         ),
                       ],
                     ),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => StockDetailScreen(name: r['c_name'])),
-                    ),
+                    onTap: () {
+                      final name = r['c_name'] as String? ?? '';
+                      if (name.isEmpty) return;
+                      Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => StockDetailScreen(name: name)));
+                    },
                   );
                 },
               ),

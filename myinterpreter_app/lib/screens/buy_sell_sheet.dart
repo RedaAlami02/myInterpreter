@@ -80,8 +80,8 @@ class _BuySellSheetState extends State<_BuySellSheet> {
           );
         } else {
           final row = existing.rows.first;
-          final oldQty = (row.data['quantity'] as num).toDouble();
-          final oldCost = (row.data['total_cost'] as num).toDouble();
+          final oldQty = (row.data['quantity'] as num?)?.toDouble() ?? 0;
+          final oldCost = (row.data['total_cost'] as num?)?.toDouble() ?? 0;
           await tablesDB.updateRow(
             databaseId: dbId,
             tableId: 'portefeuille',
@@ -97,7 +97,8 @@ class _BuySellSheetState extends State<_BuySellSheet> {
         );
         if (existing.rows.isEmpty) throw Exception('No holdings for ${widget.cName}');
         final row = existing.rows.first;
-        final oldQty = (row.data['quantity'] as num).toDouble();
+        final oldQty = (row.data['quantity'] as num?)?.toDouble() ?? 0;
+        if (oldQty <= 0) throw Exception('Invalid holding quantity');
         if (qty > oldQty) throw Exception('Cannot sell more than held ($oldQty)');
 
         await tablesDB.createRow(
@@ -108,7 +109,7 @@ class _BuySellSheetState extends State<_BuySellSheet> {
           data: {'user_id': userId, 'c_name': widget.cName, 'quantity': qty, 'price': price, 'date': now},
         );
         final newQty = oldQty - qty;
-        final oldCost = (row.data['total_cost'] as num).toDouble();
+        final oldCost = (row.data['total_cost'] as num?)?.toDouble() ?? 0;
         final newCost = oldCost * (newQty / oldQty);
         if (newQty <= 0) {
           await tablesDB.deleteRow(databaseId: dbId, tableId: 'portefeuille', rowId: row.$id);
