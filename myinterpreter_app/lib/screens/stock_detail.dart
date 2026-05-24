@@ -27,7 +27,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final cutoff = switch (_range) {
       'Today' => DateTime(now.year, now.month, now.day),
       'Week'  => now.subtract(const Duration(days: 7)),
-      'Month' => DateTime(now.year, now.month - 1, now.day),
+      'Month' => now.subtract(const Duration(days: 30)),
       _       => DateTime(now.year - 1, now.month, now.day),
     };
     final cutoffStr = cutoff.toUtc().toIso8601String();
@@ -215,7 +215,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   _buildRangeSelector(),
                   const Divider(),
                   ...rows.map((r) => ListTile(
-                    title: Text('${r['date']?.toString().substring(0, 10) ?? ''} — PA ${r['pa']}'),
+                    title: Text('${(r['date']?.toString() ?? '').length >= 10 ? r['date'].toString().substring(0, 10) : (r['date']?.toString() ?? '')} — PA ${r['pa']}'),
                     subtitle: Text('PER ${r['per']?.toStringAsFixed(2) ?? '-'}  '
                         'PEG ${r['peg']?.toStringAsFixed(2) ?? '-'}  '
                         'PR ${r['pr']?.toStringAsFixed(2) ?? '-'}  '
