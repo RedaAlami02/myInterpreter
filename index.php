@@ -29,11 +29,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
     exit();
 }
 
-// ─── Login ────────────────────────────────────────────────
-$loginError = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_form'])) {
+// ─── Sign up ──────────────────────────────────────────────
+$loginError  = '';
+$isSignUp    = false;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signup_form'])) {
+    $isSignUp = true;
     $email    = trim($_POST['email']    ?? '');
-    $password = $_POST['password'] ?? '';
+    $password = $_POST['password']      ?? '';
+    $name     = trim($_POST['name']     ?? '');
+
+    $res = aw_post('/account', [
+        'userId'   => 'unique()',
+        'email'    => $email,
+        'password' => $password,
+        'name'     => $name ?: null,
+    ]);
+    if (isset($res['body']['$id'])) {
+        // Account created — now log in
+        $_POST['login_form'] = '1';
+        $_POST['stay'] = $_POST['stay'] ?? '';
+        // Fall through to login below by re-setting method flag
+        $loginSignup = true;
+    } else {
+        $loginError = $res['body']['message'] ?? 'Inscription échouée.';
+    }
+}
+
+// ─── Login ────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['login_form']) || isset($loginSignup))) {
+    $email    = trim($_POST['email']    ?? '');
+    $password = $_POST['password']      ?? '';
+    $stay     = !empty($_POST['stay']);
 
     $res = aw_post('/account/sessions/email', ['email' => $email, 'password' => $password]);
 
@@ -43,7 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_form'])) {
         $_SESSION['USER_ID']    = $res['body']['userId'];
         $_SESSION['USER_EMAIL'] = $email;
         $_SESSION['aw_secret']  = $secret;
-        setcookie('aw_session', $secret, time() + 86400 * 30, '/', '', false, true);
+        $cookieExpiry = $stay ? time() + 86400 * 30 : 0;  // 0 = session cookie
+        setcookie('aw_session', $secret, $cookieExpiry, '/', '', false, true);
         header('Location: ' . BASE_URL . '/index.php');
         exit();
     } else {
@@ -58,8 +85,8 @@ $username   = htmlspecialchars($_SESSION['USER_EMAIL'] ?? '');
 $companyCount = 0; $dataCount = 0;
 if ($isLoggedIn) {
     $base = '/databases/' . APPWRITE_DB_ID . '/collections/';
-    $r1   = aw_get($base . 'company/documents?queries[]=' . urlencode('limit(1)'));
-    $r2   = aw_get($base . 'data/documents?queries[]='    . urlencode('limit(1)'));
+    $r1   = aw_get($base . 'company/documents?' . http_build_query(['queries[0]' => q_limit(1)]));
+    $r2   = aw_get($base . 'data/documents?'    . http_build_query(['queries[0]' => q_limit(1)]));
     $companyCount = $r1['body']['total'] ?? 0;
     $dataCount    = $r2['body']['total'] ?? 0;
 }
@@ -223,19 +250,64 @@ if ($isLoggedIn) {
         <?php if ($loginError): ?>
           <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i><?= htmlspecialchars($loginError) ?></div>
         <?php endif; ?>
-        <form method="POST" action="" data-loading>
+
+        <!-- Tab toggle -->
+        <div class="d-flex mb-4" style="gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <button type="button" id="tabLogin"  onclick="switchAuthTab('login')"
+            class="btn btn-sm flex-fill" style="border-radius:0;border:none;padding:8px">
+            <i class="fas fa-sign-in-alt me-1"></i>Connexion
+          </button>
+          <button type="button" id="tabSignup" onclick="switchAuthTab('signup')"
+            class="btn btn-sm flex-fill" style="border-radius:0;border:none;border-left:1px solid var(--border);padding:8px">
+            <i class="fas fa-user-plus me-1"></i>Inscription
+          </button>
+        </div>
+
+        <!-- Login form -->
+        <form id="formLogin" method="POST" action="" data-loading>
           <?= csrf_field() ?>
           <input type="hidden" name="login_form" value="1">
           <div class="mb-3">
             <label class="form-label small muted">Email</label>
             <input type="email" name="email" class="form-control" placeholder="email@example.com" required autofocus>
           </div>
-          <div class="mb-4">
+          <div class="mb-3">
             <label class="form-label small muted">Mot de passe</label>
             <input type="password" name="password" class="form-control" placeholder="••••••••" required>
           </div>
+          <div class="mb-4 d-flex align-items-center gap-2">
+            <input type="checkbox" name="stay" id="stayLogin" value="1" checked
+              style="width:16px;height:16px;accent-color:var(--cyan);cursor:pointer">
+            <label for="stayLogin" class="mb-0 small muted" style="cursor:pointer">Rester connecté</label>
+          </div>
           <button type="submit" name="login_form" class="btn btn-cyan w-100 btn-lg" data-loading-text="Vérification...">
             <i class="fas fa-sign-in-alt"></i> Se connecter
+          </button>
+        </form>
+
+        <!-- Sign up form -->
+        <form id="formSignup" method="POST" action="" data-loading style="display:none">
+          <?= csrf_field() ?>
+          <input type="hidden" name="signup_form" value="1">
+          <div class="mb-3">
+            <label class="form-label small muted">Nom (optionnel)</label>
+            <input type="text" name="name" class="form-control" placeholder="Votre nom">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small muted">Email</label>
+            <input type="email" name="email" class="form-control" placeholder="email@example.com" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small muted">Mot de passe</label>
+            <input type="password" name="password" class="form-control" placeholder="••••••••" minlength="8" required>
+          </div>
+          <div class="mb-4 d-flex align-items-center gap-2">
+            <input type="checkbox" name="stay" id="staySignup" value="1" checked
+              style="width:16px;height:16px;accent-color:var(--cyan);cursor:pointer">
+            <label for="staySignup" class="mb-0 small muted" style="cursor:pointer">Rester connecté</label>
+          </div>
+          <button type="submit" name="signup_form" class="btn btn-cyan w-100 btn-lg" data-loading-text="Création...">
+            <i class="fas fa-user-plus"></i> Créer un compte
           </button>
         </form>
       </div>
@@ -339,12 +411,26 @@ if ($isLoggedIn) {
     setTimeout(() => document.getElementById('tagline').classList.add('show'), 200);
   });
 
-  // Auto-open modal if login error
+  function switchAuthTab(tab) {
+    const isLogin = tab === 'login';
+    document.getElementById('formLogin').style.display  = isLogin ? '' : 'none';
+    document.getElementById('formSignup').style.display = isLogin ? 'none' : '';
+    document.getElementById('tabLogin').style.background  = isLogin ? 'rgba(34,211,238,0.12)' : '';
+    document.getElementById('tabLogin').style.color       = isLogin ? 'var(--cyan)' : '';
+    document.getElementById('tabSignup').style.background = isLogin ? '' : 'rgba(34,211,238,0.12)';
+    document.getElementById('tabSignup').style.color      = isLogin ? '' : 'var(--cyan)';
+  }
+
+  // Auto-open modal if error
   <?php if ($loginError): ?>
     document.addEventListener('DOMContentLoaded', () => {
       new bootstrap.Modal(document.getElementById('loginModal')).show();
+      switchAuthTab('<?= $isSignUp ? 'signup' : 'login' ?>');
     });
   <?php endif; ?>
+
+  // Init tab style
+  document.addEventListener('DOMContentLoaded', () => switchAuthTab('login'));
 </script>
 </body>
 </html>

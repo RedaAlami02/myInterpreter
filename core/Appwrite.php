@@ -75,7 +75,7 @@ function aw_delete(string $path, ?string $session = null): array
 
 /**
  * List documents from a collection.
- * $queries: Appwrite query strings, e.g. ['equal("c_name","ATTIJARIWAFA")', 'limit(500)']
+ * $queries: use the q_*() helper functions below, e.g. [q_order_desc('date'), q_limit(500)]
  */
 function aw_list_docs(string $collectionId, array $queries = [], ?string $session = null): array
 {
@@ -87,6 +87,25 @@ function aw_list_docs(string $collectionId, array $queries = [], ?string $sessio
     $path = '/databases/' . APPWRITE_DB_ID . '/collections/' . $collectionId . '/documents' . $qs;
     $res  = aw_get($path, $session);
     return $res['body']['documents'] ?? [];
+}
+
+// ─── Query builder helpers ─────────────────────────────────────────────────────
+// Appwrite REST API expects JSON-encoded query objects.
+
+function q_equal(string $attr, $val): string {
+    return json_encode(['method' => 'equal', 'attribute' => $attr, 'values' => [$val]]);
+}
+function q_order_desc(string $attr): string {
+    return json_encode(['method' => 'orderDesc', 'attribute' => $attr, 'values' => []]);
+}
+function q_order_asc(string $attr): string {
+    return json_encode(['method' => 'orderAsc', 'attribute' => $attr, 'values' => []]);
+}
+function q_limit(int $n): string {
+    return json_encode(['method' => 'limit', 'attribute' => '', 'values' => [$n]]);
+}
+function q_greater_than(string $attr, $val): string {
+    return json_encode(['method' => 'greaterThan', 'attribute' => $attr, 'values' => [$val]]);
 }
 
 /**

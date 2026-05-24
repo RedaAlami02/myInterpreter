@@ -14,7 +14,7 @@ $dbError      = null;
 
 // ─── Initial company list ─────────────────────────────────
 try {
-    $companyDocs  = aw_list_docs('company', ['orderAsc("name")', 'limit(200)']);
+    $companyDocs  = aw_list_docs('company', [q_order_asc('name'), q_limit(200)]);
     $allCompanies = array_column($companyDocs, 'name');
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
@@ -32,16 +32,16 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
 
     try {
         $companyRes = aw_list_docs('company', [
-            'equal("name","' . addslashes($name) . '")',
-            'limit(1)',
+            q_equal('name', $name),
+            q_limit(1),
         ]);
         $company = !empty($companyRes) ? $companyRes[0] : null;
 
         if ($company) {
             $history = aw_list_docs('data', [
-                'equal("c_name","' . addslashes($name) . '")',
-                'orderDesc("date")',
-                'limit(500)',
+                q_equal('c_name', $name),
+                q_order_desc('date'),
+                q_limit(500),
             ]);
 
             foreach (array_reverse($history) as $row) {
