@@ -4,10 +4,9 @@ packages:
   appwrite:
     dependency: "direct main"
     description:
-      name: appwrite
-      sha256: "954e24c094252cc13d2d74fe7e684b0f88de5611e1b110c10217bee889ce2496"
-      url: "https://pub.dev"
-    source: hosted
+      path: appwrite_sdk_patched
+      relative: true
+    source: path
     version: "24.2.0"
   args:
     dependency: transitive
@@ -240,6 +239,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  google_fonts:
+    dependency: "direct main"
+    description:
+      name: google_fonts
+      sha256: ba03d03bcaa2f6cb7bd920e3b5027181db75ab524f8891c8bc3aa603885b8055
+      url: "https://pub.dev"
+    source: hosted
+    version: "6.3.3"
   hooks:
     dependency: transitive
     description:

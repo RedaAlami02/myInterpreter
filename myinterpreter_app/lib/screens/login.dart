@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:appwrite/appwrite.dart';
 import '../appwrite_client.dart';
+import '../main.dart' show kAccent, kBg, kNegative, kSurface, kBorder, kTextPrimary, kTextMuted;
 import 'home.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -34,19 +36,77 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('myInterpreter')),
-    body: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        TextField(controller: _email, decoration: const InputDecoration(labelText: 'Email')),
-        TextField(controller: _password, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
-        const SizedBox(height: 16),
-        if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
-        ElevatedButton(
-          onPressed: _loading ? null : _login,
-          child: Text(_loading ? '...' : 'Log in'),
+    body: SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'myInterpreter',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: kAccent,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Bourse de Casablanca',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(color: kTextMuted, fontSize: 13),
+              ),
+              const SizedBox(height: 40),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: kSurface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Sign in', style: GoogleFonts.inter(
+                      color: kTextPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(labelText: 'Email'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _password,
+                      obscureText: true,
+                      decoration: const InputDecoration(labelText: 'Password'),
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(_error!, style: TextStyle(color: kNegative, fontSize: 13)),
+                    ],
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _login,
+                        child: _loading
+                            ? const SizedBox(height: 20, width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: kBg))
+                            : const Text('Log in'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ]),
+      ),
     ),
   );
 }

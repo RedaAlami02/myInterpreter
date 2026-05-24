@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:appwrite/appwrite.dart';
 import '../appwrite_client.dart';
+import '../main.dart' show kBorder, kNegative, kPositive, kSurface, kTextMuted, kTextPrimary;
 
 Future<bool> showBuySellSheet(
   BuildContext context,
@@ -11,6 +13,10 @@ Future<bool> showBuySellSheet(
   final result = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
+    backgroundColor: kSurface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
     builder: (ctx) => _BuySellSheet(cName: cName, defaultPrice: defaultPrice, isBuy: isBuy),
   );
   return result ?? false;
@@ -130,29 +136,73 @@ class _BuySellSheetState extends State<_BuySellSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final actionColor = widget.isBuy ? kPositive : kNegative;
     return Padding(
       padding: EdgeInsets.only(
-        left: 16, right: 16, top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        left: 20, right: 20, top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text('${widget.isBuy ? 'Buy' : 'Sell'} ${widget.cName}',
-          style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 16),
-        TextField(controller: _qtyCtrl, keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Quantity', border: OutlineInputBorder())),
+        // handle bar
+        Center(
+          child: Container(
+            width: 36, height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: kBorder, borderRadius: BorderRadius.circular(2)),
+          ),
+        ),
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: actionColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(widget.isBuy ? Icons.trending_up : Icons.trending_down,
+              color: actionColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              widget.isBuy ? 'Buy' : 'Sell',
+              style: GoogleFonts.inter(color: kTextMuted, fontSize: 12),
+            ),
+            Text(widget.cName, style: GoogleFonts.inter(
+              color: kTextPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+          ])),
+        ]),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _qtyCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Quantity'),
+        ),
         const SizedBox(height: 12),
-        TextField(controller: _priceCtrl, keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Price (MAD)', border: OutlineInputBorder())),
+        TextField(
+          controller: _priceCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Price (MAD)'),
+        ),
         if (_error != null) ...[
-          const SizedBox(height: 8),
-          Text(_error!, style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 10),
+          Text(_error!, style: GoogleFonts.inter(color: kNegative, fontSize: 13)),
         ],
-        const SizedBox(height: 16),
-        ElevatedButton(
-          onPressed: _loading ? null : _submit,
-          child: _loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : Text(widget.isBuy ? 'Buy' : 'Sell'),
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 48,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: actionColor,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: _loading ? null : _submit,
+            child: _loading
+                ? const SizedBox(height: 20, width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : Text(widget.isBuy ? 'Confirm Buy' : 'Confirm Sell',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+          ),
         ),
       ]),
     );
