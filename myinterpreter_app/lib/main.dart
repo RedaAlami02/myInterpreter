@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'appwrite_client.dart';
 import 'screens/login.dart';
 import 'screens/home.dart';
@@ -173,6 +174,14 @@ class _AuthGateState extends State<_AuthGate> {
 
   Future _checkAuth() async {
     try {
+      const storage = FlutterSecureStorage();
+      final stay = await storage.read(key: 'stay_logged_in');
+      if (stay == 'false') {
+        // User opted out of staying logged in — log them out
+        await storage.delete(key: 'stay_logged_in');
+        try { await account.deleteSession(sessionId: 'current'); } catch (_) {}
+        throw Exception('not staying logged in');
+      }
       print('DEBUG auth: checking session...');
       final me = await account.get();
       print('DEBUG auth: logged in as ${me.$id}');
