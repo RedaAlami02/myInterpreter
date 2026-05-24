@@ -84,13 +84,14 @@ $isLoggedIn = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
 $username   = htmlspecialchars($_SESSION['USER_EMAIL'] ?? '');
 
 // ─── Quick stats for the dashboard ───────────────────────
-$companyCount = 0; $dataCount = 0;
+$companyCount = 0; $snapshotDays = 0;
 if ($isLoggedIn) {
     $base = '/databases/' . APPWRITE_DB_ID . '/collections/';
     $r1   = aw_get($base . 'company/documents?' . http_build_query(['queries[0]' => q_limit(1)]));
-    $r2   = aw_get($base . 'data/documents?'    . http_build_query(['queries[0]' => q_limit(1)]));
     $companyCount = $r1['body']['total'] ?? 0;
-    $dataCount    = $r2['body']['total'] ?? 0;
+    $start = new DateTime('2026-05-22');
+    $today = new DateTime('today');
+    $snapshotDays = (int)$start->diff($today)->days;
 }
 ?>
 <!DOCTYPE html>
@@ -355,8 +356,8 @@ if ($isLoggedIn) {
             <div class="dash-stat__lbl">Sociétés</div>
           </div>
           <div class="dash-stat">
-            <div class="dash-stat__val"><?= (int)$dataCount ?></div>
-            <div class="dash-stat__lbl">Snapshots</div>
+            <div class="dash-stat__val"><?= (int)$snapshotDays ?></div>
+            <div class="dash-stat__lbl">Jours de snapshots</div>
           </div>
         </div>
       <?php endif; ?>

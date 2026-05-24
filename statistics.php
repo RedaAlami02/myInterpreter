@@ -159,12 +159,12 @@ function stats(): void
                     $cls = $r['benefice'] > 0 ? 'pos' : ($r['benefice'] < 0 ? 'neg' : 'zero');
                     $grandTotal += $r['benefice'];
                   ?>
-                    <td class="date"><?= htmlspecialchars($r['achat_date']) ?></td>
+                    <td class="date"><?= fmt_date($r['achat_date']) ?></td>
                     <td class="num mono"><?= monofmt($r['achat_nombre'], 0) ?><?= $r['is_split'] ? ' <span class="badge-split">÷</span>' : '' ?></td>
                     <td class="num mono"><?= monofmt($r['achat_prix']) ?></td>
                     <td class="num montant-buy"><?= monofmt($r['achat_montant']) ?></td>
                     <td class="dur"><?= $r['duree_days'] ?>j</td>
-                    <td class="date"><?= htmlspecialchars($r['vente_date']) ?></td>
+                    <td class="date"><?= fmt_date($r['vente_date']) ?></td>
                     <td class="num mono"><?= monofmt($r['vente_nombre'], 0) ?></td>
                     <td class="num mono"><?= monofmt($r['vente_prix']) ?></td>
                     <td class="num montant-sell"><?= monofmt($r['vente_montant']) ?></td>
