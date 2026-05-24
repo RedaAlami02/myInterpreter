@@ -11,7 +11,8 @@ define('APPWRITE_DB_ID',      'myinterpreter');
 
 /**
  * Core curl request.
- * @return array{body: array, status: int}
+ * $session: the Appwrite cookie string stored in $_SESSION['aw_cookie']
+ * @return array{body: array, status: int, cookies: string}
  */
 function aw_request(string $method, string $path, array $data = [], ?string $session = null): array
 {
@@ -21,14 +22,16 @@ function aw_request(string $method, string $path, array $data = [], ?string $ses
         'Content-Type: application/json',
         'X-Appwrite-Project: ' . APPWRITE_PROJECT_ID,
     ];
-    if ($session !== null) {
-        $headers[] = 'X-Appwrite-Session: ' . $session;
+    // Send session as Cookie header (Appwrite 1.5+ uses cookie-based sessions)
+    if ($session !== null && $session !== '') {
+        $headers[] = 'Cookie: ' . $session;
     }
 
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL            => $url,
         CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HEADER         => true,   // include response headers
         CURLOPT_TIMEOUT        => 15,
         CURLOPT_CONNECTTIMEOUT => 8,
         CURLOPT_HTTPHEADER     => $headers,
@@ -45,12 +48,20 @@ function aw_request(string $method, string $path, array $data = [], ?string $ses
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
     }
 
-    $body   = curl_exec($ch);
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $response   = curl_exec($ch);
+    $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+    $status     = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    $decoded = json_decode($body ?: '{}', true) ?? [];
-    return ['body' => $decoded, 'status' => $status];
+    $rawHeaders = substr($response, 0, $headerSize);
+    $body       = substr($response, $headerSize);
+    $decoded    = json_decode($body ?: '{}', true) ?? [];
+
+    // Parse Set-Cookie headers → build a cookie string for future requests
+    preg_match_all('/^Set-Cookie:\s*([^;\r\n]+)/mi', $rawHeaders, $matches);
+    $cookieString = implode('; ', $matches[1] ?? []);
+
+    return ['body' => $decoded, 'status' => $status, 'cookies' => $cookieString];
 }
 
 function aw_get(string $path, ?string $session = null): array
@@ -145,7 +156,9 @@ function aw_delete_doc(string $collectionId, string $docId, ?string $session = n
  */
 function aw_session(): ?string
 {
-    return $_SESSION['aw_secret'] ?? null;
+    // aw_cookie: full cookie string captured from Appwrite login Set-Cookie headers
+    $c = $_SESSION['aw_cookie'] ?? null;
+    return ($c && $c !== '') ? $c : null;
 }
 
 /**

@@ -4,7 +4,7 @@ require_once 'config/config.php';
 require_once 'core/auth.php';
 require_once 'core/Action.php';
 require_once 'handlers/storing.php';
-requireLogin();
+requireAdmin();
 
 if (!isset($_SESSION['company'])) {
     header('Location: ' . BASE_URL . '/Update.php');
