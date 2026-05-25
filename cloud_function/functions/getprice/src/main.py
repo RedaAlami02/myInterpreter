@@ -6,13 +6,15 @@ Environment variables (set in Appwrite Console → Functions → Settings → Va
   APPWRITE_PROJECT_ID 6a12447800077d5113ae
   APPWRITE_API_KEY    <your server API key>
 
-Schedule (Appwrite cron, UTC): 0 8,11,14 * * 1-5
-  → 09:00, 12:00, 15:30 Casablanca time (UTC+1), Mon–Fri only
+Schedule (Appwrite cron, UTC): */15 8-15 * * 1-5
+  → every 15 min from 09:00 to 16:45 Casablanca time (UTC+1), Mon–Fri only
+  At the 15:45 UTC run (16:45 Casablanca), intraday duplicates are cleaned up:
+  only the last value per company for that day is kept.
 """
 
 import os
 import requests
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from appwrite.client import Client
 from appwrite.services.databases import Databases
 from appwrite.query import Query
@@ -94,6 +96,28 @@ def all_docs(db, col_id, queries=None):
         offset += limit
     return docs
 
+# ── end-of-day cleanup ────────────────────────────────────────────────────────
+
+def cleanup_today(db, context):
+    """Delete all intraday data docs for today except the most recent per company."""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_docs = all_docs(db, "data", queries=[
+        Query.greater_than_equal("date", today + "T00:00:00.000+00:00"),
+        Query.less_than_equal("date",    today + "T23:59:59.999+00:00"),
+        Query.order_desc("date"),
+    ])
+    seen = set()
+    deleted = 0
+    for doc in today_docs:
+        name = doc['c_name']
+        if name in seen:
+            db.delete_document(DB_ID, "data", doc['$id'])
+            deleted += 1
+        else:
+            seen.add(name)  # first occurrence = most recent (sorted desc) → keep
+    context.log(f"Cleanup: deleted {deleted} intraday docs, kept 1 per company")
+    return deleted
+
 # ── entry point ───────────────────────────────────────────────────────────────
 
 def main(context):
@@ -163,4 +187,11 @@ def main(context):
         inserted += 1
 
     context.log(f"Inserted {inserted} data documents at {now}")
+
+    # Last run of the day (15:45 UTC = 16:45 Casablanca): clean up intraday duplicates
+    now_utc = datetime.now(timezone.utc)
+    if now_utc.hour == 15 and now_utc.minute >= 45:
+        deleted = cleanup_today(db, context)
+        return context.res.json({"inserted": inserted, "deleted": deleted, "timestamp": now})
+
     return context.res.json({"inserted": inserted, "timestamp": now})
