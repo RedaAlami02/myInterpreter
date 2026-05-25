@@ -45,7 +45,7 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
             ]);
 
             foreach (array_reverse($history) as $row) {
-                $sparkLabels[] = $row['date'] ?? '';
+                $sparkLabels[] = substr($row['date'] ?? '', 0, 10);
                 $sparkData[]   = (float)($row['pa'] ?? 0);
             }
         }

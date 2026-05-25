@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'config/config.php';
+require_once 'core/Appwrite.php';
 require_once 'core/auth.php';
 requireAdmin();
 
@@ -59,7 +60,6 @@ $saved = isset($_GET['saved']);
       <div class="field-group mb-4">
         <div class="field-group-title cyan"><i class="fas fa-building"></i> Société <span class="required-dot">requise</span></div>
         <?php
-          require_once 'core/Appwrite.php';
           $companyDocs = aw_list_docs('company', [q_order_asc('name'), q_limit(500)]);
           $companies   = array_values(array_unique(array_filter(array_column($companyDocs, 'name'))));
         ?>

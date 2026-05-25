@@ -46,6 +46,7 @@
   border-radius: var(--radius-lg);
   padding: 24px;
   margin-bottom: 28px;
+  overflow: hidden;
 }
 .sparkline-wrap h5 {
   font-family: var(--font-display);
