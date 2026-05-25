@@ -22,16 +22,17 @@ function aw_request(string $method, string $path, array $data = [], ?string $ses
         'Content-Type: application/json',
         'X-Appwrite-Project: ' . APPWRITE_PROJECT_ID,
     ];
-    // Send session as Cookie header (Appwrite 1.5+ uses cookie-based sessions)
     if ($session !== null && $session !== '') {
         $headers[] = 'Cookie: ' . $session;
+    } elseif (defined('APPWRITE_API_KEY') && APPWRITE_API_KEY !== '') {
+        $headers[] = 'X-Appwrite-Key: ' . APPWRITE_API_KEY;
     }
 
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL            => $url,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HEADER         => true,   // include response headers
+        CURLOPT_HEADER         => true,
         CURLOPT_TIMEOUT        => 15,
         CURLOPT_CONNECTTIMEOUT => 8,
         CURLOPT_HTTPHEADER     => $headers,
@@ -48,7 +49,12 @@ function aw_request(string $method, string $path, array $data = [], ?string $ses
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
     }
 
-    $response   = curl_exec($ch);
+    $response = curl_exec($ch);
+    if ($response === false) {
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        throw new RuntimeException('Appwrite request failed (curl): ' . $curlError);
+    }
     $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
     $status     = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
@@ -57,7 +63,6 @@ function aw_request(string $method, string $path, array $data = [], ?string $ses
     $body       = substr($response, $headerSize);
     $decoded    = json_decode($body ?: '{}', true) ?? [];
 
-    // Parse Set-Cookie headers → build a cookie string for future requests
     preg_match_all('/^Set-Cookie:\s*([^;\r\n]+)/mi', $rawHeaders, $matches);
     $cookieString = implode('; ', $matches[1] ?? []);
 
@@ -86,7 +91,6 @@ function aw_delete(string $path, ?string $session = null): array
 
 /**
  * List documents from a collection.
- * $queries: use the q_*() helper functions below, e.g. [q_order_desc('date'), q_limit(500)]
  */
 function aw_list_docs(string $collectionId, array $queries = [], ?string $session = null): array
 {
@@ -100,8 +104,7 @@ function aw_list_docs(string $collectionId, array $queries = [], ?string $sessio
     return $res['body']['documents'] ?? [];
 }
 
-// ─── Query builder helpers ─────────────────────────────────────────────────────
-// Appwrite Cloud REST API uses JSON-encoded query objects.
+// ─── Query builder helpers ────────────────────────────────────────────────────
 
 function q_equal(string $attr, $val): string {
     return json_encode(['method' => 'equal', 'attribute' => $attr, 'values' => [$val]]);
@@ -121,7 +124,6 @@ function q_greater_than(string $attr, $val): string {
 
 /**
  * Create a document in a collection.
- * $permissions: optional array, e.g. ['read("user:uid")', 'write("user:uid")']
  */
 function aw_create_doc(string $collectionId, array $data, array $permissions = [], ?string $session = null): array
 {
@@ -130,7 +132,12 @@ function aw_create_doc(string $collectionId, array $data, array $permissions = [
         $payload['permissions'] = $permissions;
     }
     $path = '/databases/' . APPWRITE_DB_ID . '/collections/' . $collectionId . '/documents';
-    return aw_post($path, $payload, $session);
+    $res  = aw_post($path, $payload, $session);
+    if ($res['status'] >= 400) {
+        $msg = $res['body']['message'] ?? ('HTTP ' . $res['status']);
+        throw new RuntimeException("aw_create_doc({$collectionId}): {$msg}");
+    }
+    return $res;
 }
 
 /**
@@ -139,7 +146,12 @@ function aw_create_doc(string $collectionId, array $data, array $permissions = [
 function aw_update_doc(string $collectionId, string $docId, array $data, ?string $session = null): array
 {
     $path = '/databases/' . APPWRITE_DB_ID . '/collections/' . $collectionId . '/documents/' . $docId;
-    return aw_patch($path, ['data' => $data], $session);
+    $res  = aw_patch($path, ['data' => $data], $session);
+    if ($res['status'] >= 400) {
+        $msg = $res['body']['message'] ?? ('HTTP ' . $res['status']);
+        throw new RuntimeException("aw_update_doc({$collectionId}/{$docId}): {$msg}");
+    }
+    return $res;
 }
 
 /**
@@ -156,7 +168,6 @@ function aw_delete_doc(string $collectionId, string $docId, ?string $session = n
  */
 function aw_session(): ?string
 {
-    // aw_cookie: full cookie string captured from Appwrite login Set-Cookie headers
     $c = $_SESSION['aw_cookie'] ?? null;
     return ($c && $c !== '') ? $c : null;
 }

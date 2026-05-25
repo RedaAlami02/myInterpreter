@@ -57,7 +57,16 @@ if (!empty($errors)) {
 // ─── Build company object, filling blanks from Appwrite ──────────────────────
 $company = new Company($inputs);
 
-$docs = aw_list_docs('company', [q_equal('name', $inputs['NAME']), q_limit(1)]);
+try {
+    $docs = aw_list_docs('company', [q_equal('name', $inputs['NAME']), q_limit(1)]);
+} catch (Throwable $e) {
+    error_log('[myInterpreter] operations.php aw_list_docs error: ' . $e->getMessage());
+    $_SESSION['erreurs']  = ['Service temporairement indisponible. Veuillez réessayer.'];
+    $_SESSION['old_post'] = $_POST;
+    header('Location: ' . BASE_URL . '/Update.php');
+    exit();
+}
+
 if (!empty($docs)) {
     $row = $docs[0];
     $company->stored  = true;

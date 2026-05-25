@@ -114,22 +114,49 @@ if (isset($_POST['save_snapshot'])) {
     }
 }
 
-// ─── Load portfolio data ─────────────────────────────────
-$holdingsDocs = aw_list_docs('portefeuille', [
-    q_equal('user_id', $uid),
-    q_limit(200),
-], $session);
+// ─── Load portfolio data ──────────────────────────────────────────────────────
+$holdingsDocs = [];
+$latestData   = [];
+$lastSnapDate = null;
+$lastSync     = null;
+$earningsDocs = [];
+$loadError    = null;
 
-// Fetch latest price per held company (batch via single data call)
+try {
+    $holdingsDocs = aw_list_docs('portefeuille', [
+        q_equal('user_id', $uid),
+        q_limit(200),
+    ], $session);
+
+    $latestData = aw_list_docs('data', [q_order_desc('date'), q_limit(100)]);
+
+    // Derive last sync from already-fetched data — no extra request needed
+    $lastSync = $latestData[0]['date'] ?? null;
+
+    $lastSnapDocs = aw_list_docs('benefits', [
+        q_equal('user_id', $uid),
+        q_order_desc('date'),
+        q_limit(1),
+    ], $session);
+    $lastSnapDate = $lastSnapDocs[0]['date'] ?? null;
+
+    $earningsDocs = aw_list_docs('benefits', [
+        q_equal('user_id', $uid),
+        q_order_desc('date'),
+        q_limit(500),
+    ], $session);
+} catch (Throwable $e) {
+    error_log('[myInterpreter] portfolio.php data load error: ' . $e->getMessage());
+    $loadError = 'Impossible de charger les données. Veuillez réessayer.';
+}
+
+// Build price map
 $heldNames = array_map(fn($h) => $h['c_name'], $holdingsDocs);
 $priceMap  = [];
-if (!empty($heldNames)) {
-    $latestData = aw_list_docs('data', [q_order_desc('date'), q_limit(500)]);
-    foreach ($latestData as $d) {
-        $n = $d['c_name'] ?? '';
-        if (!isset($priceMap[$n]) && in_array($n, $heldNames)) {
-            $priceMap[$n] = (float)($d['pa'] ?? 0);
-        }
+foreach ($latestData as $d) {
+    $n = $d['c_name'] ?? '';
+    if (!isset($priceMap[$n]) && in_array($n, $heldNames)) {
+        $priceMap[$n] = (float)($d['pa'] ?? 0);
     }
 }
 
@@ -152,35 +179,27 @@ foreach ($holdingsDocs as $h) {
     $totalBuyVal     += $cost;
 
     if ($pa <= 0) {
-        $flash[] = ['type' => 'warn', 'msg' => "Prix introuvable pour « {$name } »."];
+        $flash[] = ['type' => 'warn', 'msg' => "Prix introuvable pour « {$name} »."];
     }
 }
 
-$diffDisplay = $totalCurrentVal - $totalBuyVal;  // positive = gain
+$diffDisplay = $totalCurrentVal - $totalBuyVal;
+$earnings    = array_map(fn($d) => ['DATE' => fmt_date($d['date']), 'VALUE' => $d['value']], $earningsDocs);
 
-// Last snapshot date
-$lastSnapDocs = aw_list_docs('benefits', [
-    q_equal('user_id', $uid),
-    q_order_desc('date'),
-    q_limit(1),
-], $session);
-$lastSnapDate = $lastSnapDocs[0]['date'] ?? null;
-
-// Last data sync date
-$lastSyncDocs = aw_list_docs('data', [q_order_desc('date'), q_limit(1)]);
-$lastSync = $lastSyncDocs[0]['date'] ?? null;
-
-// Earnings history
-$earningsDocs = aw_list_docs('benefits', [
-    q_equal('user_id', $uid),
-    q_order_desc('date'),
-    q_limit(500),
-], $session);
-$earnings = array_map(fn($d) => ['DATE' => fmt_date($d['date']), 'VALUE' => $d['value']], $earningsDocs);
-
-// Companies list for datalist
-$companyDocs  = aw_list_docs('company', [q_order_asc('name'), q_limit(500)]);
-$allCompanies = array_values(array_unique(array_filter(array_column($companyDocs, 'name'))));
+// Companies list — session-cached for 5 min to avoid re-fetching on every load
+if (empty($_SESSION['company_list_cache']) || (time() - ($_SESSION['company_list_ts'] ?? 0)) > 300) {
+    try {
+        $companyDocs  = aw_list_docs('company', [q_order_asc('name'), q_limit(500)]);
+        $allCompanies = array_values(array_unique(array_filter(array_column($companyDocs, 'name'))));
+        $_SESSION['company_list_cache'] = $allCompanies;
+        $_SESSION['company_list_ts']    = time();
+    } catch (Throwable $e) {
+        error_log('[myInterpreter] portfolio.php company list error: ' . $e->getMessage());
+        $allCompanies = $_SESSION['company_list_cache'] ?? [];
+    }
+} else {
+    $allCompanies = $_SESSION['company_list_cache'];
+}
 
 // Default active tab
 $activeTab = $_GET['tab'] ?? 'portfolio';
@@ -216,6 +235,9 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
     <?php foreach ($flash as $f): ?>
       <div class="alert alert-<?= $f['type'] ?>"><i class="fas fa-<?= $f['type']==='success'?'check-circle':'exclamation-triangle' ?> me-2"></i><?= htmlspecialchars($f['msg']) ?></div>
     <?php endforeach; ?>
+    <?php if ($loadError): ?>
+      <div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i><?= htmlspecialchars($loadError) ?></div>
+    <?php endif; ?>
 
     <!-- Info row -->
     <div class="sync-row">
