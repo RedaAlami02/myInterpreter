@@ -1,5 +1,7 @@
 /* statistics.css — FIFO history table styles */
 .stats-wrap { padding: 2rem; }
+.stats-wrap .overflow-x-auto { min-height: 300px; }
+.stats-wrap .tbl { min-width: 1200px; }
 .stats-wrap h2 {
   font-family: var(--font-display);
   font-size: 1.4rem;
