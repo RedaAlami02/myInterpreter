@@ -160,7 +160,7 @@ function stats(): void
                     $grandTotal += $r['benefice'];
                   ?>
                     <td class="date"><?= fmt_date($r['achat_date']) ?></td>
-                    <td class="num mono"><?= monofmt($r['achat_nombre'], 0) ?><?= $r['is_split'] ? ' <span class="badge-split">÷</span>' : '' ?></td>
+                    <td class="num mono"><?= monofmt($r['achat_nombre'], 0) ?><?= $r['is_split'] ? ' <span class="badge-split">⊘</span>' : '' ?></td>
                     <td class="num mono"><?= monofmt($r['achat_prix']) ?></td>
                     <td class="num montant-buy"><?= monofmt($r['achat_montant']) ?></td>
                     <td class="dur"><?= $r['duree_days'] ?>j</td>
