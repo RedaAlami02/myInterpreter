@@ -176,7 +176,7 @@ $earningsDocs = aw_list_docs('benefits', [
     q_order_desc('date'),
     q_limit(500),
 ], $session);
-$earnings = array_map(fn($d) => ['DATE' => $d['date'], 'VALUE' => $d['value']], $earningsDocs);
+$earnings = array_map(fn($d) => ['DATE' => fmt_date($d['date']), 'VALUE' => $d['value']], $earningsDocs);
 
 // Companies list for datalist
 $companyDocs  = aw_list_docs('company', [q_order_asc('name'), q_limit(500)]);
