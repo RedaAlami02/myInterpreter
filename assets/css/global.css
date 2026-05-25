@@ -425,3 +425,34 @@ body::before {
 .t-amber   { color: var(--amber); }
 .fw-mono   { font-family: var(--font-mono); font-weight: 600; }
 .overflow-x-auto { overflow-x: auto; }
+
+/* ── Page loading overlay ───────────────────────────────── */
+.page-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  background: rgba(6, 10, 18, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.page-overlay.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+.page-overlay__ring {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(34, 211, 238, 0.15);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: overlaySpinRing 0.75s linear infinite;
+}
+@keyframes overlaySpinRing {
+  to { transform: rotate(360deg); }
+}

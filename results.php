@@ -1,8 +1,9 @@
 <?php
-session_start();
 require_once 'config/config.php';
+require_once 'core/Appwrite.php';
 require_once 'core/auth.php';
 require_once 'core/Action.php';
+session_start();
 require_once 'handlers/storing.php';
 requireAdmin();
 
@@ -17,19 +18,28 @@ $company->calcul();
 $colors  = $company->test();
 
 // ─── Auto-save if flagged ─────────────────────────────────
-$autoSaved = false;
+$autoSaved  = false;
+$saveError  = null;
 if (!empty($_SESSION['save'])) {
     unset($_SESSION['save']);
-    store($company);
-    $autoSaved = true;
+    try {
+        store($company);
+        $autoSaved = true;
+    } catch (Throwable $e) {
+        $saveError = $e->getMessage();
+    }
 }
 
-// ─── Manual save via form (session auth only — no password bypass) ────────
+// ─── Manual save via form ─────────────────────────────────────────────────
 $manualSaved = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_save'])) {
     csrf_verify();
-    store($company);
-    $manualSaved = true;
+    try {
+        store($company);
+        $manualSaved = true;
+    } catch (Throwable $e) {
+        $saveError = $e->getMessage();
+    }
 }
 
 function contrastFor(string $color): string {
@@ -67,6 +77,8 @@ $labels = ['PER' => 'P.E.R', 'PEG' => 'PEG', 'PR' => 'P/R', 'PB' => 'P/B'];
 
     <?php if ($manualSaved || $autoSaved): ?>
       <div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Rapport sauvegardé dans l'historique !</div>
+    <?php elseif ($saveError): ?>
+      <div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i><?= htmlspecialchars($saveError) ?></div>
     <?php endif; ?>
 
     <!-- Company headline -->
@@ -115,7 +127,7 @@ $labels = ['PER' => 'P.E.R', 'PEG' => 'PEG', 'PR' => 'P/R', 'PB' => 'P/B'];
           <a href="Update.php" class="btn btn-ghost w-100">
             <i class="fas fa-edit"></i> Modifier
           </a>
-          <a href="infoAction.php" class="btn btn-ghost w-100">
+          <a href="infoAction.php?name=<?= urlencode($company->NAME) ?>" class="btn btn-ghost w-100">
             <i class="fas fa-history"></i> Historique
           </a>
         </div>
@@ -123,7 +135,7 @@ $labels = ['PER' => 'P.E.R', 'PEG' => 'PEG', 'PR' => 'P/R', 'PB' => 'P/B'];
     </div>
     <?php else: ?>
     <div style="text-align:center;margin-top:2rem">
-      <a href="infoAction.php" class="btn btn-cyan"><i class="fas fa-history me-2"></i>Voir l'historique</a>
+      <a href="infoAction.php?name=<?= urlencode($company->NAME) ?>" class="btn btn-cyan"><i class="fas fa-history me-2"></i>Voir l'historique</a>
       <a href="Update.php" class="btn btn-ghost ms-2"><i class="fas fa-plus me-2"></i>Nouvelle analyse</a>
     </div>
     <?php endif; ?>

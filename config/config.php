@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/secrets.php';
 // ─── Appwrite connection constants are defined in core/Appwrite.php ───────────
 
 // ─── App base URL — derived from the HTTP request, never from __FILE__ ────────

@@ -35,6 +35,7 @@ Thumbs.db
 .env.*.local
 
 # PHP
+config/secrets.php
 *.log
 session/
 tmp/
