@@ -30,6 +30,9 @@
 }
 .tab-btn.active { background: var(--surface-3); color: var(--text); }
 .tab-btn:hover:not(.active) { color: var(--text-dim); }
+@media (max-width: 520px) {
+  .tab-btn { padding: 8px 5px; font-size: 0.73rem; gap: 4px; }
+}
 
 .tab-panel { display: none; }
 .tab-panel.active { display: block; animation: fadeIn 0.3s ease; }
