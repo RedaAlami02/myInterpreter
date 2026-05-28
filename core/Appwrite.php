@@ -123,6 +123,12 @@ function q_limit(int $n): string {
 function q_greater_than(string $attr, $val): string {
     return json_encode(['method' => 'greaterThan', 'attribute' => $attr, 'values' => [$val]]);
 }
+function q_greater_equal(string $attr, $val): string {
+    return json_encode(['method' => 'greaterThanEqual', 'attribute' => $attr, 'values' => [$val]]);
+}
+function q_offset(int $n): string {
+    return json_encode(['method' => 'offset', 'values' => [$n]]);
+}
 
 /**
  * Fire multiple aw_list_docs calls in parallel using curl_multi.
