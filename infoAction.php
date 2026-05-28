@@ -44,6 +44,14 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
                 q_limit(500),
             ]);
 
+            // Deduplicate: keep one snapshot per calendar day (latest first = first seen)
+            $seenDates = []; $histUniq = [];
+            foreach ($history as $row) {
+                $d = substr($row['date'] ?? '', 0, 10);
+                if (!isset($seenDates[$d])) { $seenDates[$d] = true; $histUniq[] = $row; }
+            }
+            $history = $histUniq;
+
             foreach (array_reverse($history) as $row) {
                 $sparkLabels[] = substr($row['date'] ?? '', 0, 10);
                 $sparkData[]   = (float)($row['pa'] ?? 0);
@@ -167,7 +175,17 @@ if ($awSession && !empty($name ?? '')) {
                   <?php endif; ?>
                 </h4>
                 <?php if (!empty($company['description'])): ?>
-                  <p class="company-desc"><?= htmlspecialchars(mb_substr($company['description'], 0, 300)) ?>…</p>
+                  <?php $desc = $company['description']; $descShort = mb_substr($desc, 0, 280); $hasMore = mb_strlen($desc) > 280; ?>
+                  <p class="company-desc" id="companyDescText">
+                    <span class="desc-short"><?= htmlspecialchars($descShort) ?><?= $hasMore ? '…' : '' ?></span>
+                    <?php if ($hasMore): ?>
+                      <span class="desc-full" hidden><?= htmlspecialchars($desc) ?></span>
+                      <button class="desc-more-btn" onclick="toggleDesc(this)" aria-expanded="false">
+                        <span class="desc-more-label">Lire la suite</span>
+                        <i class="fas fa-chevron-down desc-more-icon"></i>
+                      </button>
+                    <?php endif; ?>
+                  </p>
                 <?php endif; ?>
               </div>
             </div>
@@ -176,23 +194,23 @@ if ($awSession && !empty($name ?? '')) {
             <div class="fundamentals-grid">
               <?php
               $funds = [
-                  'BPA'  => ['label' => 'BPA', 'val' => $company['bpa'] ?? null, 'unit' => 'MAD'],
-                  'DPA'  => ['label' => 'DPA', 'val' => $company['dpa'] ?? null, 'unit' => 'MAD'],
-                  'TC5'  => ['label' => 'TC5', 'val' => $company['tc5'] ?? null, 'unit' => '%'],
-                  'ROE'  => ['label' => 'ROE', 'val' => $company['roe'] ?? null, 'unit' => '%'],
-                  'NA'   => ['label' => 'Actions', 'val' => $company['na'] ?? null, 'unit' => ''],
-                  'β3Y'  => ['label' => 'Béta 3Y', 'val' => $company['beta_3y'] ?? null, 'unit' => ''],
-                  'CA'   => ['label' => 'CA', 'val' => $company['revenue'] ?? null, 'unit' => 'M'],
-                  'RNPG' => ['label' => 'RNPG', 'val' => $company['net_profit'] ?? null, 'unit' => 'M'],
-                  'DN'   => ['label' => 'Dette nette', 'val' => $company['net_debt'] ?? null, 'unit' => 'M'],
-                  'Marge'=> ['label' => 'Marge nette', 'val' => $company['profit_margin'] ?? null, 'unit' => '%'],
+                  'BPA'  => ['key' => 'BPA',   'tip' => 'Bénéfice Par Action',             'val' => $company['bpa'] ?? null,          'unit' => 'MAD'],
+                  'DPA'  => ['key' => 'DPA',   'tip' => 'Dividende Par Action',             'val' => $company['dpa'] ?? null,          'unit' => 'MAD'],
+                  'TC5'  => ['key' => 'TC5',   'tip' => 'Croissance CA sur 5 ans (TCAC)',   'val' => $company['tc5'] ?? null,          'unit' => '%'],
+                  'ROE'  => ['key' => 'ROE',   'tip' => 'Rentabilité des capitaux propres', 'val' => $company['roe'] ?? null,          'unit' => '%'],
+                  'NA'   => ['key' => 'NA',    'tip' => "Nombre d'actions en circulation",  'val' => $company['na'] ?? null,           'unit' => ''],
+                  'β3Y'  => ['key' => 'β3Y',   'tip' => 'Bêta sur 3 ans (volatilité rel.)', 'val' => $company['beta_3y'] ?? null,     'unit' => ''],
+                  'CA'   => ['key' => 'CA',    'tip' => "Chiffre d'Affaires (dernière année)",'val' => $company['revenue'] ?? null,    'unit' => 'M'],
+                  'RNPG' => ['key' => 'RNPG',  'tip' => 'Résultat Net Part du Groupe',      'val' => $company['net_profit'] ?? null,   'unit' => 'M'],
+                  'DN'   => ['key' => 'DN',    'tip' => 'Dette Nette (dettes – trésorerie)', 'val' => $company['net_debt'] ?? null,    'unit' => 'M'],
+                  'Marge'=> ['key' => 'Marge', 'tip' => 'Marge Nette (RNPG / CA)',          'val' => $company['profit_margin'] ?? null,'unit' => '%'],
               ];
-              foreach ($funds as $key => $f):
+              foreach ($funds as $f):
                   if ($f['val'] === null) continue;
-                  $v = is_float($f['val']) ? number_format($f['val'], 2, ',', ' ') : $f['val'];
+                  $v = is_numeric($f['val']) ? number_format((float)$f['val'], 2, ',', ' ') : $f['val'];
               ?>
-              <div class="fund-chip">
-                <span class="fund-label"><?= $key ?></span>
+              <div class="fund-chip" data-tooltip="<?= htmlspecialchars($f['tip']) ?>">
+                <span class="fund-label"><?= $f['key'] ?></span>
                 <span class="fund-val"><?= $v ?><?= $f['unit'] ? '<span class="fund-unit"> '.$f['unit'].'</span>' : '' ?></span>
               </div>
               <?php endforeach; ?>
@@ -511,5 +529,16 @@ if ($awSession && !empty($name ?? '')) {
   });
 </script>
 <?php endif; ?>
+<script>
+function toggleDesc(btn) {
+  const p     = btn.closest('.company-desc');
+  const short = p.querySelector('.desc-short');
+  const full  = p.querySelector('.desc-full');
+  const open  = btn.getAttribute('aria-expanded') === 'true';
+  short.hidden = !open;
+  full.hidden  = open;
+  btn.setAttribute('aria-expanded', String(!open));
+}
+</script>
 </body>
 </html>
