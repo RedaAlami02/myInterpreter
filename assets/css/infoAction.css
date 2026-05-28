@@ -1,5 +1,5 @@
 /* infoAction.css */
-.search-wrap { max-width: 900px; margin: 0 auto; padding: 2.5rem 20px 60px; }
+.search-wrap { max-width: 100%; margin: 0; padding: 2.5rem 0 60px; }
 
 .search-hero {
   text-align: center;

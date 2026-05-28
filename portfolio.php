@@ -95,22 +95,27 @@ if (isset($_POST['add_sell'])) {
 // ─── Save portfolio snapshot to benefits ─────────────────
 if (isset($_POST['save_snapshot'])) {
     csrf_verify();
-    $today    = date('Y-m-d');
-    $existing = aw_list_docs('benefits', [
-        q_equal('user_id', $uid),
-        q_equal('date', $today),
-        q_limit(1),
-    ], $session);
-    if (empty($existing)) {
+    try {
+        $today    = date('Y-m-d');
+        $existing = aw_list_docs('benefits', [
+            q_equal('user_id', $uid),
+            q_equal('date', $today),
+            q_limit(1),
+        ], $session);
         $snapValue = (float) ($_POST['snapshot_value'] ?? 0);
-        aw_create_doc('benefits', [
-            'date'    => $today,
-            'value'   => $snapValue,
-            'user_id' => $uid,
-        ], aw_user_permissions($uid), $session);
+        if (empty($existing)) {
+            aw_create_doc('benefits', [
+                'date'    => $today,
+                'value'   => $snapValue,
+                'user_id' => $uid,
+            ], aw_user_permissions($uid), null);
+        } else {
+            aw_update_doc('benefits', $existing[0]['$id'], ['value' => $snapValue], null);
+        }
         $flash[] = ['type' => 'success', 'msg' => "Snapshot P&L enregistré pour aujourd'hui."];
-    } else {
-        $flash[] = ['type' => 'warn', 'msg' => 'Un snapshot a déjà été enregistré aujourd\'hui.'];
+    } catch (Throwable $e) {
+        error_log('[myInterpreter] save_snapshot error: ' . $e->getMessage());
+        $flash[] = ['type' => 'error', 'msg' => 'Erreur lors de l\'enregistrement du snapshot : ' . $e->getMessage()];
     }
 }
 
@@ -130,21 +135,14 @@ try {
 
     $latestData = aw_list_docs('data', [q_order_desc('date'), q_limit(100)]);
 
-    // Derive last sync from already-fetched data — no extra request needed
     $lastSync = $latestData[0]['date'] ?? null;
-
-    $lastSnapDocs = aw_list_docs('benefits', [
-        q_equal('user_id', $uid),
-        q_order_desc('date'),
-        q_limit(1),
-    ], $session);
-    $lastSnapDate = $lastSnapDocs[0]['date'] ?? null;
 
     $earningsDocs = aw_list_docs('benefits', [
         q_equal('user_id', $uid),
         q_order_desc('date'),
         q_limit(500),
     ], $session);
+    $lastSnapDate = $earningsDocs[0]['date'] ?? null;
 } catch (Throwable $e) {
     error_log('[myInterpreter] portfolio.php data load error: ' . $e->getMessage());
     $loadError = 'Impossible de charger les données. Veuillez réessayer.';
@@ -219,15 +217,10 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
   <link href="assets/css/statistics.css" rel="stylesheet">
 </head>
 <body>
-<div class="page">
-
-  <nav class="topbar">
-    <a href="index.php" class="topbar-brand"><i class="fas fa-chart-line"></i> myInterpreter</a>
-    <span class="topbar-sep">/</span>
-    <span class="topbar-title">Portefeuille</span>
-    <div class="topbar-spacer"></div>
-    <a href="index.php" class="btn btn-ghost btn-sm"><i class="fas fa-home"></i></a>
-  </nav>
+<div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
+<div class="app">
+  <?php include 'core/sidebar.php'; ?>
+  <main class="main">
 
   <div class="portfolio-wrap animate-up">
 
@@ -317,7 +310,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
               $pct = ($cur > 0 && $buy > 0) ? ($pnl / $buy) * 100 : null;
             ?>
             <tr>
-              <td class="label-cell"><?= htmlspecialchars($h['c_name']) ?></td>
+              <td class="label-cell"><a href="infoAction.php?name=<?= urlencode($h['c_name']) ?>" class="t-cyan"><?= htmlspecialchars($h['c_name']) ?></a></td>
               <td class="num mono"><?= (int)$h['quantity'] ?></td>
               <td class="num mono"><?= number_format($buy, 2) ?></td>
               <td class="num mono"><?= $cur > 0 ? number_format($cur, 2) : '<span class="muted">—</span>' ?></td>
@@ -445,7 +438,8 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
     </div>
 
   </div><!-- .portfolio-wrap -->
-</div><!-- .page -->
+  </main>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>

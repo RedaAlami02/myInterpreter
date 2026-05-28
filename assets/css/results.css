@@ -1,5 +1,5 @@
 /* results.css */
-.results-wrap { max-width: 860px; margin: 2.5rem auto; padding: 0 20px 60px; }
+.results-wrap { max-width: 100%; margin: 0; padding: 0 0 60px; }
 
 .company-headline {
   text-align: center;

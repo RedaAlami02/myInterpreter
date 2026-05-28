@@ -62,16 +62,10 @@ $labels = ['PER' => 'P.E.R', 'PEG' => 'PEG', 'PR' => 'P/R', 'PB' => 'P/B'];
   <link href="assets/css/results.css" rel="stylesheet">
 </head>
 <body>
-<div class="page">
-
-  <nav class="topbar">
-    <a href="index.php" class="topbar-brand"><i class="fas fa-chart-line"></i> myInterpreter</a>
-    <span class="topbar-sep">/</span>
-    <span class="topbar-title">Résultats</span>
-    <div class="topbar-spacer"></div>
-    <a href="Update.php" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Modifier</a>
-    <a href="index.php" class="btn btn-ghost btn-sm"><i class="fas fa-home"></i></a>
-  </nav>
+<div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
+<div class="app">
+  <?php include 'core/sidebar.php'; ?>
+  <main class="main">
 
   <div class="results-wrap animate-up">
 
@@ -141,6 +135,7 @@ $labels = ['PER' => 'P.E.R', 'PEG' => 'PEG', 'PR' => 'P/R', 'PB' => 'P/B'];
     <?php endif; ?>
 
   </div>
+  </main>
 </div>
 
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
