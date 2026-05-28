@@ -27,7 +27,7 @@ def all_docs(db, col_id, queries=None):
     while True:
         page = db.list_documents(DB_ID, col_id,
                                  queries=base + [Query.limit(limit), Query.offset(offset)])
-        docs.extend([d._data for d in page.documents])
+        docs.extend([{'$id': d.id, **d._data} for d in page.documents])
         if len(page.documents) < limit:
             break
         offset += limit
