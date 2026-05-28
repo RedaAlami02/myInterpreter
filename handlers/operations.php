@@ -15,13 +15,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 csrf_verify();
 
 $action = $_POST['action'] ?? '';
-$green_fields = ['BPA', 'TC5', 'ROE', 'NA', 'CP'];
+$green_fields = ['BPA', 'DPA', 'TC5', 'ROE', 'NA', 'CP'];
 $errors = [];
 
 $inputs = [
     'NAME' => trim($_POST['NAME'] ?? ''),
     'PA'   => $_POST['PA']  ?? '',
     'BPA'  => $_POST['BPA'] ?? '',
+    'DPA'  => $_POST['DPA'] ?? '',
     'TC5'  => $_POST['TC5'] ?? '',
     'ROE'  => $_POST['ROE'] ?? '',
     'NA'   => $_POST['NA']  ?? '',
@@ -72,7 +73,7 @@ if (!empty($docs)) {
     $company->stored  = true;
     $company->_awId   = $row['$id'];   // store doc ID for update later
     // Map lowercase Appwrite fields to Company uppercase properties
-    $fieldMap = ['BPA' => 'bpa', 'TC5' => 'tc5', 'ROE' => 'roe', 'NA' => 'na', 'CP' => 'cp'];
+    $fieldMap = ['BPA' => 'bpa', 'DPA' => 'dpa', 'TC5' => 'tc5', 'ROE' => 'roe', 'NA' => 'na', 'CP' => 'cp'];
     foreach ($fieldMap as $prop => $awField) {
         if (empty($inputs[$prop]) && isset($row[$awField])) {
             $company->$prop = (float) $row[$awField];
