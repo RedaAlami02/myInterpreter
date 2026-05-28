@@ -56,8 +56,11 @@ def main(context):
     for doc in today_docs:
         name = doc['c_name']
         if name in seen:
-            db.delete_document(DB_ID, "data", doc['$id'])
-            deleted += 1
+            try:
+                db.delete_document(DB_ID, "data", doc['$id'])
+                deleted += 1
+            except Exception:
+                pass
         else:
             seen.add(name)
 
