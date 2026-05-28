@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['login_form']) || iss
 
 $isLoggedIn = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
 
-function _mkt_market_status(): array {
+function _live_market_status(): array {
     $payload = json_encode(['ACTIONS' => [[
         'ACTION' => ['NAME' => 'MARKET-STATUS', 'TYPE' => 'SELECT', 'VALUE' => 'MARKET-STATUS'],
         'PARAMS' => [
@@ -248,10 +248,10 @@ if ($isLoggedIn) {
         $topLosers  = array_slice(array_values($losers),  0, 6);
         $topScored  = array_slice(array_values($scored4), 0, 6);
 
-        // Market session status: live from MKT API (3s timeout), fallback to time-based
+        // Market session status: live check (3s timeout), fallback to time-based
         $isMarketOpen  = false;
         $sessionLabel  = '';
-        $mktStatus = _mkt_market_status();
+        $mktStatus = _live_market_status();
         if (!empty($mktStatus)) {
             $isMarketOpen = ($mktStatus['Color'] ?? '') === 'G';
             $sessionLabel = $mktStatus['Statut'] ?? '';
