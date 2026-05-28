@@ -99,8 +99,8 @@ def setup():
     float_attr("company", "na")         # Nombre d'actions (count)
     float_attr("company", "cp")         # Capitaux propres (raw MAD)
     datetime_attr("company", "date")
-    # idbourse enrichment fields
-    str_attr("company", "idb_name",    size=80)     # idbourse company name for API calls
+    # external enrichment fields
+    str_attr("company", "ext_name",    size=80)     # external registry name for API lookups
     str_attr("company", "sector",      size=20)     # corporate / banque / assurance
     str_attr("company", "description", size=4000)   # company description
     str_attr("company", "shareholders",size=1500)   # JSON [{"name":"...","pct":65.4}]

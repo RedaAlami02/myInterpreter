@@ -47,8 +47,8 @@ $saved = isset($_GET['saved']);
         <h2 class="mb-1" style="font-family:var(--font-display);font-weight:700;font-size:1.5rem;">Analyser une société</h2>
         <p class="muted" style="font-size:0.85rem;">Renseignez les champs rouges pour calculer. Ajoutez les verts pour sauvegarder.</p>
       </div>
-      <a href="handlers/sync_idb.php" class="btn btn-ghost btn-sm" target="_blank"
-         style="align-self:center" title="Enrichir toutes les sociétés depuis idbourse.com">
+      <a href="handlers/sync_companies.php" class="btn btn-ghost btn-sm" target="_blank"
+         style="align-self:center" title="Enrichir toutes les sociétés des données financières">
         <i class="fas fa-cloud-download-alt"></i> Sync toutes les sociétés
       </a>
     </div>
@@ -61,7 +61,7 @@ $saved = isset($_GET['saved']);
         <div class="field-group-title cyan" style="display:flex;align-items:center;justify-content:space-between">
           <span><i class="fas fa-building"></i> Société <span class="required-dot">requise</span></span>
           <button type="button" id="btnAutoFill" class="btn btn-ghost btn-sm" onclick="autoFill()" disabled>
-            <i class="fas fa-magic"></i> Auto-remplir depuis idbourse
+            <i class="fas fa-magic"></i> Auto-remplir données financières
           </button>
         </div>
         <?php
@@ -88,7 +88,7 @@ $saved = isset($_GET['saved']);
             <?php endforeach; ?>
           </datalist>
         </div>
-        <div id="idb-preview" style="display:none;margin-top:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:0.82rem;color:var(--text-dim)"></div>
+        <div id="mkt-preview" style="display:none;margin-top:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:0.82rem;color:var(--text-dim)"></div>
       </div>
 
       <!-- PER section: PA + BPA -->
@@ -197,7 +197,7 @@ function onNameChange(val) {
     const btn = document.getElementById('btnAutoFill');
     btn.disabled = !sym;
     btn._symbol = sym || null;
-    document.getElementById('idb-preview').style.display = 'none';
+    document.getElementById('mkt-preview').style.display = 'none';
 }
 
 // Trigger on page load if a name is pre-filled
@@ -215,7 +215,7 @@ async function autoFill() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Chargement…';
 
     try {
-        const r = await fetch('handlers/idbourse_proxy.php?symbol=' + encodeURIComponent(sym));
+        const r = await fetch('handlers/market_proxy.php?symbol=' + encodeURIComponent(sym));
         const d = await r.json();
         if (d.error) throw new Error(d.error);
 
@@ -235,7 +235,7 @@ async function autoFill() {
         fill('floatCP',  c.cp);
 
         // Show preview
-        const prev = document.getElementById('idb-preview');
+        const prev = document.getElementById('mkt-preview');
         const lines = [];
         if (d.sector)       lines.push('<b>Secteur:</b> ' + d.sector);
         if (c.revenue)      lines.push('<b>CA 2024:</b> ' + c.revenue + ' MMAD');
@@ -246,12 +246,25 @@ async function autoFill() {
         prev.innerHTML = lines.join(' &nbsp;·&nbsp; ');
         prev.style.display = 'block';
 
-        btn.innerHTML = '<i class="fas fa-check t-emerald"></i> Rempli depuis idbourse';
-        window.showToast('Champs pré-remplis depuis idbourse (' + (d.idb_name || sym) + ')', 'success');
+        btn.innerHTML = '<i class="fas fa-check t-emerald"></i> Données financières récupérées';
+        window.showToast('Données financières récupérées (' + (d.ext_name || sym) + ')', 'success');
+
+        // Save enrichment data (description, sector, beta, etc.) to Appwrite silently
+        const companyName = document.getElementById('floatName').value.trim();
+        if (companyName) {
+            const fd = new FormData();
+            fd.append('name', companyName);
+            fd.append('symbol', sym);
+            fd.append('_csrf', document.querySelector('meta[name="csrf-token"]').content);
+            fetch('handlers/save_enrichment.php', { method: 'POST', body: fd })
+              .then(r => r.json())
+              .then(res => { if (res.ok && res.description) window.showToast('Fiche société sauvegardée', 'success'); })
+              .catch(() => {});
+        }
     } catch (e) {
-        btn.innerHTML = '<i class="fas fa-magic"></i> Auto-remplir depuis idbourse';
+        btn.innerHTML = '<i class="fas fa-magic"></i> Auto-remplir données financières';
         btn.disabled  = false;
-        window.showToast('Erreur idbourse : ' + e.message, 'error');
+        window.showToast('Erreur : ' + e.message, 'error');
     }
 }
 </script>

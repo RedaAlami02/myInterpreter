@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['login_form']) || iss
 
 $isLoggedIn = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
 
-function _cdg_market_status(): array {
+function _live_market_status(): array {
     $payload = json_encode(['ACTIONS' => [[
         'ACTION' => ['NAME' => 'MARKET-STATUS', 'TYPE' => 'SELECT', 'VALUE' => 'MARKET-STATUS'],
         'PARAMS' => [
@@ -248,13 +248,13 @@ if ($isLoggedIn) {
         $topLosers  = array_slice(array_values($losers),  0, 6);
         $topScored  = array_slice(array_values($scored4), 0, 6);
 
-        // Market session status: live from CDG API (3s timeout), fallback to time-based
+        // Market session status: live check (3s timeout), fallback to time-based
         $isMarketOpen  = false;
         $sessionLabel  = '';
-        $cdgStatus = _cdg_market_status();
-        if (!empty($cdgStatus)) {
-            $isMarketOpen = ($cdgStatus['Color'] ?? '') === 'G';
-            $sessionLabel = $cdgStatus['Statut'] ?? '';
+        $mktStatus = _live_market_status();
+        if (!empty($mktStatus)) {
+            $isMarketOpen = ($mktStatus['Color'] ?? '') === 'G';
+            $sessionLabel = $mktStatus['Statut'] ?? '';
         } else {
             $nowC = new DateTime('now', new DateTimeZone('Africa/Casablanca'));
             $tm   = (int)$nowC->format('G') * 60 + (int)$nowC->format('i');

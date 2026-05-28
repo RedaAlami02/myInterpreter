@@ -49,7 +49,7 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
                 $sparkData[]   = (float)($row['pa'] ?? 0);
             }
 
-            // Get symbol for idbourse enrichment
+            // Get symbol for financial enrichment
             // Try from latest history doc first (has symbol since scraper update)
             $symbol = null;
             foreach ($history as $row) {
@@ -209,9 +209,9 @@ if ($awSession && !empty($name ?? '')) {
             <?php endif; ?>
 
             <?php if ($symbol): ?>
-            <!-- idbourse enrichment (JS-loaded) -->
-            <div id="idb-enrichment" class="mb-4">
-              <div id="idb-loading" style="padding:24px;text-align:center;color:var(--text-faint);font-size:13px">
+            <!-- Financial enrichment (JS-loaded) -->
+            <div id="mkt-enrichment" class="mb-4">
+              <div id="mkt-loading" style="padding:24px;text-align:center;color:var(--text-faint);font-size:13px">
                 <i class="fas fa-circle-notch fa-spin me-2"></i>Chargement données financières…
               </div>
             </div>
@@ -289,11 +289,11 @@ if ($awSession && !empty($name ?? '')) {
 <script>
 (async function() {
   const sym = <?= json_encode($symbol) ?>;
-  const container = document.getElementById('idb-enrichment');
+  const container = document.getElementById('mkt-enrichment');
   if (!container) return;
 
   try {
-    const r   = await fetch('handlers/idbourse_proxy.php?symbol=' + encodeURIComponent(sym));
+    const r   = await fetch('handlers/market_proxy.php?symbol=' + encodeURIComponent(sym));
     const d   = await r.json();
     const c   = d.computed || {};
     const ch  = d.charts   || {};
@@ -302,9 +302,9 @@ if ($awSession && !empty($name ?? '')) {
 
     // Description
     if (d.description) {
-      html += `<div class="idb-section">
-        <div class="idb-section-title"><i class="fas fa-info-circle me-2 t-cyan"></i>À propos</div>
-        <p class="idb-desc">${d.description.replace(/\r\n|\n/g,'<br>')}</p>
+      html += `<div class="mkt-section">
+        <div class="mkt-section-title"><i class="fas fa-info-circle me-2 t-cyan"></i>À propos</div>
+        <p class="mkt-desc">${d.description.replace(/\r\n|\n/g,'<br>')}</p>
       </div>`;
     }
 
@@ -312,9 +312,9 @@ if ($awSession && !empty($name ?? '')) {
     const caData = ch.ca || {}; const rnpgData = ch.rnpg || {}; const ebeData = ch.ebe || {};
     const allYears = [...new Set([...Object.keys(caData), ...Object.keys(rnpgData), ...Object.keys(ebeData)])].sort();
     if (allYears.length > 0) {
-      html += `<div class="idb-section">
-        <div class="idb-section-title"><i class="fas fa-chart-bar me-2 t-violet"></i>Résultats annuels (MMAD)</div>
-        <div class="idb-chart-wrap"><canvas id="finChart"></canvas></div>
+      html += `<div class="mkt-section">
+        <div class="mkt-section-title"><i class="fas fa-chart-bar me-2 t-violet"></i>Résultats annuels (MMAD)</div>
+        <div class="mkt-chart-wrap"><canvas id="finChart"></canvas></div>
       </div>`;
     }
 
@@ -323,25 +323,25 @@ if ($awSession && !empty($name ?? '')) {
     if (trim) {
       const qKeys = Object.keys(trim).filter(k => /^T\d\d{4}$/.test(k)).sort();
       if (qKeys.length > 0) {
-        html += `<div class="idb-section">
-          <div class="idb-section-title"><i class="fas fa-calendar-alt me-2 t-amber"></i>Chiffre d'affaires trimestriel (MMAD)</div>
-          <div class="idb-chart-wrap"><canvas id="trimChart"></canvas></div>
+        html += `<div class="mkt-section">
+          <div class="mkt-section-title"><i class="fas fa-calendar-alt me-2 t-amber"></i>Chiffre d'affaires trimestriel (MMAD)</div>
+          <div class="mkt-chart-wrap"><canvas id="trimChart"></canvas></div>
         </div>`;
       }
     }
 
     // Shareholders
     if (d.shareholders && d.shareholders.length > 0) {
-      html += `<div class="idb-section">
-        <div class="idb-section-title"><i class="fas fa-users me-2 t-emerald"></i>Actionnariat</div>
-        <div class="idb-two-col">
+      html += `<div class="mkt-section">
+        <div class="mkt-section-title"><i class="fas fa-users me-2 t-emerald"></i>Actionnariat</div>
+        <div class="mkt-two-col">
           <canvas id="holdersChart" style="max-height:220px"></canvas>
           <div class="holders-list" id="holders-list"></div>
         </div>
       </div>`;
     }
 
-    container.innerHTML = html || '<div style="color:var(--text-faint);font-size:13px;padding:12px">Aucune donnée idbourse disponible pour cette société.</div>';
+    container.innerHTML = html || '<div style="color:var(--text-faint);font-size:13px;padding:12px">Aucune donnée financière disponible pour cette société.</div>';
 
     // Draw financial chart
     if (allYears.length > 0) {
@@ -414,8 +414,8 @@ if ($awSession && !empty($name ?? '')) {
     }
 
   } catch (e) {
-    document.getElementById('idb-enrichment').innerHTML =
-      `<div style="color:var(--text-faint);font-size:13px;padding:12px">Données idbourse indisponibles.</div>`;
+    document.getElementById('mkt-enrichment').innerHTML =
+      `<div style="color:var(--text-faint);font-size:13px;padding:12px">Données financières indisponibles.</div>`;
   }
 })();
 </script>
