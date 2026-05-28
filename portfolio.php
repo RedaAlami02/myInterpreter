@@ -133,7 +133,7 @@ try {
         q_limit(200),
     ], $session);
 
-    $latestData = aw_list_docs('data', [q_order_desc('date'), q_limit(100)]);
+    $latestData = aw_list_docs('data', [q_order_desc('date'), q_limit(500)]);
 
     $lastSync = $latestData[0]['date'] ?? null;
 

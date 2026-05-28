@@ -13,6 +13,8 @@ if (!isset($_SESSION['logged_in']) && isset($_COOKIE['aw_session'])) {
         $_SESSION['logged_in'] = true;
         $_SESSION['USER_ID']   = $me['body']['$id'];
         $_SESSION['USER_EMAIL']= $me['body']['email'] ?? '';
+        // Slide the cookie forward another year on each restore
+        setcookie('aw_session', $_COOKIE['aw_session'], time() + 86400 * 365, '/', '', false, true);
     } else {
         setcookie('aw_session', '', time() - 3600, '/', '', false, true);
         unset($_SESSION['aw_cookie']);
@@ -64,8 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['login_form']) || iss
         $_SESSION['USER_ID']    = $res['body']['userId'];
         $_SESSION['USER_EMAIL'] = $email;
         $_SESSION['aw_cookie']  = $res['cookies'];
-        $cookieExpiry = $stay ? time() + 86400 * 30 : 0;
-        setcookie('aw_session', $res['cookies'], $cookieExpiry, '/', '', false, true);
+        setcookie('aw_session', $res['cookies'], time() + 86400 * 365, '/', '', false, true);
         header('Location: ' . BASE_URL . '/index.php');
         exit();
     } else {
@@ -281,7 +282,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="<?= csrf_token() ?>">
   <title>myInterpreter | Tableau de bord</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css" rel="stylesheet">
   <style>
