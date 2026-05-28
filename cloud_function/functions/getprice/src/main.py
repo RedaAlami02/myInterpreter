@@ -100,10 +100,8 @@ def fit_chart(chart_str, max_len=195):
 
 def fetch_all():
     """Single CDG API call → (stocks, masi, status)."""
-    s = requests.Session()
-    s.get("https://www.cdgcapitalbourse.ma/Bourse/market/ATW?tab=Cotation")
-    resp = s.post("https://www.cdgcapitalbourse.ma/api/",
-                  headers=CDG_HEADERS, json=CDG_PAYLOAD, timeout=15)
+    resp = requests.post("https://www.cdgcapitalbourse.ma/api/",
+                         headers=CDG_HEADERS, json=CDG_PAYLOAD, timeout=15)
     resp.raise_for_status()
     data = resp.json()
     stocks = data[0].get('PALMARES-STOCKS', {}).get('Data', [])
@@ -151,6 +149,13 @@ def main(context):
           .set_project(os.environ['APPWRITE_PROJECT_ID']) \
           .set_key(os.environ['APPWRITE_API_KEY'])
     db = Databases(client)
+
+    now_utc = datetime.now(timezone.utc)
+
+    # End-of-day cleanup only — skip scrape so we don't timeout (15:30 has the last price)
+    if now_utc.hour == 15 and now_utc.minute >= 45:
+        deleted = cleanup_today(db, context)
+        return context.res.json({"cleanup_only": True, "deleted": deleted})
 
     # 1. Fetch everything from CDG in one call
     stocks, masi, status = fetch_all()
@@ -257,13 +262,5 @@ def main(context):
         context.log(f"Inserted MASI doc: {masi['Cours']}")
 
     context.log(f"Inserted {inserted} stock docs at {now}")
-
-    # 6. End-of-day cleanup (15:45 UTC = 16:45 Casablanca)
-    now_utc = datetime.now(timezone.utc)
-    if now_utc.hour == 15 and now_utc.minute >= 45:
-        deleted = cleanup_today(db, context)
-        return context.res.json({"inserted": inserted, "masi": bool(masi.get('Cours')),
-                                 "deleted": deleted, "timestamp": now})
-
     return context.res.json({"inserted": inserted, "masi": bool(masi.get('Cours')),
                              "status": status.get('Statut', ''), "timestamp": now})
