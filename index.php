@@ -153,11 +153,16 @@ if ($isLoggedIn) {
             ];
             $score  = count(array_filter($colors, fn($c) => $c === 'green'));
             $pa     = (float)($r['pa'] ?? 0);
-            $prevPA = isset($prev[$name]) ? (float)($prev[$name]['pa'] ?? 0) : 0;
-            $trend  = ($prevPA > 0) ? (($pa - $prevPA) / $prevPA * 100) : null;
+            // Use API variation if stored, otherwise calculate from prev snapshot
+            if (isset($r['variation'])) {
+                $trend = (float)$r['variation'];
+            } else {
+                $prevPA = isset($prev[$name]) ? (float)($prev[$name]['pa'] ?? 0) : 0;
+                $trend  = ($prevPA > 0) ? (($pa - $prevPA) / $prevPA * 100) : null;
+            }
             $rows[] = [
                 'name'  => $name,
-                'abbr'  => _dash_abbr($name),
+                'abbr'  => $r['symbol'] ?? _dash_abbr($name),
                 'PA'    => $pa,
                 'PER'   => $per,
                 'PEG'   => (float)($r['peg'] ?? 0),
@@ -185,11 +190,22 @@ if ($isLoggedIn) {
         $topLosers  = array_slice(array_values($losers),  0, 6);
         $topScored  = array_slice(array_values($scored4), 0, 6);
 
-        // Market hours (Casablanca: Mon–Fri 9:30–15:30)
+        // Market session status: use API variation data when available,
+        // fall back to time-based check (Mon–Fri 9:30–15:30 Casablanca)
         $nowC = new DateTime('now', new DateTimeZone('Africa/Casablanca'));
         $tm   = (int)$nowC->format('G') * 60 + (int)$nowC->format('i');
         $dow  = (int)$nowC->format('N');
-        $isMarketOpen = ($dow <= 5 && $tm >= 9*60+30 && $tm < 15*60+30);
+        $withinHours = ($dow <= 5 && $tm >= 9*60+30 && $tm < 15*60+30);
+        // If we have variation data from today, check if any stocks moved (= session active)
+        $latestDate = !empty($latest) ? substr(array_values($latest)[0]['date'] ?? '', 0, 10) : '';
+        $todayStr   = $nowC->format('Y-m-d');
+        $hasLiveData = ($latestDate === $todayStr);
+        if ($hasLiveData) {
+            $anyMoved = !empty(array_filter($latest, fn($d) => isset($d['variation']) && $d['variation'] != 0));
+            $isMarketOpen = $withinHours || $anyMoved;
+        } else {
+            $isMarketOpen = $withinHours;
+        }
 
     } catch (Throwable $e) {
         // fail silently

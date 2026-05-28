@@ -115,6 +115,11 @@ def setup():
     str_attr("data", "peg_rating", size=10)
     str_attr("data", "pr_rating",  size=10)
     str_attr("data", "pb_rating",  size=10)
+    # API-sourced fields (added later — skipped if already exist)
+    float_attr("data", "variation")       # % change today from CDG API
+    float_attr("data", "variation_v")     # absolute MAD change from CDG API
+    str_attr("data",  "symbol",    size=20)  # ticker symbol (ATW, BCP…)
+    str_attr("data",  "data_chart", size=200) # 10 intraday points "p1;p2;…|flag"
     index("data", "c_name_idx",   "key",  ["c_name"])
     index("data", "date_idx",     "key",  ["date"])
     index("data", "c_name_date",  "key",  ["c_name", "date"])

@@ -129,19 +129,27 @@ def main(context):
     client.set_endpoint(endpoint).set_project(project_id).set_key(api_key)
     db = Databases(client)
 
-    # 1. fetch live prices → {symbol: cours}
+    # 1. fetch live prices → {symbol: {cours, variation, variation_v, data_chart}}
     ticker_data = fetch_market_data()
-    prices = {row['Symbol']: row['Cours'] for row in ticker_data}
+    prices = {
+        row['Symbol']: {
+            'cours':       row['Cours'],
+            'variation':   row.get('Variation'),
+            'variation_v': row.get('VariationV'),
+            'data_chart':  row.get('DataChart'),
+        }
+        for row in ticker_data
+    }
 
     # 2. load symbol→name mapping from 'format' collection
     fmt_docs = all_docs(db, "format")
     symbol_to_name = {d['symbol']: d['name'] for d in fmt_docs}
 
-    # 3. build name→price map (only stocks we have a mapping for)
-    name_to_price = {}
-    for symbol, cours in prices.items():
+    # 3. build name→market map (only stocks we have a mapping for)
+    name_to_market = {}
+    for symbol, market in prices.items():
         if symbol in symbol_to_name:
-            name_to_price[symbol_to_name[symbol]] = cours
+            name_to_market[symbol_to_name[symbol]] = {**market, 'symbol': symbol}
 
     # 4. load company fundamentals → {name: doc}
     company_docs = all_docs(db, "company")
@@ -151,11 +159,12 @@ def main(context):
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000+00:00")
     inserted = 0
 
-    for name, pa in name_to_price.items():
+    for name, market in name_to_market.items():
         co = companies.get(name)
         if co is None:
             continue
 
+        pa  = market['cours']
         bpa = co.get('bpa') or 0
         tc5 = co.get('tc5') or 0
         roe = co.get('roe') or 0
@@ -169,18 +178,22 @@ def main(context):
         pb  = cb / cp         if (cb is not None and cp)   else None
 
         doc = {k: v for k, v in {
-            'date':       now,
-            'c_name':     name,
-            'pa':         pa,
-            'cb':         cb,
-            'per':        per,
-            'peg':        peg,
-            'pr':         pr,
-            'pb':         pb,
-            'per_rating': rate(per, PER_GREEN, PER_ORANGE),
-            'peg_rating': rate(peg, PEG_GREEN, PEG_ORANGE),
-            'pr_rating':  rate(pr,  PR_GREEN,  PR_ORANGE),
-            'pb_rating':  rate(pb,  PB_GREEN,  PB_ORANGE),
+            'date':        now,
+            'c_name':      name,
+            'symbol':      market.get('symbol'),
+            'pa':          pa,
+            'cb':          cb,
+            'per':         per,
+            'peg':         peg,
+            'pr':          pr,
+            'pb':          pb,
+            'per_rating':  rate(per, PER_GREEN, PER_ORANGE),
+            'peg_rating':  rate(peg, PEG_GREEN, PEG_ORANGE),
+            'pr_rating':   rate(pr,  PR_GREEN,  PR_ORANGE),
+            'pb_rating':   rate(pb,  PB_GREEN,  PB_ORANGE),
+            'variation':   market.get('variation'),
+            'variation_v': market.get('variation_v'),
+            'data_chart':  market.get('data_chart'),
         }.items() if v is not None}
 
         db.create_document(DB_ID, "data", ID.unique(), doc)
