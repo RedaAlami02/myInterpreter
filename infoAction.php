@@ -48,6 +48,18 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
                 $sparkLabels[] = substr($row['date'] ?? '', 0, 10);
                 $sparkData[]   = (float)($row['pa'] ?? 0);
             }
+
+            // Get symbol for idbourse enrichment
+            // Try from latest history doc first (has symbol since scraper update)
+            $symbol = null;
+            foreach ($history as $row) {
+                if (!empty($row['symbol'])) { $symbol = $row['symbol']; break; }
+            }
+            // Fallback: format collection
+            if (!$symbol) {
+                $fmtRes = aw_list_docs('format', [q_equal('name', $name), q_limit(1)]);
+                if (!empty($fmtRes)) $symbol = $fmtRes[0]['symbol'] ?? null;
+            }
         }
     } catch (Throwable $e) {
         $dbError = $e->getMessage();
@@ -141,25 +153,50 @@ if ($awSession && !empty($name ?? '')) {
       <?php else: ?>
         <div class="search-result">
 
-          <h4 class="mb-3" style="font-family:var(--font-display);font-weight:700">
-            <i class="fas fa-building t-emerald me-2"></i><?= htmlspecialchars($company['NAME']) ?>
-          </h4>
+          <!-- Company header -->
+          <div class="company-header mb-4">
+            <div class="company-title-row">
+              <div>
+                <h4 class="company-name">
+                  <?php if ($symbol): ?>
+                    <span class="ticker-badge"><?= htmlspecialchars($symbol) ?></span>
+                  <?php endif; ?>
+                  <?= htmlspecialchars($company['name'] ?? $name) ?>
+                  <?php if (!empty($company['sector'])): ?>
+                    <span class="sector-badge"><?= htmlspecialchars($company['sector']) ?></span>
+                  <?php endif; ?>
+                </h4>
+                <?php if (!empty($company['description'])): ?>
+                  <p class="company-desc"><?= htmlspecialchars(mb_substr($company['description'], 0, 300)) ?>…</p>
+                <?php endif; ?>
+              </div>
+            </div>
 
-          <div class="card-glass overflow-x-auto mb-4">
-            <table class="tbl">
-              <thead><tr>
-                <?php foreach (array_keys($company) as $col): ?>
-                  <th><?= htmlspecialchars($col) ?></th>
-                <?php endforeach; ?>
-              </tr></thead>
-              <tbody><tr>
-                <?php foreach ($company as $key => $val): ?>
-                  <td class="<?= $key === 'NAME' ? 'label-cell' : 'num mono' ?>">
-                    <?= htmlspecialchars((string)($val ?? '—')) ?>
-                  </td>
-                <?php endforeach; ?>
-              </tr></tbody>
-            </table>
+            <!-- Fundamentals grid -->
+            <div class="fundamentals-grid">
+              <?php
+              $funds = [
+                  'BPA'  => ['label' => 'BPA', 'val' => $company['bpa'] ?? null, 'unit' => 'MAD'],
+                  'DPA'  => ['label' => 'DPA', 'val' => $company['dpa'] ?? null, 'unit' => 'MAD'],
+                  'TC5'  => ['label' => 'TC5', 'val' => $company['tc5'] ?? null, 'unit' => '%'],
+                  'ROE'  => ['label' => 'ROE', 'val' => $company['roe'] ?? null, 'unit' => '%'],
+                  'NA'   => ['label' => 'Actions', 'val' => $company['na'] ?? null, 'unit' => ''],
+                  'β3Y'  => ['label' => 'Béta 3Y', 'val' => $company['beta_3y'] ?? null, 'unit' => ''],
+                  'CA'   => ['label' => 'CA', 'val' => $company['revenue'] ?? null, 'unit' => 'M'],
+                  'RNPG' => ['label' => 'RNPG', 'val' => $company['net_profit'] ?? null, 'unit' => 'M'],
+                  'DN'   => ['label' => 'Dette nette', 'val' => $company['net_debt'] ?? null, 'unit' => 'M'],
+                  'Marge'=> ['label' => 'Marge nette', 'val' => $company['profit_margin'] ?? null, 'unit' => '%'],
+              ];
+              foreach ($funds as $key => $f):
+                  if ($f['val'] === null) continue;
+                  $v = is_float($f['val']) ? number_format($f['val'], 2, ',', ' ') : $f['val'];
+              ?>
+              <div class="fund-chip">
+                <span class="fund-label"><?= $key ?></span>
+                <span class="fund-val"><?= $v ?><?= $f['unit'] ? '<span class="fund-unit"> '.$f['unit'].'</span>' : '' ?></span>
+              </div>
+              <?php endforeach; ?>
+            </div>
           </div>
 
           <?php if (!empty($history)): ?>
@@ -168,6 +205,15 @@ if ($awSession && !empty($name ?? '')) {
             <div class="sparkline-wrap mb-4">
               <h5><i class="fas fa-chart-line me-2 t-cyan"></i>Évolution du prix (PA)</h5>
               <canvas id="sparklineChart" height="80"></canvas>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($symbol): ?>
+            <!-- idbourse enrichment (JS-loaded) -->
+            <div id="idb-enrichment" class="mb-4">
+              <div id="idb-loading" style="padding:24px;text-align:center;color:var(--text-faint);font-size:13px">
+                <i class="fas fa-circle-notch fa-spin me-2"></i>Chargement données financières…
+              </div>
             </div>
             <?php endif; ?>
 
@@ -238,6 +284,143 @@ if ($awSession && !empty($name ?? '')) {
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="assets/js/app.js"></script>
+
+<?php if ($symbol ?? null): ?>
+<script>
+(async function() {
+  const sym = <?= json_encode($symbol) ?>;
+  const container = document.getElementById('idb-enrichment');
+  if (!container) return;
+
+  try {
+    const r   = await fetch('handlers/idbourse_proxy.php?symbol=' + encodeURIComponent(sym));
+    const d   = await r.json();
+    const c   = d.computed || {};
+    const ch  = d.charts   || {};
+
+    let html = '';
+
+    // Description
+    if (d.description) {
+      html += `<div class="idb-section">
+        <div class="idb-section-title"><i class="fas fa-info-circle me-2 t-cyan"></i>À propos</div>
+        <p class="idb-desc">${d.description.replace(/\r\n|\n/g,'<br>')}</p>
+      </div>`;
+    }
+
+    // Financial charts
+    const caData = ch.ca || {}; const rnpgData = ch.rnpg || {}; const ebeData = ch.ebe || {};
+    const allYears = [...new Set([...Object.keys(caData), ...Object.keys(rnpgData), ...Object.keys(ebeData)])].sort();
+    if (allYears.length > 0) {
+      html += `<div class="idb-section">
+        <div class="idb-section-title"><i class="fas fa-chart-bar me-2 t-violet"></i>Résultats annuels (MMAD)</div>
+        <div class="idb-chart-wrap"><canvas id="finChart"></canvas></div>
+      </div>`;
+    }
+
+    // Quarterly CA
+    const trim = d.trim;
+    if (trim) {
+      const qKeys = Object.keys(trim).filter(k => /^T\d\d{4}$/.test(k)).sort();
+      if (qKeys.length > 0) {
+        html += `<div class="idb-section">
+          <div class="idb-section-title"><i class="fas fa-calendar-alt me-2 t-amber"></i>Chiffre d'affaires trimestriel (MMAD)</div>
+          <div class="idb-chart-wrap"><canvas id="trimChart"></canvas></div>
+        </div>`;
+      }
+    }
+
+    // Shareholders
+    if (d.shareholders && d.shareholders.length > 0) {
+      html += `<div class="idb-section">
+        <div class="idb-section-title"><i class="fas fa-users me-2 t-emerald"></i>Actionnariat</div>
+        <div class="idb-two-col">
+          <canvas id="holdersChart" style="max-height:220px"></canvas>
+          <div class="holders-list" id="holders-list"></div>
+        </div>
+      </div>`;
+    }
+
+    container.innerHTML = html || '<div style="color:var(--text-faint);font-size:13px;padding:12px">Aucune donnée idbourse disponible pour cette société.</div>';
+
+    // Draw financial chart
+    if (allYears.length > 0) {
+      const projYears = allYears.filter(y => y.endsWith('p'));
+      const colors = y => projYears.includes(y) ? 'rgba(34,211,238,0.4)' : '#22d3ee';
+      new Chart(document.getElementById('finChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: allYears,
+          datasets: [
+            { label: 'CA', data: allYears.map(y => caData[y]   ?? null), backgroundColor: allYears.map(y => projYears.includes(y) ? 'rgba(34,211,238,0.25)' : 'rgba(34,211,238,0.6)'), borderRadius: 4, order: 2 },
+            { label: 'EBE', data: allYears.map(y => ebeData[y] ?? null), backgroundColor: allYears.map(y => projYears.includes(y) ? 'rgba(129,140,248,0.25)' : 'rgba(129,140,248,0.55)'), borderRadius: 4, order: 2 },
+            { label: 'RNPG', data: allYears.map(y => rnpgData[y] ?? null), type: 'line', borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.12)', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#10b981', tension: 0.3, fill: true, order: 1 },
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { labels: { color: '#94a3b8', font: { size: 12 } } },
+            tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw !== null ? c.raw.toFixed(2) : '—'} M` } }
+          },
+          scales: {
+            x: { ticks: { color: '#475569' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            y: { ticks: { color: '#475569' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          }
+        }
+      });
+    }
+
+    // Draw quarterly chart
+    if (trim) {
+      const qKeys = Object.keys(trim).filter(k => /^T\d\d{4}$/.test(k)).sort().slice(-12);
+      if (qKeys.length > 0 && document.getElementById('trimChart')) {
+        new Chart(document.getElementById('trimChart').getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: qKeys.map(k => k.replace('T','Q').replace(/(\d)(\d{4})/, '$1 $2')),
+            datasets: [{ label: 'CA', data: qKeys.map(k => trim[k] ?? null), backgroundColor: 'rgba(245,158,11,0.55)', borderRadius: 4 }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: '#475569' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+              y: { ticks: { color: '#475569' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+            }
+          }
+        });
+      }
+    }
+
+    // Shareholders chart
+    if (d.shareholders && d.shareholders.length > 0 && document.getElementById('holdersChart')) {
+      const colors = ['#22d3ee','#818cf8','#10b981','#f59e0b','#f43f5e','#6ee7b7','#fb7185','#fbbf24'];
+      new Chart(document.getElementById('holdersChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: d.shareholders.map(h => h.name),
+          datasets: [{ data: d.shareholders.map(h => h.pct), backgroundColor: colors.slice(0, d.shareholders.length), borderWidth: 0 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true,
+          plugins: { legend: { display: false } }
+        }
+      });
+      const list = document.getElementById('holders-list');
+      list.innerHTML = d.shareholders.map((h, i) =>
+        `<div class="holder-row"><span class="holder-dot" style="background:${colors[i % colors.length]}"></span><span class="holder-name">${h.name}</span><span class="holder-pct">${h.pct.toFixed(1)}%</span></div>`
+      ).join('');
+    }
+
+  } catch (e) {
+    document.getElementById('idb-enrichment').innerHTML =
+      `<div style="color:var(--text-faint);font-size:13px;padding:12px">Données idbourse indisponibles.</div>`;
+  }
+})();
+</script>
+<?php endif; ?>
+
 <?php if (!empty($sparkData) && count($sparkData) > 1): ?>
 <script>
   const ctx        = document.getElementById('sparklineChart').getContext('2d');

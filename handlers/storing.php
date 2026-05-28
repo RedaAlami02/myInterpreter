@@ -13,6 +13,7 @@ require_once __DIR__ . '/../core/Action.php';
 function store(Company $company): string {
     $fundamentals = [];
     if ($company->BPA) $fundamentals['bpa'] = (float)$company->BPA;
+    if ($company->DPA) $fundamentals['dpa'] = (float)$company->DPA;
     if ($company->TC5) $fundamentals['tc5'] = (float)$company->TC5;
     if ($company->ROE) $fundamentals['roe'] = (float)$company->ROE;
     if ($company->NA)  $fundamentals['na']  = (float)$company->NA;

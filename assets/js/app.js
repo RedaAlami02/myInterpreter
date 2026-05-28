@@ -104,6 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Hide once everything (images, fonts, scripts) is fully loaded
   window.addEventListener('load', hide);
+  // Hide when restored from bfcache (browser back/forward) — 'load' doesn't fire in that case
+  window.addEventListener('pageshow', function(e) { if (e.persisted) hide(); });
 
   // Safety: hide after 8s regardless, so a stalled resource never locks the page
   setTimeout(hide, 8000);

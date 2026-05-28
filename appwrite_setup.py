@@ -92,12 +92,31 @@ def setup():
     print("\nSetting up 'company'...")
     collection("company", "company")
     str_attr("company", "name", size=60, required=True)
-    float_attr("company", "bpa")
-    float_attr("company", "tc5")
-    float_attr("company", "roe")
-    float_attr("company", "na")
-    float_attr("company", "cp")
+    float_attr("company", "bpa")        # Bénéfice par action (MAD/share)
+    float_attr("company", "dpa")        # Dividende par action (MAD/share)
+    float_attr("company", "tc5")        # Taux de croissance annuel moyen 5 ans (%)
+    float_attr("company", "roe")        # Return on equity (%)
+    float_attr("company", "na")         # Nombre d'actions (count)
+    float_attr("company", "cp")         # Capitaux propres (raw MAD)
     datetime_attr("company", "date")
+    # idbourse enrichment fields
+    str_attr("company", "idb_name",    size=80)     # idbourse company name for API calls
+    str_attr("company", "sector",      size=20)     # corporate / banque / assurance
+    str_attr("company", "description", size=4000)   # company description
+    str_attr("company", "shareholders",size=1500)   # JSON [{"name":"...","pct":65.4}]
+    float_attr("company", "beta_3y")    # 3-year beta
+    float_attr("company", "beta_5y")    # 5-year beta
+    float_attr("company", "revenue")    # latest annual CA (MMAD)
+    float_attr("company", "ebitda")     # latest annual EBE (MMAD)
+    float_attr("company", "ebit")       # latest annual EBIT (MMAD)
+    float_attr("company", "net_profit") # latest annual RNPG (MMAD)
+    float_attr("company", "fcf")        # latest annual Free Cash Flow (MMAD)
+    float_attr("company", "net_debt")   # latest annual dette nette (MMAD, neg = cash)
+    float_attr("company", "net_cash")   # latest annual trésorerie nette (MMAD)
+    float_attr("company", "total_assets")   # latest actif total (MMAD)
+    float_attr("company", "rev_growth_5y")  # CA CAGR 5 ans (%)
+    float_attr("company", "rnpg_growth_5y") # RNPG CAGR 5 ans (%)
+    float_attr("company", "profit_margin")  # marge nette % (RNPG/CA*100)
     index("company", "name_idx", "key", ["name"])
 
     # ── data ─────────────────────────────────────────────────────────────────

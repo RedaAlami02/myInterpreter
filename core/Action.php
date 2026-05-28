@@ -11,6 +11,7 @@ class Company {
     // Raw inputs
     public float $PA  = 0.0;
     public float $BPA = 0.0;
+    public float $DPA = 0.0;
     public float $TC5 = 0.0;
     public float $ROE = 0.0;
     public float $NA  = 0.0;
@@ -27,6 +28,7 @@ class Company {
         $this->NAME = (string) ($data['NAME'] ?? '');
         $this->PA   = (float) ($data['PA']   ?? 0.0);
         $this->BPA  = (float) ($data['BPA']  ?? 0.0);
+        $this->DPA  = (float) ($data['DPA']  ?? 0.0);
         $this->TC5  = (float) ($data['TC5']  ?? 0.0);
         $this->ROE  = (float) ($data['ROE']  ?? 0.0);
         $this->NA   = (float) ($data['NA']   ?? 0.0);
