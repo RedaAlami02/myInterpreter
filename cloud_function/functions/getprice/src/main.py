@@ -6,9 +6,9 @@ Environment variables (Appwrite Console → Functions → Settings → Variables
   APPWRITE_PROJECT_ID 6a12447800077d5113ae
   APPWRITE_API_KEY    <server API key with documents.read/write>
 
-Schedule (UTC): */15 8-15 * * 1-5
-  → every 15 min, 09:00–16:45 Casablanca time, Mon–Fri
-  At 15:45 UTC (16:45 Casablanca): clean up intraday duplicates, keep last per company.
+Schedule (UTC): */15 8-14 * * 1-5
+  → every 15 min, 09:00–15:45 Casablanca time, Mon–Fri
+  End-of-day cleanup is handled by the separate 'cleanup' function (cron: 45 15 * * 1-5).
 """
 
 import os
@@ -121,26 +121,6 @@ def all_docs(db, col_id, queries=None):
         offset += limit
     return docs
 
-# ── end-of-day cleanup ────────────────────────────────────────────────────────
-
-def cleanup_today(db, context):
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    today_docs = all_docs(db, "data", queries=[
-        Query.greater_than_equal("date", today + "T00:00:00.000+00:00"),
-        Query.less_than_equal("date",    today + "T23:59:59.999+00:00"),
-        Query.order_desc("date"),
-    ])
-    seen, deleted = set(), 0
-    for doc in today_docs:
-        name = doc['c_name']
-        if name in seen:
-            db.delete_document(DB_ID, "data", doc['$id'])
-            deleted += 1
-        else:
-            seen.add(name)
-    context.log(f"Cleanup: deleted {deleted} intraday docs")
-    return deleted
-
 # ── entry point ───────────────────────────────────────────────────────────────
 
 def main(context):
@@ -149,13 +129,6 @@ def main(context):
           .set_project(os.environ['APPWRITE_PROJECT_ID']) \
           .set_key(os.environ['APPWRITE_API_KEY'])
     db = Databases(client)
-
-    now_utc = datetime.now(timezone.utc)
-
-    # End-of-day cleanup only — skip scrape so we don't timeout (15:30 has the last price)
-    if now_utc.hour == 15 and now_utc.minute >= 45:
-        deleted = cleanup_today(db, context)
-        return context.res.json({"cleanup_only": True, "deleted": deleted})
 
     # 1. Fetch everything from CDG in one call
     stocks, masi, status = fetch_all()
