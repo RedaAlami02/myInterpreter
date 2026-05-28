@@ -140,32 +140,47 @@ if ($isLoggedIn) {
         $companyCount = count($latest);
         $snapshotDays = count($byDate);
 
-        // MASI chart: query stored MASI index docs (one per day after cleanup)
-        $masiDocs = aw_list_docs('data', [
-            q_equal('c_name', 'MASI'),
-            q_order_desc('date'),
-            q_limit(60),
-        ]);
-        if (!empty($masiDocs)) {
-            // Group by day, take most recent per day, keep last 30 days
-            $masiByDay = [];
-            foreach ($masiDocs as $d) {
-                $day = substr($d['date'] ?? '', 0, 10);
-                if ($day && !isset($masiByDay[$day])) {
-                    $masiByDay[$day] = $d;
-                }
+        // MASI chart: fetch up to 5Y of daily docs
+        $masiAllDocs = [];
+        $masiOffset  = 0;
+        $fiveYearsAgo = date('Y-m-d', strtotime('-5 years')) . 'T00:00:00.000+00:00';
+        do {
+            $page = aw_list_docs('data', [
+                q_equal('c_name', 'MASI'),
+                q_greater_equal('date', $fiveYearsAgo),
+                q_order_desc('date'),
+                q_limit(500),
+                q_offset($masiOffset),
+            ]);
+            $masiAllDocs = array_merge($masiAllDocs, $page);
+            $masiOffset += 500;
+        } while (count($page) === 500);
+
+        // Group by day, keep most recent per day, sort ascending
+        $masiByDay = [];
+        foreach ($masiAllDocs as $d) {
+            $day = substr($d['date'] ?? '', 0, 10);
+            if ($day && !isset($masiByDay[$day])) {
+                $masiByDay[$day] = $d;
             }
-            krsort($masiByDay);
-            $masiByDay = array_slice($masiByDay, 0, 30, true);
-            ksort($masiByDay);
-            foreach ($masiByDay as $d) {
-                $masiSeries[] = round((float)($d['pa'] ?? 0), 2);
-            }
-            $latest = array_values($masiByDay);
-            $latest = end($latest);
-            $masiLast      = (float)($latest['pa'] ?? 0);
-            $masiChange    = isset($latest['variation_v']) ? round((float)$latest['variation_v'], 2) : null;
-            $masiChangePct = isset($latest['variation'])   ? round((float)$latest['variation'],   2) : null;
+        }
+        ksort($masiByDay);
+
+        // Build full series with dates for JS period filtering
+        $masiFullSeries = [];
+        foreach ($masiByDay as $day => $d) {
+            $masiFullSeries[] = ['d' => $day, 'v' => round((float)($d['pa'] ?? 0), 2)];
+        }
+
+        if (!empty($masiFullSeries)) {
+            $latest        = end($masiFullSeries);
+            $masiLast      = $latest['v'];
+            // variation vs previous day
+            $prev          = count($masiFullSeries) >= 2 ? $masiFullSeries[count($masiFullSeries)-2]['v'] : $masiLast;
+            $masiChange    = round($masiLast - $prev, 2);
+            $masiChangePct = $prev ? round(($masiLast - $prev) / $prev * 100, 2) : null;
+            // keep $masiSeries for legacy check (just need count >= 2)
+            $masiSeries    = array_column($masiFullSeries, 'v');
         } else {
             // Fallback: avg PA across all stocks per day
             krsort($byDate);
@@ -173,6 +188,7 @@ if ($isLoggedIn) {
             ksort($byDate);
             foreach ($byDate as $pas) {
                 $masiSeries[] = round(array_sum($pas) / count($pas), 2);
+                $masiFullSeries[] = ['d' => '', 'v' => end($masiSeries)];
             }
             if (count($masiSeries) >= 2) {
                 $masiLast      = end($masiSeries);
@@ -525,7 +541,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
       <div class="glass">
         <div class="card-head">
           <div>
-            <div class="card-title"><?= !empty($masiDocs) ? 'Indice MASI' : 'Tendance marché' ?></div>
+            <div class="card-title"><?= !empty($masiFullSeries) ? 'Indice MASI' : 'Tendance marché' ?></div>
             <div class="masi-value">
               <?php if ($masiLast !== null): ?>
                 <span class="masi-num"><?= number_format($masiLast, 2, ',', ' ') ?></span>
@@ -540,15 +556,19 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
               <?php endif; ?>
             </div>
           </div>
-          <div class="segmented">
-            <span class="seg is-active">30J</span>
+          <div class="segmented" id="masi-periods">
+            <span class="seg" data-period="5Y">5A</span>
+            <span class="seg" data-period="1Y">1A</span>
+            <span class="seg" data-period="6M">6M</span>
+            <span class="seg" data-period="3M">3M</span>
+            <span class="seg is-active" data-period="1M">1M</span>
           </div>
         </div>
         <div class="card-body" style="padding:0">
-          <?php if (!empty($masiSeries)): ?>
-          <svg class="chart" viewBox="0 0 700 210" preserveAspectRatio="none"
+          <?php if (!empty($masiFullSeries)): ?>
+          <svg class="chart" id="masi-svg" viewBox="0 0 700 210" preserveAspectRatio="none"
                data-sparkline
-               data-series="<?= htmlspecialchars(json_encode(array_values($masiSeries))) ?>">
+               data-full="<?= htmlspecialchars(json_encode($masiFullSeries)) ?>">
             <defs>
               <linearGradient id="grad-fill" x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0%"   stop-color="#22d3ee" stop-opacity="0.45"/>
@@ -569,6 +589,10 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
             <circle class="spark-dot-halo" r="10" fill="rgba(34,211,238,0.15)"/>
             <circle class="spark-dot"      r="4"  fill="#22d3ee"/>
           </svg>
+          <div class="masi-slider-wrap">
+            <input type="range" id="masi-range-start" min="0" max="100" value="0" step="1">
+            <input type="range" id="masi-range-end"   min="0" max="100" value="100" step="1">
+          </div>
           <?php else: ?>
           <div style="height:210px;display:flex;align-items:center;justify-content:center;color:var(--text-faint);font-size:13px">
             Aucune donnée disponible
@@ -731,31 +755,91 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
-// Sparkline
+// MASI sparkline with period selector + dual range slider
 (function () {
-  document.querySelectorAll('svg[data-sparkline]').forEach(function (svg) {
-    var raw = svg.getAttribute('data-series');
-    if (!raw) return;
-    var s; try { s = JSON.parse(raw); } catch (e) { return; }
-    if (!s || s.length < 2) return;
+  var svg = document.getElementById('masi-svg');
+  if (!svg) return;
+  var fullRaw = svg.getAttribute('data-full');
+  if (!fullRaw) return;
+  var full; try { full = JSON.parse(fullRaw); } catch(e) { return; }
+  if (!full || full.length < 2) return;
+
+  var sliderStart = document.getElementById('masi-range-start');
+  var sliderEnd   = document.getElementById('masi-range-end');
+
+  // Period → days back
+  var periodDays = { '5Y': 5*365, '1Y': 365, '6M': 182, '3M': 91, '1M': 30 };
+
+  function dateStr(daysBack) {
+    var d = new Date(); d.setDate(d.getDate() - daysBack);
+    return d.toISOString().slice(0,10);
+  }
+
+  function renderSeries(series) {
+    if (!series || series.length < 2) return;
+    var s = series.map(function(p){ return p.v; });
     var vb = svg.getAttribute('viewBox').split(/\s+/).map(Number);
     var w = vb[2], h = vb[3], pad = 14;
     var min = Math.min.apply(null, s), max = Math.max.apply(null, s);
-    var range = max - min || 1;
-    var step = (w - pad * 2) / (s.length - 1);
-    var pts = s.map(function (v, i) {
-      return { x: pad + i * step, y: pad + (h - pad * 2) * (1 - (v - min) / range) };
+    var rng = max - min || 1;
+    var step = (w - pad*2) / (s.length - 1);
+    var pts = s.map(function(v, i) {
+      return { x: pad + i*step, y: pad + (h - pad*2) * (1 - (v - min) / rng) };
     });
-    var line = pts.map(function (p, i) { return (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ');
-    var area = line + ' L' + (w - pad).toFixed(1) + ' ' + (h - pad) + ' L' + pad + ' ' + (h - pad) + ' Z';
+    var line = pts.map(function(p,i){ return (i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1); }).join(' ');
+    var area = line+' L'+(w-pad).toFixed(1)+' '+(h-pad)+' L'+pad+' '+(h-pad)+' Z';
     svg.querySelector('.spark-line').setAttribute('d', line);
     svg.querySelector('.spark-area').setAttribute('d', area);
-    var last = pts[pts.length - 1];
+    var last = pts[pts.length-1];
     svg.querySelector('.spark-dot').setAttribute('cx', last.x);
     svg.querySelector('.spark-dot').setAttribute('cy', last.y);
     svg.querySelector('.spark-dot-halo').setAttribute('cx', last.x);
     svg.querySelector('.spark-dot-halo').setAttribute('cy', last.y);
+  }
+
+  var currentSlice = full;
+
+  function applySliders() {
+    var n = currentSlice.length;
+    var s = Math.round(parseInt(sliderStart.value) / 100 * (n - 1));
+    var e = Math.round(parseInt(sliderEnd.value)   / 100 * (n - 1));
+    if (s >= e) e = s + 1;
+    renderSeries(currentSlice.slice(s, e + 1));
+  }
+
+  function setPeriod(period) {
+    var cutoff = dateStr(periodDays[period]);
+    currentSlice = full.filter(function(p){ return p.d >= cutoff; });
+    if (currentSlice.length < 2) currentSlice = full;
+    // reset sliders to full range
+    sliderStart.value = 0;
+    sliderEnd.value   = 100;
+    renderSeries(currentSlice);
+  }
+
+  // Period buttons
+  document.querySelectorAll('#masi-periods .seg').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('#masi-periods .seg').forEach(function(b){ b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      setPeriod(btn.getAttribute('data-period'));
+    });
   });
+
+  // Sliders — keep start ≤ end
+  sliderStart.addEventListener('input', function() {
+    if (parseInt(sliderStart.value) >= parseInt(sliderEnd.value))
+      sliderEnd.value = Math.min(100, parseInt(sliderStart.value) + 1);
+    applySliders();
+  });
+  sliderEnd.addEventListener('input', function() {
+    if (parseInt(sliderEnd.value) <= parseInt(sliderStart.value))
+      sliderStart.value = Math.max(0, parseInt(sliderEnd.value) - 1);
+    applySliders();
+  });
+
+  // Initial render: 1M
+  setPeriod('1M');
 })();
 
 // Table tab switcher

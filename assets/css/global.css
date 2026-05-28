@@ -679,6 +679,21 @@ body::before {
 .masi-value .masi-chg.pos { color: var(--pos); }
 .masi-value .masi-chg.neg { color: var(--neg); }
 .chart { width: 100%; height: 210px; display: block; }
+.masi-slider-wrap { display: flex; gap: 8px; padding: 8px 14px 10px; }
+.masi-slider-wrap input[type=range] {
+  flex: 1; -webkit-appearance: none; appearance: none;
+  height: 3px; border-radius: 2px;
+  background: var(--border); outline: none; cursor: pointer;
+}
+.masi-slider-wrap input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--accent);
+  box-shadow: 0 0 6px rgba(34,211,238,0.5); cursor: pointer;
+}
+.masi-slider-wrap input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px; border: none;
+  border-radius: 50%; background: var(--accent); cursor: pointer;
+}
 
 /* ── Action tiles ───────────────────────────────────────── */
 .action-grid { padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
