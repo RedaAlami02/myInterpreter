@@ -22,9 +22,11 @@ function aw_request(string $method, string $path, array $data = [], ?string $ses
         'Content-Type: application/json',
         'X-Appwrite-Project: ' . APPWRITE_PROJECT_ID,
     ];
+    // Client-auth paths must NOT carry the API key — they run as anonymous guest.
+    $isClientAuth = str_starts_with($path, '/account/sessions') || $path === '/account';
     if ($session !== null && $session !== '') {
         $headers[] = 'Cookie: ' . $session;
-    } elseif (defined('APPWRITE_API_KEY') && APPWRITE_API_KEY !== '') {
+    } elseif (!$isClientAuth && defined('APPWRITE_API_KEY') && APPWRITE_API_KEY !== '') {
         $headers[] = 'X-Appwrite-Key: ' . APPWRITE_API_KEY;
     }
 
@@ -120,6 +122,82 @@ function q_limit(int $n): string {
 }
 function q_greater_than(string $attr, $val): string {
     return json_encode(['method' => 'greaterThan', 'attribute' => $attr, 'values' => [$val]]);
+}
+
+/**
+ * Fire multiple aw_list_docs calls in parallel using curl_multi.
+ * $requests: [ 'key' => ['collection', [queries], $session|null], ... ]
+ * Returns:   [ 'key' => [documents], ... ]
+ */
+function aw_multi_list_docs(array $requests): array
+{
+    if (!function_exists('curl_multi_init')) {
+        $results = [];
+        foreach ($requests as $key => [$collection, $queries, $session]) {
+            $results[$key] = aw_list_docs($collection, $queries, $session);
+        }
+        return $results;
+    }
+
+    $mh      = curl_multi_init();
+    $handles = [];
+
+    foreach ($requests as $key => [$collection, $queries, $session]) {
+        $params = [];
+        foreach ($queries as $q) {
+            $params[] = 'queries[]=' . urlencode($q);
+        }
+        $qs  = $params ? '?' . implode('&', $params) : '';
+        $url = APPWRITE_ENDPOINT . '/databases/' . APPWRITE_DB_ID . '/collections/' . $collection . '/documents' . $qs;
+
+        $headers = [
+            'Content-Type: application/json',
+            'X-Appwrite-Project: ' . APPWRITE_PROJECT_ID,
+        ];
+        if ($session !== null && $session !== '') {
+            $headers[] = 'Cookie: ' . $session;
+        } elseif (defined('APPWRITE_API_KEY') && APPWRITE_API_KEY !== '') {
+            $headers[] = 'X-Appwrite-Key: ' . APPWRITE_API_KEY;
+        }
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HEADER         => false,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        curl_multi_add_handle($mh, $ch);
+        $handles[$key] = $ch;
+    }
+
+    do {
+        $status = curl_multi_exec($mh, $active);
+        if ($active) curl_multi_select($mh);
+    } while ($active > 0 && $status === CURLM_OK);
+
+    $results = [];
+    foreach ($handles as $key => $ch) {
+        $errno = curl_errno($ch);
+        if ($errno) {
+            $err = curl_error($ch);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+            curl_multi_close($mh);
+            throw new RuntimeException("aw_multi_list_docs curl error on '{$key}': {$err}");
+        }
+        $body          = curl_multi_getcontent($ch);
+        $decoded       = json_decode($body ?: '{}', true) ?? [];
+        $results[$key] = $decoded['documents'] ?? [];
+        curl_multi_remove_handle($mh, $ch);
+        curl_close($ch);
+    }
+    curl_multi_close($mh);
+
+    return $results;
 }
 
 /**

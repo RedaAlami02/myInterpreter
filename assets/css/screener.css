@@ -1,5 +1,5 @@
 /* screener.css */
-.screener-wrap { max-width: 1200px; margin: 0 auto; padding: 2rem 20px 60px; }
+.screener-wrap { max-width: 100%; margin: 0; padding: 2rem 0 60px; }
 
 /* ── Page header ─────────────────────────────────────────── */
 .screener-hero { margin-bottom: 2rem; }
@@ -19,7 +19,9 @@
   gap: 12px;
   margin-bottom: 24px;
 }
-@media (max-width: 700px) { .summary-row { grid-template-columns: repeat(2,1fr); } }
+/* Tablet with sidebar: content too narrow for 4-col */
+@media (min-width: 769px) and (max-width: 1000px) { .summary-row { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .summary-row { grid-template-columns: repeat(2, 1fr); } }
 
 /* ── Filter bar ──────────────────────────────────────────── */
 .filter-bar {
@@ -88,7 +90,8 @@
   backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 .tbl.screener-tbl thead th {
   cursor: pointer;

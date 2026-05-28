@@ -22,16 +22,10 @@ $saved = isset($_GET['saved']);
   <link href="assets/css/update.css" rel="stylesheet">
 </head>
 <body>
-<div class="page">
-
-  <!-- Top bar -->
-  <nav class="topbar">
-    <a href="index.php" class="topbar-brand"><i class="fas fa-chart-line"></i> myInterpreter</a>
-    <span class="topbar-sep">/</span>
-    <span class="topbar-title">Update Stock</span>
-    <div class="topbar-spacer"></div>
-    <a href="index.php" class="btn btn-ghost btn-sm"><i class="fas fa-arrow-left"></i> Accueil</a>
-  </nav>
+<div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
+<div class="app">
+  <?php include 'core/sidebar.php'; ?>
+  <main class="main">
 
   <div class="update-wrap animate-up">
 
@@ -158,7 +152,8 @@ $saved = isset($_GET['saved']);
       </div>
     </form>
   </div><!-- .update-wrap -->
-</div><!-- .page -->
+  </main>
+</div>
 
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
 <script src="assets/js/app.js"></script>

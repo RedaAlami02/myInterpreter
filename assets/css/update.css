@@ -1,5 +1,5 @@
 /* update.css */
-.update-wrap { max-width: 680px; margin: 2.5rem auto; padding: 0 20px 40px; }
+.update-wrap { max-width: 100%; margin: 0; padding: 0 0 40px; }
 
 .field-group {
   background: var(--surface-1);

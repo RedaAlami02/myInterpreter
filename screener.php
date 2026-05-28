@@ -100,15 +100,10 @@ $defaultBelow22 = count(array_filter($rows, fn($r) => $r['PER'] < 22));
   <link href="assets/css/screener.css" rel="stylesheet">
 </head>
 <body>
-<div class="page">
-
-  <nav class="topbar">
-    <a href="index.php" class="topbar-brand"><i class="fas fa-chart-line"></i> myInterpreter</a>
-    <span class="topbar-sep">/</span>
-    <span class="topbar-title">Screener</span>
-    <div class="topbar-spacer"></div>
-    <a href="index.php" class="btn btn-ghost btn-sm"><i class="fas fa-home"></i></a>
-  </nav>
+<div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
+<div class="app">
+  <?php $screenerCount = $totalCompanies; include 'core/sidebar.php'; ?>
+  <main class="main">
 
   <div class="screener-wrap animate-up">
 
@@ -295,7 +290,8 @@ $defaultBelow22 = count(array_filter($rows, fn($r) => $r['PER'] < 22));
     <?php endif; // end !$dbError ?>
 
   </div><!-- .screener-wrap -->
-</div><!-- .page -->
+  </main>
+</div>
 
 <script src="assets/js/app.js"></script>
 <script>

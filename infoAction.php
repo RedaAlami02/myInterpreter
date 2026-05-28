@@ -53,6 +53,30 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
         $dbError = $e->getMessage();
     }
 }
+
+// ─── Buy markers (shown when user is logged in) ───────────
+$buyMarkers = [];
+$awSession  = $_SESSION['aw_cookie'] ?? null;
+if ($awSession && !empty($name ?? '')) {
+    try {
+        $uid = aw_user_id();
+        if ($uid) {
+            $achatsDocs = aw_list_docs('achats', [
+                q_equal('c_name', $name),
+                q_equal('user_id', $uid),
+                q_order_asc('date'),
+                q_limit(50),
+            ], $awSession);
+            foreach ($achatsDocs as $a) {
+                $buyMarkers[] = [
+                    'date'     => substr($a['date'] ?? '', 0, 10),
+                    'price'    => (float)($a['price'] ?? 0),
+                    'quantity' => (int)($a['quantity'] ?? 0),
+                ];
+            }
+        }
+    } catch (Throwable $e) { /* silently ignore — markers are optional */ }
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -66,15 +90,10 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
   <link href="assets/css/infoAction.css" rel="stylesheet">
 </head>
 <body>
-<div class="page">
-
-  <nav class="topbar">
-    <a href="index.php" class="topbar-brand"><i class="fas fa-chart-line"></i> myInterpreter</a>
-    <span class="topbar-sep">/</span>
-    <span class="topbar-title">Consulter Action</span>
-    <div class="topbar-spacer"></div>
-    <a href="index.php" class="btn btn-ghost btn-sm"><i class="fas fa-home"></i></a>
-  </nav>
+<div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
+<div class="app">
+  <?php include 'core/sidebar.php'; ?>
+  <main class="main">
 
   <div class="search-wrap">
 
@@ -214,20 +233,59 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
     <?php endif; ?>
 
   </div>
+  </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="assets/js/app.js"></script>
 <?php if (!empty($sparkData) && count($sparkData) > 1): ?>
 <script>
-  const ctx    = document.getElementById('sparklineChart').getContext('2d');
-  const labels = <?= json_encode($sparkLabels) ?>;
-  const data   = <?= json_encode($sparkData) ?>;
-  const first  = data[0], last = data[data.length - 1];
-  const color  = last >= first ? '#10b981' : '#f43f5e';
+  const ctx        = document.getElementById('sparklineChart').getContext('2d');
+  const labels     = <?= json_encode($sparkLabels) ?>;
+  const data       = <?= json_encode($sparkData) ?>;
+  const buyMarkers = <?= json_encode($buyMarkers) ?>;
+  const first      = data[0], last = data[data.length - 1];
+  const color      = last >= first ? '#10b981' : '#f43f5e';
+
+  const buyPinPlugin = {
+    id: 'buyPin',
+    afterDraw(chart) {
+      if (!buyMarkers.length) return;
+      const { ctx: c, chartArea, scales } = chart;
+      buyMarkers.forEach(marker => {
+        const idx = labels.indexOf(marker.date);
+        if (idx === -1) return;
+        const x   = scales.x.getPixelForValue(idx);
+        const top = chartArea.top;
+        const bot = chartArea.bottom;
+
+        c.save();
+        c.setLineDash([4, 3]);
+        c.strokeStyle = 'rgba(6,182,212,0.65)';
+        c.lineWidth   = 1.5;
+        c.beginPath(); c.moveTo(x, top); c.lineTo(x, bot); c.stroke();
+
+        c.setLineDash([]);
+        c.fillStyle = '#06b6d4';
+        c.beginPath();
+        c.moveTo(x,     top + 3);
+        c.lineTo(x - 5, top - 6);
+        c.lineTo(x + 5, top - 6);
+        c.closePath();
+        c.fill();
+
+        c.fillStyle  = '#06b6d4';
+        c.font       = 'bold 9px sans-serif';
+        c.textAlign  = 'center';
+        c.fillText('Achat', x, top - 9);
+        c.restore();
+      });
+    }
+  };
 
   new Chart(ctx, {
     type: 'line',
+    plugins: [buyPinPlugin],
     data: {
       labels,
       datasets: [{
@@ -251,7 +309,16 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
       responsive: true,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: c => ' PA : ' + c.raw.toFixed(2) + ' MAD' } }
+        tooltip: {
+          callbacks: {
+            label(c) {
+              let line = ' PA : ' + c.raw.toFixed(2) + ' MAD';
+              const m  = buyMarkers.find(b => b.date === labels[c.dataIndex]);
+              if (m) line += '   •   Achat ' + m.quantity + ' × ' + m.price.toFixed(2) + ' MAD';
+              return line;
+            }
+          }
+        }
       },
       scales: {
         x: { ticks: { color: '#475569', maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.04)' } },
