@@ -52,9 +52,14 @@ try {
         ];
         $score = count(array_filter($colors, fn($c) => $c === 'green'));
 
-        $pa      = (float)($r['pa'] ?? 0);
-        $prevPA  = isset($prev[$name]) ? (float)($prev[$name]['pa'] ?? 0) : 0;
-        $trend   = ($prevPA > 0) ? (($pa - $prevPA) / $prevPA * 100) : null;
+        $pa    = (float)($r['pa'] ?? 0);
+        // Use API variation if stored, fall back to calculated from prev snapshot
+        if (isset($r['variation'])) {
+            $trend = (float)$r['variation'];
+        } else {
+            $prevPA = isset($prev[$name]) ? (float)($prev[$name]['pa'] ?? 0) : 0;
+            $trend  = ($prevPA > 0) ? (($pa - $prevPA) / $prevPA * 100) : null;
+        }
 
         $rows[] = [
             'name'   => $name,
