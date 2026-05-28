@@ -75,6 +75,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['login_form']) || iss
 
 $isLoggedIn = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
 
+function _cdg_market_status(): array {
+    $payload = json_encode(['ACTIONS' => [[
+        'ACTION' => ['NAME' => 'MARKET-STATUS', 'TYPE' => 'SELECT', 'VALUE' => 'MARKET-STATUS'],
+        'PARAMS' => [
+            ['NAME' => 'Lang_',       'TYPE' => 'S', 'VALUE' => 'XX'],
+            ['NAME' => 'Espace_',     'TYPE' => 'I', 'VALUE' => 1],
+            ['NAME' => 'IdPartener_', 'TYPE' => 'I', 'VALUE' => 1],
+            ['NAME' => 'NumSeq_',     'TYPE' => 'I', 'VALUE' => 0],
+        ],
+    ]]]);
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL            => 'https://www.cdgcapitalbourse.ma/api/',
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 3,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'Origin: https://www.cdgcapitalbourse.ma',
+            'Referer: https://www.cdgcapitalbourse.ma/',
+        ],
+    ]);
+    $body = curl_exec($ch);
+    curl_close($ch);
+    if (!$body) return [];
+    $data = json_decode($body, true);
+    return $data[0]['MARKET-STATUS']['Data'][0] ?? [];
+}
+
 // ─── Dashboard data ───────────────────────────────────────
 $companyCount   = 0;
 $snapshotDays   = 0;
@@ -109,18 +139,46 @@ if ($isLoggedIn) {
         $companyCount = count($latest);
         $snapshotDays = count($byDate);
 
-        // Chart series: avg PA per day, last 30 days
-        krsort($byDate);
-        $byDate = array_slice($byDate, 0, 30, true);
-        ksort($byDate);
-        foreach ($byDate as $pas) {
-            $masiSeries[] = round(array_sum($pas) / count($pas), 2);
-        }
-        if (count($masiSeries) >= 2) {
-            $masiLast      = end($masiSeries);
-            $masiFirst     = reset($masiSeries);
-            $masiChange    = round($masiLast - $masiFirst, 2);
-            $masiChangePct = $masiFirst ? round(($masiLast - $masiFirst) / $masiFirst * 100, 2) : null;
+        // MASI chart: query stored MASI index docs (one per day after cleanup)
+        $masiDocs = aw_list_docs('data', [
+            q_equal('c_name', 'MASI'),
+            q_order_desc('date'),
+            q_limit(60),
+        ]);
+        if (!empty($masiDocs)) {
+            // Group by day, take most recent per day, keep last 30 days
+            $masiByDay = [];
+            foreach ($masiDocs as $d) {
+                $day = substr($d['date'] ?? '', 0, 10);
+                if ($day && !isset($masiByDay[$day])) {
+                    $masiByDay[$day] = $d;
+                }
+            }
+            krsort($masiByDay);
+            $masiByDay = array_slice($masiByDay, 0, 30, true);
+            ksort($masiByDay);
+            foreach ($masiByDay as $d) {
+                $masiSeries[] = round((float)($d['pa'] ?? 0), 2);
+            }
+            $latest = array_values($masiByDay);
+            $latest = end($latest);
+            $masiLast      = (float)($latest['pa'] ?? 0);
+            $masiChange    = isset($latest['variation_v']) ? round((float)$latest['variation_v'], 2) : null;
+            $masiChangePct = isset($latest['variation'])   ? round((float)$latest['variation'],   2) : null;
+        } else {
+            // Fallback: avg PA across all stocks per day
+            krsort($byDate);
+            $byDate = array_slice($byDate, 0, 30, true);
+            ksort($byDate);
+            foreach ($byDate as $pas) {
+                $masiSeries[] = round(array_sum($pas) / count($pas), 2);
+            }
+            if (count($masiSeries) >= 2) {
+                $masiLast      = end($masiSeries);
+                $masiFirst     = reset($masiSeries);
+                $masiChange    = round($masiLast - $masiFirst, 2);
+                $masiChangePct = $masiFirst ? round(($masiLast - $masiFirst) / $masiFirst * 100, 2) : null;
+            }
         }
 
         // Score / PER stats
@@ -190,21 +248,18 @@ if ($isLoggedIn) {
         $topLosers  = array_slice(array_values($losers),  0, 6);
         $topScored  = array_slice(array_values($scored4), 0, 6);
 
-        // Market session status: use API variation data when available,
-        // fall back to time-based check (Mon–Fri 9:30–15:30 Casablanca)
-        $nowC = new DateTime('now', new DateTimeZone('Africa/Casablanca'));
-        $tm   = (int)$nowC->format('G') * 60 + (int)$nowC->format('i');
-        $dow  = (int)$nowC->format('N');
-        $withinHours = ($dow <= 5 && $tm >= 9*60+30 && $tm < 15*60+30);
-        // If we have variation data from today, check if any stocks moved (= session active)
-        $latestDate = !empty($latest) ? substr(array_values($latest)[0]['date'] ?? '', 0, 10) : '';
-        $todayStr   = $nowC->format('Y-m-d');
-        $hasLiveData = ($latestDate === $todayStr);
-        if ($hasLiveData) {
-            $anyMoved = !empty(array_filter($latest, fn($d) => isset($d['variation']) && $d['variation'] != 0));
-            $isMarketOpen = $withinHours || $anyMoved;
+        // Market session status: live from CDG API (3s timeout), fallback to time-based
+        $isMarketOpen  = false;
+        $sessionLabel  = '';
+        $cdgStatus = _cdg_market_status();
+        if (!empty($cdgStatus)) {
+            $isMarketOpen = ($cdgStatus['Color'] ?? '') === 'G';
+            $sessionLabel = $cdgStatus['Statut'] ?? '';
         } else {
-            $isMarketOpen = $withinHours;
+            $nowC = new DateTime('now', new DateTimeZone('Africa/Casablanca'));
+            $tm   = (int)$nowC->format('G') * 60 + (int)$nowC->format('i');
+            $dow  = (int)$nowC->format('N');
+            $isMarketOpen = ($dow <= 5 && $tm >= 9*60+30 && $tm < 15*60+30);
         }
 
     } catch (Throwable $e) {
@@ -428,9 +483,9 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
           <span>Chercher une société…</span>
         </a>
         <?php if ($isMarketOpen): ?>
-          <div class="live-pill"><span class="live-dot"></span>Séance ouverte</div>
+          <div class="live-pill"><span class="live-dot"></span><?= htmlspecialchars($sessionLabel ?: 'Séance ouverte') ?></div>
         <?php else: ?>
-          <div class="closed-pill"><span style="width:7px;height:7px;border-radius:50%;background:var(--neg);display:inline-block"></span>Séance fermée</div>
+          <div class="closed-pill"><span style="width:7px;height:7px;border-radius:50%;background:var(--neg);display:inline-block"></span><?= htmlspecialchars($sessionLabel ?: 'Séance fermée') ?></div>
         <?php endif; ?>
       </div>
     </div>
@@ -469,7 +524,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
       <div class="glass">
         <div class="card-head">
           <div>
-            <div class="card-title">Tendance marché</div>
+            <div class="card-title"><?= !empty($masiDocs) ? 'Indice MASI' : 'Tendance marché' ?></div>
             <div class="masi-value">
               <?php if ($masiLast !== null): ?>
                 <span class="masi-num"><?= number_format($masiLast, 2, ',', ' ') ?></span>

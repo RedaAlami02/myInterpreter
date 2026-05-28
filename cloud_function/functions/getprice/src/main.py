@@ -1,20 +1,19 @@
 """
-Appwrite Cloud Function: fetch live CDG Bourse prices, compute ratios, store in 'data' collection.
+Appwrite Cloud Function: fetch live CDG Bourse data, compute ratios, store in 'data' collection.
 
-Environment variables (set in Appwrite Console → Functions → Settings → Variables):
+Environment variables (Appwrite Console → Functions → Settings → Variables):
   APPWRITE_ENDPOINT   https://fra.cloud.appwrite.io/v1
   APPWRITE_PROJECT_ID 6a12447800077d5113ae
-  APPWRITE_API_KEY    <your server API key>
+  APPWRITE_API_KEY    <server API key with documents.read/write>
 
-Schedule (Appwrite cron, UTC): */15 8-15 * * 1-5
-  → every 15 min from 09:00 to 16:45 Casablanca time (UTC+1), Mon–Fri only
-  At the 15:45 UTC run (16:45 Casablanca), intraday duplicates are cleaned up:
-  only the last value per company for that day is kept.
+Schedule (UTC): */15 8-15 * * 1-5
+  → every 15 min, 09:00–16:45 Casablanca time, Mon–Fri
+  At 15:45 UTC (16:45 Casablanca): clean up intraday duplicates, keep last per company.
 """
 
 import os
 import requests
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from appwrite.client import Client
 from appwrite.services.databases import Databases
 from appwrite.query import Query
@@ -34,11 +33,7 @@ CDG_HEADERS = {
     'accept-language': 'en-US,en;q=0.9,fr;q=0.8',
     'content-type': 'application/json',
     'origin': 'https://www.cdgcapitalbourse.ma',
-    'priority': 'u=1, i',
     'referer': 'https://www.cdgcapitalbourse.ma/',
-    'sec-ch-ua': '"Not-A.Brand";v="24", "Chromium";v="146"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Linux"',
     'sec-fetch-dest': 'empty',
     'sec-fetch-mode': 'cors',
     'sec-fetch-site': 'same-origin',
@@ -48,17 +43,39 @@ CDG_HEADERS = {
     ),
 }
 
+# Single request: stocks (PALMARES) + MASI index + market status
 CDG_PAYLOAD = {
-    'ACTIONS': [{
-        'ACTION': {'NAME': 'TICKER', 'TYPE': 'SELECT', 'VALUE': 'TICKER'},
-        'PARAMS': [
-            {'NAME': 'Espace_',    'TYPE': 'I', 'VALUE': '1'},
-            {'NAME': 'IdPartener_','TYPE': 'I', 'VALUE': '1'},
-            {'NAME': 'Lang_',      'TYPE': 'S', 'VALUE': 'XX'},
-            {'NAME': 'NumseqMin_', 'TYPE': 'I', 'VALUE': '0'},
-            {'NAME': 'NumseqMax_', 'TYPE': 'I', 'VALUE': '0'},
-        ],
-    }]
+    'ACTIONS': [
+        {
+            'ACTION': {'NAME': 'PALMARES-STOCKS', 'TYPE': 'SELECT', 'VALUE': 'PALMARES-STOCKS'},
+            'PARAMS': [
+                {'NAME': 'Lang_',       'TYPE': 'S', 'VALUE': 'XX'},
+                {'NAME': 'TypeStocks_', 'TYPE': 'I', 'VALUE': '1'},
+                {'NAME': 'IdPartener_', 'TYPE': 'I', 'VALUE': '1'},
+                {'NAME': 'TypeOrder_',  'TYPE': 'S', 'VALUE': 'volume'},
+                {'NAME': 'Frequence_',  'TYPE': 'S', 'VALUE': 'D'},
+                {'NAME': 'Nbr_',        'TYPE': 'I', 'VALUE': '1'},
+            ],
+        },
+        {
+            'ACTION': {'NAME': 'INDICE-SYNTHESE', 'TYPE': 'SELECT', 'VALUE': 'INDICE-SYNTHESE'},
+            'PARAMS': [
+                {'NAME': 'Lang_',       'TYPE': 'S', 'VALUE': 'XX'},
+                {'NAME': 'Espace_',     'TYPE': 'I', 'VALUE': '1'},
+                {'NAME': 'IdPartener_', 'TYPE': 'I', 'VALUE': '1'},
+                {'NAME': 'Indice_',     'TYPE': 'S', 'VALUE': 'MASI'},
+            ],
+        },
+        {
+            'ACTION': {'NAME': 'MARKET-STATUS', 'TYPE': 'SELECT', 'VALUE': 'MARKET-STATUS'},
+            'PARAMS': [
+                {'NAME': 'Lang_',       'TYPE': 'S', 'VALUE': 'XX'},
+                {'NAME': 'Espace_',     'TYPE': 'I', 'VALUE': '1'},
+                {'NAME': 'IdPartener_', 'TYPE': 'I', 'VALUE': '1'},
+                {'NAME': 'NumSeq_',     'TYPE': 'I', 'VALUE': '0'},
+            ],
+        },
+    ]
 }
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -66,30 +83,40 @@ CDG_PAYLOAD = {
 def rate(value, green, orange):
     if value is None:
         return None
-    if value <= green:
-        return "green"
-    if value <= orange:
-        return "orange"
+    if value <= green:   return "green"
+    if value <= orange:  return "orange"
     return "red"
 
-def fetch_market_data():
-    session = requests.Session()
-    session.get("https://www.cdgcapitalbourse.ma/Bourse/market/ATW?tab=Cotation")
-    resp = session.post("https://www.cdgcapitalbourse.ma/api/", headers=CDG_HEADERS, json=CDG_PAYLOAD)
+def fit_chart(chart_str, max_len=195):
+    """Trim data_chart from the left to fit within max_len chars."""
+    if not chart_str or len(chart_str) <= max_len:
+        return chart_str
+    parts = chart_str.split('|')
+    flag   = parts[-1] if len(parts) > 1 else ''
+    points = parts[0].split(';')
+    while points and len(';'.join(points) + '|' + flag) > max_len:
+        points.pop(0)
+    return ';'.join(points) + '|' + flag
+
+def fetch_all():
+    """Single CDG API call → (stocks, masi, status)."""
+    s = requests.Session()
+    s.get("https://www.cdgcapitalbourse.ma/Bourse/market/ATW?tab=Cotation")
+    resp = s.post("https://www.cdgcapitalbourse.ma/api/",
+                  headers=CDG_HEADERS, json=CDG_PAYLOAD, timeout=15)
     resp.raise_for_status()
-    return resp.json()[0]['TICKER']['Data']
+    data = resp.json()
+    stocks = data[0].get('PALMARES-STOCKS', {}).get('Data', [])
+    masi   = (data[1].get('INDICE-SYNTHESE', {}).get('Data') or [{}])[0]
+    status = (data[2].get('MARKET-STATUS',   {}).get('Data') or [{}])[0]
+    return stocks, masi, status
 
 def all_docs(db, col_id, queries=None):
-    """Fetch every document in a collection (handles Appwrite's 25-doc default limit)."""
-    docs = []
-    limit = 100
-    offset = 0
-    base_queries = queries or []
+    docs, limit, offset = [], 100, 0
+    base = queries or []
     while True:
-        page = db.list_documents(
-            DB_ID, col_id,
-            queries=base_queries + [Query.limit(limit), Query.offset(offset)]
-        )
+        page = db.list_documents(DB_ID, col_id,
+                                 queries=base + [Query.limit(limit), Query.offset(offset)])
         docs.extend([d._data for d in page.documents])
         if len(page.documents) < limit:
             break
@@ -99,88 +126,93 @@ def all_docs(db, col_id, queries=None):
 # ── end-of-day cleanup ────────────────────────────────────────────────────────
 
 def cleanup_today(db, context):
-    """Delete all intraday data docs for today except the most recent per company."""
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     today_docs = all_docs(db, "data", queries=[
         Query.greater_than_equal("date", today + "T00:00:00.000+00:00"),
         Query.less_than_equal("date",    today + "T23:59:59.999+00:00"),
         Query.order_desc("date"),
     ])
-    seen = set()
-    deleted = 0
+    seen, deleted = set(), 0
     for doc in today_docs:
         name = doc['c_name']
         if name in seen:
             db.delete_document(DB_ID, "data", doc['$id'])
             deleted += 1
         else:
-            seen.add(name)  # first occurrence = most recent (sorted desc) → keep
-    context.log(f"Cleanup: deleted {deleted} intraday docs, kept 1 per company")
+            seen.add(name)
+    context.log(f"Cleanup: deleted {deleted} intraday docs")
     return deleted
 
 # ── entry point ───────────────────────────────────────────────────────────────
 
 def main(context):
-    endpoint   = os.environ['APPWRITE_ENDPOINT']
-    project_id = os.environ['APPWRITE_PROJECT_ID']
-    api_key    = os.environ['APPWRITE_API_KEY']
-
     client = Client()
-    client.set_endpoint(endpoint).set_project(project_id).set_key(api_key)
+    client.set_endpoint(os.environ['APPWRITE_ENDPOINT']) \
+          .set_project(os.environ['APPWRITE_PROJECT_ID']) \
+          .set_key(os.environ['APPWRITE_API_KEY'])
     db = Databases(client)
 
-    # 1. fetch live prices → {symbol: {cours, variation, variation_v, data_chart}}
-    ticker_data = fetch_market_data()
-    prices = {
-        row['Symbol']: {
-            'cours':       row['Cours'],
-            'variation':   row.get('Variation'),
-            'variation_v': row.get('VariationV'),
-            'data_chart':  row.get('DataChart'),
-        }
-        for row in ticker_data
-    }
+    # 1. Fetch everything from CDG in one call
+    stocks, masi, status = fetch_all()
+    context.log(f"Market: {status.get('Statut', '?')} | "
+                f"MASI: {masi.get('Cours', '?')} ({masi.get('VariationP', '?')}%)")
 
-    # 2. load symbol→name mapping from 'format' collection
-    fmt_docs = all_docs(db, "format")
-    symbol_to_name = {d['symbol']: d['name'] for d in fmt_docs}
-
-    # 3. build name→market map (only stocks we have a mapping for)
-    name_to_market = {}
-    for symbol, market in prices.items():
-        if symbol in symbol_to_name:
-            name_to_market[symbol_to_name[symbol]] = {**market, 'symbol': symbol}
-
-    # 4. load company fundamentals → {name: doc}
-    company_docs = all_docs(db, "company")
-    companies = {d['name']: d for d in company_docs}
-
-    # 5. compute ratios and insert into 'data'
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000+00:00")
     inserted = 0
 
-    for name, market in name_to_market.items():
+    # 2. Load mappings and fundamentals
+    fmt_docs      = all_docs(db, "format")
+    symbol_to_name = {d['symbol']: d['name'] for d in fmt_docs}
+    company_docs  = all_docs(db, "company")
+    companies     = {d['name']: d for d in company_docs}
+
+    # 3. Build enriched stock map
+    name_to_market = {}
+    for row in stocks:
+        sym  = row['Symbol']
+        name = symbol_to_name.get(sym)
+        if not name:
+            continue
+        cours_ref = row.get('CoursDeReferance', 0)
+        cours     = row.get('DernierCours', 0)
+        name_to_market[name] = {
+            'symbol':      sym,
+            'cours':       cours,
+            'cours_ref':   cours_ref,
+            'open_price':  row.get('Ouverture'),
+            'high':        row.get('PlusHaut'),
+            'low':         row.get('PlusBas'),
+            'volume':      row.get('Volume'),
+            'qty_traded':  row.get('QteEchangee'),
+            'market_cap':  row.get('Capitalisation'),
+            'variation':   row.get('Variation'),
+            'variation_v': round(cours - cours_ref, 4) if cours and cours_ref else None,
+            'data_chart':  fit_chart(row.get('DataChart', '')),
+        }
+
+    # 4. Compute ratios and insert stock docs
+    for name, m in name_to_market.items():
         co = companies.get(name)
         if co is None:
             continue
 
-        pa  = market['cours']
+        pa  = m['cours']
         bpa = co.get('bpa') or 0
         tc5 = co.get('tc5') or 0
         roe = co.get('roe') or 0
         na  = co.get('na')  or 0
         cp  = co.get('cp')  or 0
 
-        cb  = pa * na         if na  else None
-        per = pa / bpa        if bpa else None
-        peg = per / tc5       if (per is not None and tc5) else None
-        pr  = per / roe       if (per is not None and roe) else None
-        pb  = cb / cp         if (cb is not None and cp)   else None
+        cb  = pa * na       if na                       else None
+        per = pa / bpa      if bpa                      else None
+        peg = per / tc5     if per is not None and tc5  else None
+        pr  = per / roe     if per is not None and roe  else None
+        pb  = cb / cp       if cb  is not None and cp   else None
 
         doc = {k: v for k, v in {
             'date':        now,
             'c_name':      name,
-            'symbol':      market.get('symbol'),
+            'symbol':      m['symbol'],
             'pa':          pa,
             'cb':          cb,
             'per':         per,
@@ -191,20 +223,47 @@ def main(context):
             'peg_rating':  rate(peg, PEG_GREEN, PEG_ORANGE),
             'pr_rating':   rate(pr,  PR_GREEN,  PR_ORANGE),
             'pb_rating':   rate(pb,  PB_GREEN,  PB_ORANGE),
-            'variation':   market.get('variation'),
-            'variation_v': market.get('variation_v'),
-            'data_chart':  market.get('data_chart'),
+            'variation':   m['variation'],
+            'variation_v': m['variation_v'],
+            'cours_ref':   m['cours_ref'],
+            'open_price':  m['open_price'],
+            'high':        m['high'],
+            'low':         m['low'],
+            'volume':      m['volume'],
+            'qty_traded':  m['qty_traded'],
+            'market_cap':  m['market_cap'],
+            'data_chart':  m['data_chart'] or None,
         }.items() if v is not None}
 
         db.create_document(DB_ID, "data", ID.unique(), doc)
         inserted += 1
 
-    context.log(f"Inserted {inserted} data documents at {now}")
+    # 5. Insert MASI index as its own doc (c_name="MASI")
+    if masi.get('Cours'):
+        masi_doc = {k: v for k, v in {
+            'date':        now,
+            'c_name':      'MASI',
+            'pa':          masi['Cours'],
+            'cours_ref':   masi.get('CoursVeille'),
+            'variation':   masi.get('VariationP'),
+            'variation_v': masi.get('VariationV'),
+            'high':        masi.get('PlusHaut'),
+            'low':         masi.get('PlusBas'),
+            'volume':      masi.get('Volume'),
+            'qty_traded':  masi.get('QteEchange'),
+            'market_cap':  masi.get('Capitalisation'),
+        }.items() if v is not None}
+        db.create_document(DB_ID, "data", ID.unique(), masi_doc)
+        context.log(f"Inserted MASI doc: {masi['Cours']}")
 
-    # Last run of the day (15:45 UTC = 16:45 Casablanca): clean up intraday duplicates
+    context.log(f"Inserted {inserted} stock docs at {now}")
+
+    # 6. End-of-day cleanup (15:45 UTC = 16:45 Casablanca)
     now_utc = datetime.now(timezone.utc)
     if now_utc.hour == 15 and now_utc.minute >= 45:
         deleted = cleanup_today(db, context)
-        return context.res.json({"inserted": inserted, "deleted": deleted, "timestamp": now})
+        return context.res.json({"inserted": inserted, "masi": bool(masi.get('Cours')),
+                                 "deleted": deleted, "timestamp": now})
 
-    return context.res.json({"inserted": inserted, "timestamp": now})
+    return context.res.json({"inserted": inserted, "masi": bool(masi.get('Cours')),
+                             "status": status.get('Statut', ''), "timestamp": now})
