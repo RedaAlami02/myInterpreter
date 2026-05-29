@@ -44,8 +44,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         'prices': prices,
       };
     } catch (e, st) {
-      print('DEBUG portfolio ERROR: $e');
-      print('DEBUG portfolio STACK: $st');
+      print('ERROR portfolio: $e\n$st');
       rethrow;
     }
   }
