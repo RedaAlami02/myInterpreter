@@ -170,15 +170,15 @@ def main(context):
 
     # 4a. Build a last-known-price fallback map (one query, covers all suspended stocks)
     last_price_docs = db.list_documents(DB_ID, "data", queries=[
-        Query.greater_than('pa', 0),
         Query.order_desc('date'),
         Query.limit(100),
     ])
     last_known_pa = {}
     for d in last_price_docs.documents:
-        n = d._data.get('c_name')
-        if n and n not in last_known_pa:
-            last_known_pa[n] = d._data['pa']
+        n  = d._data.get('c_name')
+        pa = d._data.get('pa', 0) or 0
+        if n and n not in last_known_pa and pa > 0:
+            last_known_pa[n] = pa
 
     # 4. Compute ratios and insert stock docs
     for name, m in name_to_market.items():
