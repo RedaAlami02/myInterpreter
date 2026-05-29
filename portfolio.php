@@ -148,20 +148,12 @@ try {
     $loadError = 'Impossible de charger les données. Veuillez réessayer.';
 }
 
-// Build price map — one query per held company, scan for last non-zero pa
+// Build price map from latest_prices — one row per company, always current
 $priceMap = [];
-foreach ($holdingsDocs as $h) {
-    $name = $h['c_name'] ?? '';
-    if (!$name) continue;
-    $rows = aw_list_docs('data', [
-        q_equal('c_name', $name),
-        q_order_desc('date'),
-        q_limit(50),
-    ]);
-    foreach ($rows as $d) {
-        $pa = (float)($d['pa'] ?? 0);
-        if ($pa > 0) { $priceMap[$name] = $pa; break; }
-    }
+$lpDocs = aw_list_docs('latest_prices', [q_limit(200)]);
+foreach ($lpDocs as $d) {
+    $n = $d['c_name'] ?? '';
+    if ($n) $priceMap[$n] = (float)($d['pa'] ?? 0);
 }
 
 $holdings = [];

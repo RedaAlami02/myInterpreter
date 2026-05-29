@@ -228,6 +228,17 @@ def main(context):
         db.create_document(DB_ID, "data", ID.unique(), doc)
         inserted += 1
 
+        # Upsert into latest_prices (one row per company, always current)
+        if pa:
+            existing = db.list_documents(DB_ID, "latest_prices", queries=[
+                Query.equal('c_name', name), Query.limit(1)
+            ])
+            lp_doc = {'c_name': name, 'pa': pa, 'date': now}
+            if existing.documents:
+                db.update_document(DB_ID, "latest_prices", existing.documents[0].id, lp_doc)
+            else:
+                db.create_document(DB_ID, "latest_prices", ID.unique(), lp_doc)
+
     # 5. Insert MASI index as its own doc (c_name="MASI")
     if masi.get('Cours'):
         masi_doc = {k: v for k, v in {
