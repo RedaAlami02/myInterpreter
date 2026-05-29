@@ -31,7 +31,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       final dataRes = await databases.listDocuments(
         databaseId: dbId,
         collectionId: 'data',
-        queries: [Query.orderDesc('date'), Query.limit(200)],
+        queries: [Query.orderDesc('date'), Query.limit(100)],
       );
       final prices = <String, double>{};
       for (final d in dataRes.documents) {
