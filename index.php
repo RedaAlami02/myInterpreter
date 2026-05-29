@@ -600,6 +600,16 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
                   style="filter:drop-shadow(0 0 6px rgba(34,211,238,0.5))"/>
             <circle class="spark-dot-halo" r="10" fill="rgba(34,211,238,0.15)"/>
             <circle class="spark-dot"      r="4"  fill="#22d3ee"/>
+            <!-- crosshair -->
+            <line id="masi-xhair" x1="0" y1="0" x2="0" y2="210"
+                  stroke="rgba(148,163,184,0.5)" stroke-width="1" stroke-dasharray="4 4"
+                  style="display:none;pointer-events:none"/>
+            <circle id="masi-xhair-dot" r="4" fill="#22d3ee" stroke="#0f172a" stroke-width="2"
+                    style="display:none;pointer-events:none"/>
+            <rect id="masi-xhair-bg" rx="4" fill="rgba(15,23,42,0.85)"
+                  style="display:none;pointer-events:none"/>
+            <text id="masi-xhair-txt" font-size="11" fill="#f1f5f9" font-family="JetBrains Mono,monospace"
+                  style="display:none;pointer-events:none"/>
           </svg>
           <div class="masi-slider-wrap">
             <input type="range" id="masi-range-start" min="0" max="100" value="0" step="1">
@@ -789,6 +799,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
 
   function renderSeries(series) {
     if (!series || series.length < 2) return;
+    renderedSeries = series;
     var s = series.map(function(p){ return p.v; });
     var vb = svg.getAttribute('viewBox').split(/\s+/).map(Number);
     var w = vb[2], h = vb[3], pad = 14;
@@ -798,6 +809,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
     var pts = s.map(function(v, i) {
       return { x: pad + i*step, y: pad + (h - pad*2) * (1 - (v - min) / rng) };
     });
+    renderedPts = pts;
     var line = pts.map(function(p,i){ return (i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1); }).join(' ');
     var area = line+' L'+(w-pad).toFixed(1)+' '+(h-pad)+' L'+pad+' '+(h-pad)+' Z';
     svg.querySelector('.spark-line').setAttribute('d', line);
@@ -810,6 +822,49 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
   }
 
   var currentSlice = full;
+  var renderedPts  = [];
+  var renderedSeries = [];
+
+  // Crosshair elements
+  var xhair    = document.getElementById('masi-xhair');
+  var xhairDot = document.getElementById('masi-xhair-dot');
+  var xhairBg  = document.getElementById('masi-xhair-bg');
+  var xhairTxt = document.getElementById('masi-xhair-txt');
+
+  svg.addEventListener('mousemove', function(e) {
+    if (!renderedPts.length) return;
+    var rect = svg.getBoundingClientRect();
+    var vb   = svg.getAttribute('viewBox').split(/\s+/).map(Number);
+    var mx   = (e.clientX - rect.left) / rect.width  * vb[2];
+    var my   = (e.clientY - rect.top)  / rect.height * vb[3];
+    // find closest point by x
+    var best = 0, bestDist = Infinity;
+    renderedPts.forEach(function(p, i) {
+      var d = Math.abs(p.x - mx);
+      if (d < bestDist) { bestDist = d; best = i; }
+    });
+    var p = renderedPts[best];
+    var label = (renderedSeries[best] && renderedSeries[best].d) || '';
+    var val   = (renderedSeries[best] && renderedSeries[best].v) || 0;
+    var txt   = val.toFixed(2) + '  ' + label;
+
+    xhair.setAttribute('x1', p.x); xhair.setAttribute('x2', p.x);
+    xhair.setAttribute('y1', 0);   xhair.setAttribute('y2', vb[3]);
+    xhairDot.setAttribute('cx', p.x); xhairDot.setAttribute('cy', p.y);
+
+    var tw = txt.length * 6.5 + 14, th = 18;
+    var bx = Math.min(p.x + 8, vb[2] - tw - 4);
+    var by = Math.max(p.y - th - 4, 2);
+    xhairBg.setAttribute('x', bx); xhairBg.setAttribute('y', by);
+    xhairBg.setAttribute('width', tw); xhairBg.setAttribute('height', th);
+    xhairTxt.setAttribute('x', bx + 7); xhairTxt.setAttribute('y', by + 13);
+    xhairTxt.textContent = txt;
+
+    xhair.style.display = xhairDot.style.display = xhairBg.style.display = xhairTxt.style.display = '';
+  });
+  svg.addEventListener('mouseleave', function() {
+    xhair.style.display = xhairDot.style.display = xhairBg.style.display = xhairTxt.style.display = 'none';
+  });
 
   function applySliders() {
     var n = currentSlice.length;

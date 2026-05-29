@@ -382,12 +382,29 @@ if ($awSession && !empty($name ?? '')) {
 
     container.innerHTML = html || '<div style="color:var(--text-faint);font-size:13px;padding:12px">Aucune donnée financière disponible pour cette société.</div>';
 
+    // Shared crosshair plugin for bar/line charts
+    const barCrosshair = {
+      id: 'barCrosshair',
+      afterDraw(chart) {
+        const active = chart.tooltip && chart.tooltip._active;
+        if (!active || !active.length) return;
+        const x = active[0].element.x;
+        const { ctx, chartArea } = chart;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(148,163,184,0.4)';
+        ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom); ctx.stroke();
+        ctx.restore();
+      }
+    };
+
     // Draw financial chart
     if (allYears.length > 0) {
       const projYears = allYears.filter(y => y.endsWith('p'));
       const colors = y => projYears.includes(y) ? 'rgba(34,211,238,0.4)' : '#22d3ee';
       new Chart(document.getElementById('finChart').getContext('2d'), {
         type: 'bar',
+        plugins: [barCrosshair],
         data: {
           labels: allYears,
           datasets: [
@@ -398,6 +415,7 @@ if ($awSession && !empty($name ?? '')) {
         },
         options: {
           responsive: true,
+          interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { labels: { color: '#94a3b8', font: { size: 12 } } },
             tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw !== null ? c.raw.toFixed(2) : '—'} M` } }
@@ -416,12 +434,14 @@ if ($awSession && !empty($name ?? '')) {
       if (qKeys.length > 0 && document.getElementById('trimChart')) {
         new Chart(document.getElementById('trimChart').getContext('2d'), {
           type: 'bar',
+          plugins: [barCrosshair],
           data: {
             labels: qKeys.map(k => k.replace('T','Q').replace(/(\d)(\d{4})/, '$1 $2')),
             datasets: [{ label: 'CA', data: qKeys.map(k => trim[k] ?? null), backgroundColor: 'rgba(245,158,11,0.55)', borderRadius: 4 }]
           },
           options: {
             responsive: true,
+            interaction: { mode: 'index', intersect: false },
             plugins: { legend: { display: false } },
             scales: {
               x: { ticks: { color: '#475569' }, grid: { color: 'rgba(255,255,255,0.04)' } },
