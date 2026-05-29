@@ -109,6 +109,7 @@ if ($awSession && !empty($name ?? '')) {
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>myInterpreter | Consulter Action</title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
