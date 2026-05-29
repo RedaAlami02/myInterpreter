@@ -427,8 +427,11 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
 
       <?php if (!empty($earnings)): ?>
       <div class="chart-card mb-4">
-        <h5><i class="fas fa-chart-line me-2 t-emerald"></i>Évolution P&L (snapshots)</h5>
-        <canvas id="chartPnl"></canvas>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <h5 style="margin:0"><i class="fas fa-chart-line me-2 t-emerald"></i>Évolution P&L (snapshots)</h5>
+          <span id="pnlHoverVal" style="font-family:var(--font-mono);font-size:0.88rem;font-weight:700;color:var(--cyan)"></span>
+        </div>
+        <div style="position:relative;height:200px"><canvas id="chartPnl"></canvas></div>
       </div>
       <?php endif; ?>
 
@@ -501,8 +504,28 @@ makeDoughnut('chartBuy',     <?= json_encode($chartNames) ?>, <?= json_encode($c
 const pnlDates  = <?= json_encode(array_column($earningsAsc, 'DATE')) ?>;
 const pnlValues = <?= json_encode(array_map('floatval', array_column($earningsAsc, 'VALUE'))) ?>;
 
+const pnlHoverVal = document.getElementById('pnlHoverVal');
+const pnlCrosshair = {
+  id: 'pnlCrosshair',
+  afterDraw(chart) {
+    const active = chart.tooltip && chart.tooltip._active;
+    if (!active || !active.length) return;
+    const x = active[0].element.x;
+    const { ctx, chartArea } = chart;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(148,163,184,0.5)';
+    ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom); ctx.stroke();
+    ctx.restore();
+  },
+  afterEvent(chart, args) {
+    if (args.event.type === 'mouseout') { pnlHoverVal.textContent = ''; chart.draw(); }
+  }
+};
+
 new Chart(document.getElementById('chartPnl'), {
   type: 'line',
+  plugins: [pnlCrosshair],
   data: {
     labels: pnlDates,
     datasets: [{
@@ -520,12 +543,21 @@ new Chart(document.getElementById('chartPnl'), {
   },
   options: {
     responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { display: false },
       datalabels: { display: false },
       tooltip: {
+        backgroundColor: 'rgba(15,23,42,0.92)',
+        titleColor: '#94a3b8', bodyColor: '#f1f5f9',
+        borderColor: 'rgba(148,163,184,0.15)', borderWidth: 1, padding: 10,
         callbacks: {
-          label: ctx => (ctx.parsed.y >= 0 ? '+' : '') + ctx.parsed.y.toFixed(2) + ' MAD'
+          label: ctx => {
+            const v = ctx.parsed.y;
+            pnlHoverVal.textContent = (v >= 0 ? '+' : '') + v.toFixed(2) + ' MAD  •  ' + ctx.label;
+            return ' P&L : ' + (v >= 0 ? '+' : '') + v.toFixed(2) + ' MAD';
+          }
         }
       }
     },
