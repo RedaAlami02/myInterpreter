@@ -133,7 +133,7 @@ try {
         q_limit(200),
     ], $session);
 
-    $latestData = aw_list_docs('data', [q_order_desc('date'), q_limit(5000)]);
+    $latestData = aw_list_docs('data', [q_order_desc('date'), q_limit(100)]);
     $lastSync   = $latestData[0]['date'] ?? null;
 
     $earningsDocs = aw_list_docs('benefits', [
@@ -148,17 +148,11 @@ try {
 }
 
 // Build price map
-$heldNames = array_map(fn($h) => $h['c_name'], $holdingsDocs);
-$priceMap  = [];
+$priceMap = [];
 foreach ($latestData as $d) {
-    $n  = $d['c_name'] ?? '';
-    $pa = (float)($d['pa'] ?? 0);
-    if (!in_array($n, $heldNames)) continue;
-    // Use the most recent non-zero price; keep searching older records for zero-price entries
-    if (!isset($priceMap[$n])) {
-        $priceMap[$n] = $pa;
-    } elseif ($priceMap[$n] <= 0 && $pa > 0) {
-        $priceMap[$n] = $pa;
+    $n = $d['c_name'] ?? '';
+    if ($n && !isset($priceMap[$n])) {
+        $priceMap[$n] = (float)($d['pa'] ?? 0);
     }
 }
 
