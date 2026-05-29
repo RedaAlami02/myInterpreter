@@ -109,6 +109,9 @@ function _live_market_status(): array {
 // ─── Dashboard data ───────────────────────────────────────
 $companyCount   = 0;
 $snapshotDays   = 0;
+$totalDataRows  = 0;
+$oldestDate     = null;
+$newestDate     = null;
 $avgPER         = null;
 $allGreen       = 0;
 $totalCompanies = 0;
@@ -138,7 +141,16 @@ if ($isLoggedIn) {
         }
 
         $companyCount = count($latest);
-        $snapshotDays = count($byDate);
+
+        // Total rows and date span from the data collection
+        $totalDataRows = aw_count_docs('data');
+        $oldestDoc = aw_list_docs('data', [q_order_asc('date'), q_limit(1)]);
+        $oldestDate = !empty($oldestDoc) ? substr($oldestDoc[0]['date'] ?? '', 0, 10) : null;
+        $newestDoc  = aw_list_docs('data', [q_order_desc('date'), q_limit(1)]);
+        $newestDate = !empty($newestDoc) ? substr($newestDoc[0]['date'] ?? '', 0, 10) : null;
+        $snapshotDays = ($oldestDate && $newestDate)
+            ? (int)round((strtotime($newestDate) - strtotime($oldestDate)) / 86400)
+            : 0;
 
         // MASI chart: fetch up to 5Y of daily docs
         $masiAllDocs = [];
@@ -517,9 +529,9 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
       </div>
       <div class="metric">
         <div class="glow purple"></div>
-        <div class="m-label">Jours de snapshots</div>
-        <div class="m-val"><?= (int)$snapshotDays ?> <span class="unit">jours</span></div>
-        <div class="m-delta">~ <?= (int)($snapshotDays * $companyCount) ?> lignes</div>
+        <div class="m-label">Historique de données</div>
+        <div class="m-val"><?= (int)round($snapshotDays / 365, 1) ?> <span class="unit">ans</span></div>
+        <div class="m-delta"><?= number_format($totalDataRows, 0, ',', ' ') ?> entrées · <?= $oldestDate ? substr($oldestDate, 0, 7) : '—' ?> → <?= $newestDate ? substr($newestDate, 0, 7) : '—' ?></div>
       </div>
       <div class="metric">
         <div class="glow pink"></div>

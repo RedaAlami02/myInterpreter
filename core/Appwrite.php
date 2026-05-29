@@ -131,6 +131,21 @@ function q_offset(int $n): string {
 }
 
 /**
+ * Return the total document count for a collection (ignores the documents array).
+ */
+function aw_count_docs(string $collectionId, array $queries = [], ?string $session = null): int
+{
+    $params = [];
+    foreach (array_merge($queries, [q_limit(1)]) as $q) {
+        $params[] = 'queries[]=' . urlencode($q);
+    }
+    $qs   = $params ? '?' . implode('&', $params) : '';
+    $path = '/databases/' . APPWRITE_DB_ID . '/collections/' . $collectionId . '/documents' . $qs;
+    $res  = aw_get($path, $session);
+    return (int)($res['body']['total'] ?? 0);
+}
+
+/**
  * Fire multiple aw_list_docs calls in parallel using curl_multi.
  * $requests: [ 'key' => ['collection', [queries], $session|null], ... ]
  * Returns:   [ 'key' => [documents], ... ]
