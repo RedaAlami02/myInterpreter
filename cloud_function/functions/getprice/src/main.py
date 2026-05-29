@@ -171,7 +171,7 @@ def main(context):
     # 4a. Build a last-known-price fallback map (one query, covers all suspended stocks)
     last_price_docs = db.list_documents(DB_ID, "data", queries=[
         Query.order_desc('date'),
-        Query.limit(100),
+        Query.limit(200),
     ])
     last_known_pa = {}
     for d in last_price_docs.documents:
