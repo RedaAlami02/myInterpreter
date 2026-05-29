@@ -312,7 +312,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
   <title>myInterpreter | Tableau de bord</title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link href="assets/css/global.css" rel="stylesheet">
+  <link href="assets/css/global.css?v=3" rel="stylesheet">
   <style>
     body { overflow-x: hidden; }
     /* Login card — shown when logged out */

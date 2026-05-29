@@ -133,9 +133,8 @@ try {
         q_limit(200),
     ], $session);
 
-    $latestData = aw_list_docs('data', [q_order_desc('date'), q_limit(500)]);
-
-    $lastSync = $latestData[0]['date'] ?? null;
+    $latestData = aw_list_docs('data', [q_order_desc('date'), q_limit(5000)]);
+    $lastSync   = $latestData[0]['date'] ?? null;
 
     $earningsDocs = aw_list_docs('benefits', [
         q_equal('user_id', $uid),
@@ -152,9 +151,14 @@ try {
 $heldNames = array_map(fn($h) => $h['c_name'], $holdingsDocs);
 $priceMap  = [];
 foreach ($latestData as $d) {
-    $n = $d['c_name'] ?? '';
-    if (!isset($priceMap[$n]) && in_array($n, $heldNames)) {
-        $priceMap[$n] = (float)($d['pa'] ?? 0);
+    $n  = $d['c_name'] ?? '';
+    $pa = (float)($d['pa'] ?? 0);
+    if (!in_array($n, $heldNames)) continue;
+    // Use the most recent non-zero price; keep searching older records for zero-price entries
+    if (!isset($priceMap[$n])) {
+        $priceMap[$n] = $pa;
+    } elseif ($priceMap[$n] <= 0 && $pa > 0) {
+        $priceMap[$n] = $pa;
     }
 }
 
@@ -212,9 +216,9 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <link href="assets/css/global.css" rel="stylesheet">
-  <link href="assets/css/portfolio.css" rel="stylesheet">
-  <link href="assets/css/statistics.css" rel="stylesheet">
+  <link href="assets/css/global.css?v=3" rel="stylesheet">
+  <link href="assets/css/portfolio.css?v=3" rel="stylesheet">
+  <link href="assets/css/statistics.css?v=3" rel="stylesheet">
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
@@ -577,6 +581,7 @@ new Chart(document.getElementById('chartPnl'), {
   }
 });
 <?php endif; ?>
+
 </script>
 </body>
 </html>
