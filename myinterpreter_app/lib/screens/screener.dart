@@ -31,24 +31,19 @@ class _ScreenerScreenState extends State<ScreenerScreen> {
 
   Future<List<Map<String, dynamic>>> _loadLatest() async {
     try {
-      print('DEBUG: calling listDocuments...');
       final res = await databases.listDocuments(
         databaseId: dbId,
         collectionId: 'data',
         queries: [Query.orderDesc('date'), Query.limit(500)],
       );
-      print('DEBUG: got ${res.documents.length} docs');
-      if (res.documents.isNotEmpty) print('DEBUG first doc: ${res.documents.first.data}');
       final latest = <String, Map<String, dynamic>>{};
       for (final d in res.documents) {
         final name = d.data['c_name'] as String?;
         if (name != null && !latest.containsKey(name)) latest[name] = d.data;
       }
-      print('DEBUG deduped: ${latest.length}');
       return latest.values.toList();
     } catch (e, st) {
-      print('DEBUG ERROR: $e');
-      print('DEBUG STACK: $st');
+      print('ERROR screener: $e\n$st');
       rethrow;
     }
   }
