@@ -38,15 +38,22 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
         $company = !empty($companyRes) ? $companyRes[0] : null;
 
         if ($company) {
-            $history = aw_list_docs('data', [
-                q_equal('c_name', $name),
-                q_order_desc('date'),
-                q_limit(500),
-            ]);
+            // Paginate to get full history (can exceed 500 after backfill)
+            $historyAll = []; $histOffset = 0;
+            do {
+                $page = aw_list_docs('data', [
+                    q_equal('c_name', $name),
+                    q_order_desc('date'),
+                    q_limit(500),
+                    q_offset($histOffset),
+                ]);
+                $historyAll = array_merge($historyAll, $page);
+                $histOffset += 500;
+            } while (count($page) === 500);
 
             // Deduplicate: keep one snapshot per calendar day (latest first = first seen)
             $seenDates = []; $histUniq = [];
-            foreach ($history as $row) {
+            foreach ($historyAll as $row) {
                 $d = substr($row['date'] ?? '', 0, 10);
                 if (!isset($seenDates[$d])) { $seenDates[$d] = true; $histUniq[] = $row; }
             }
@@ -221,8 +228,22 @@ if ($awSession && !empty($name ?? '')) {
 
             <?php if (count($sparkData) > 1): ?>
             <div class="sparkline-wrap mb-4">
-              <h5><i class="fas fa-chart-line me-2 t-cyan"></i>Évolution du prix (PA)</h5>
-              <canvas id="sparklineChart" height="80"></canvas>
+              <div class="spark-header">
+                <h5><i class="fas fa-chart-line me-2 t-cyan"></i>Évolution du prix (PA)</h5>
+                <div class="spark-hover-val" id="sparkHoverVal"></div>
+                <div class="spark-period-btns">
+                  <?php foreach (['5A'=>'5A','1A'=>'1A','6M'=>'6M','3M'=>'3M','1M'=>'1M'] as $k=>$v): ?>
+                    <button class="spark-period-btn<?= $k==='1A'?' active':'' ?>" data-period="<?= $k ?>"><?= $v ?></button>
+                  <?php endforeach; ?>
+                </div>
+              </div>
+              <div class="spark-canvas-wrap">
+                <canvas id="sparklineChart" height="200"></canvas>
+              </div>
+              <div class="masi-slider-wrap">
+                <input type="range" id="sliderStart" min="0" max="100" value="0">
+                <input type="range" id="sliderEnd"   min="0" max="100" value="100">
+              </div>
             </div>
             <?php endif; ?>
 
@@ -441,92 +462,189 @@ if ($awSession && !empty($name ?? '')) {
 
 <?php if (!empty($sparkData) && count($sparkData) > 1): ?>
 <script>
-  const ctx        = document.getElementById('sparklineChart').getContext('2d');
-  const labels     = <?= json_encode($sparkLabels) ?>;
-  const data       = <?= json_encode($sparkData) ?>;
-  const buyMarkers = <?= json_encode($buyMarkers) ?>;
-  const first      = data[0], last = data[data.length - 1];
-  const color      = last >= first ? '#10b981' : '#f43f5e';
+(function() {
+  var fullLabels = <?= json_encode($sparkLabels) ?>;
+  var fullData   = <?= json_encode($sparkData) ?>;
+  var buyMarkers = <?= json_encode($buyMarkers) ?>;
 
-  const buyPinPlugin = {
+  var currentSlice = fullLabels.map((d, i) => ({ d, v: fullData[i] }));
+  var sliderStart  = document.getElementById('sliderStart');
+  var sliderEnd    = document.getElementById('sliderEnd');
+  var hoverVal     = document.getElementById('sparkHoverVal');
+
+  // ── period filter ─────────────────────────────────────────
+  var periodDays = { '5A': 5*365, '1A': 365, '6M': 182, '3M': 91, '1M': 30 };
+
+  function dateStr(daysAgo) {
+    var d = new Date(); d.setDate(d.getDate() - daysAgo);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function setPeriod(period) {
+    var cutoff = dateStr(periodDays[period]);
+    var filtered = fullLabels.map((d, i) => ({ d, v: fullData[i] })).filter(p => p.d >= cutoff);
+    currentSlice = filtered.length >= 2 ? filtered : fullLabels.map((d, i) => ({ d, v: fullData[i] }));
+    sliderStart.value = 0; sliderEnd.value = 100;
+    renderChart(currentSlice);
+  }
+
+  document.querySelectorAll('.spark-period-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.spark-period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      setPeriod(btn.dataset.period);
+    });
+  });
+
+  // ── sliders ───────────────────────────────────────────────
+  function slicedData() {
+    var s = parseInt(sliderStart.value), e = parseInt(sliderEnd.value);
+    if (s > e - 2) { s = Math.max(0, e - 2); sliderStart.value = s; }
+    var n = currentSlice.length;
+    var from = Math.floor(s / 100 * (n - 1));
+    var to   = Math.ceil(e  / 100 * (n - 1));
+    return currentSlice.slice(from, to + 1);
+  }
+
+  [sliderStart, sliderEnd].forEach(function(sl) {
+    sl.addEventListener('input', function() { renderChart(slicedData()); });
+  });
+
+  // ── crosshair plugin ──────────────────────────────────────
+  // Snap to the active tooltip data point x so it's always aligned.
+  var crosshairPlugin = {
+    id: 'crosshair',
+    afterDraw: function(chart) {
+      var active = chart.tooltip && chart.tooltip._active;
+      if (!active || !active.length) return;
+      var x = active[0].element.x;
+      var c = chart.ctx, ca = chart.chartArea;
+      c.save();
+      c.strokeStyle = 'rgba(148,163,184,0.5)';
+      c.lineWidth = 1;
+      c.setLineDash([4, 4]);
+      c.beginPath(); c.moveTo(x, ca.top); c.lineTo(x, ca.bottom); c.stroke();
+      c.restore();
+    },
+    afterEvent: function(chart, args) {
+      if (args.event.type === 'mouseout') {
+        hoverVal.textContent = '';
+        chart.draw();
+      }
+    }
+  };
+
+  // ── buy-pin plugin ────────────────────────────────────────
+  var buyPinPlugin = {
     id: 'buyPin',
-    afterDraw(chart) {
+    afterDraw: function(chart) {
       if (!buyMarkers.length) return;
-      const { ctx: c, chartArea, scales } = chart;
-      buyMarkers.forEach(marker => {
-        const idx = labels.indexOf(marker.date);
+      var c = chart.ctx, ca = chart.chartArea, scales = chart.scales;
+      var chartLabels = chart.data.labels;
+      buyMarkers.forEach(function(marker) {
+        var idx = chartLabels.indexOf(marker.date);
         if (idx === -1) return;
-        const x   = scales.x.getPixelForValue(idx);
-        const top = chartArea.top;
-        const bot = chartArea.bottom;
-
+        var x = scales.x.getPixelForValue(idx);
         c.save();
         c.setLineDash([4, 3]);
-        c.strokeStyle = 'rgba(6,182,212,0.65)';
-        c.lineWidth   = 1.5;
-        c.beginPath(); c.moveTo(x, top); c.lineTo(x, bot); c.stroke();
-
+        c.strokeStyle = 'rgba(6,182,212,0.65)'; c.lineWidth = 1.5;
+        c.beginPath(); c.moveTo(x, ca.top); c.lineTo(x, ca.bottom); c.stroke();
         c.setLineDash([]);
         c.fillStyle = '#06b6d4';
-        c.beginPath();
-        c.moveTo(x,     top + 3);
-        c.lineTo(x - 5, top - 6);
-        c.lineTo(x + 5, top - 6);
-        c.closePath();
-        c.fill();
-
-        c.fillStyle  = '#06b6d4';
-        c.font       = 'bold 9px sans-serif';
-        c.textAlign  = 'center';
-        c.fillText('Achat', x, top - 9);
+        c.beginPath(); c.moveTo(x, ca.top+3); c.lineTo(x-5, ca.top-6); c.lineTo(x+5, ca.top-6); c.closePath(); c.fill();
+        c.fillStyle = '#06b6d4'; c.font = 'bold 9px sans-serif'; c.textAlign = 'center';
+        c.fillText('Achat', x, ca.top - 9);
         c.restore();
       });
     }
   };
 
-  new Chart(ctx, {
-    type: 'line',
-    plugins: [buyPinPlugin],
-    data: {
-      labels,
-      datasets: [{
-        data,
-        borderColor: color,
-        borderWidth: 2,
-        pointRadius: data.length < 25 ? 4 : 0,
-        pointHoverRadius: 6,
-        pointBackgroundColor: color,
-        fill: true,
-        backgroundColor: (ctx) => {
-          const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height);
-          g.addColorStop(0, color === '#10b981' ? 'rgba(16,185,129,0.18)' : 'rgba(244,63,94,0.18)');
-          g.addColorStop(1, 'rgba(0,0,0,0)');
-          return g;
-        },
-        tension: 0.35,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label(c) {
-              let line = ' PA : ' + c.raw.toFixed(2) + ' MAD';
-              const m  = buyMarkers.find(b => b.date === labels[c.dataIndex]);
-              if (m) line += '   •   Achat ' + m.quantity + ' × ' + m.price.toFixed(2) + ' MAD';
-              return line;
+  // ── chart instance ────────────────────────────────────────
+  var chartInst = null;
+
+  function renderChart(slice) {
+    var lbls = slice.map(p => p.d);
+    var vals = slice.map(p => p.v);
+    var first = vals[0], last = vals[vals.length - 1];
+    var color = last >= first ? '#10b981' : '#f43f5e';
+    var gradColor = last >= first ? 'rgba(16,185,129,' : 'rgba(244,63,94,';
+
+    if (chartInst) {
+      chartInst.data.labels = lbls;
+      chartInst.data.datasets[0].data = vals;
+      chartInst.data.datasets[0].borderColor = color;
+      chartInst.data.datasets[0].pointBackgroundColor = color;
+      chartInst.data.datasets[0].pointRadius = vals.length < 25 ? 4 : 0;
+      chartInst.data.datasets[0].backgroundColor = function(ctx) {
+        var g = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height);
+        g.addColorStop(0, gradColor + '0.18)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        return g;
+      };
+      chartInst.update('none');
+      return;
+    }
+
+    var ctxEl = document.getElementById('sparklineChart').getContext('2d');
+    chartInst = new Chart(ctxEl, {
+      type: 'line',
+      plugins: [crosshairPlugin, buyPinPlugin],
+      data: {
+        labels: lbls,
+        datasets: [{
+          data: vals,
+          borderColor: color,
+          borderWidth: 2,
+          pointRadius: vals.length < 25 ? 4 : 0,
+          pointHoverRadius: 5,
+          pointBackgroundColor: color,
+          fill: true,
+          backgroundColor: function(ctx) {
+            var g = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height);
+            g.addColorStop(0, gradColor + '0.18)');
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            return g;
+          },
+          tension: 0.35,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            backgroundColor: 'rgba(15,23,42,0.92)',
+            titleColor: '#94a3b8',
+            bodyColor: '#f1f5f9',
+            borderColor: 'rgba(148,163,184,0.15)',
+            borderWidth: 1,
+            padding: 10,
+            callbacks: {
+              title: function(items) { return items[0].label; },
+              label: function(c) {
+                hoverVal.textContent = c.raw.toFixed(2) + ' MAD  •  ' + c.label;
+                var line = ' PA : ' + c.raw.toFixed(2) + ' MAD';
+                var m = buyMarkers.find(b => b.date === lbls[c.dataIndex]);
+                if (m) line += '   •   Achat ' + m.quantity + ' × ' + m.price.toFixed(2) + ' MAD';
+                return line;
+              }
             }
           }
+        },
+        scales: {
+          x: { ticks: { color: '#475569', maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#475569' },                   grid: { color: 'rgba(255,255,255,0.04)' } }
         }
-      },
-      scales: {
-        x: { ticks: { color: '#475569', maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.04)' } },
-        y: { ticks: { color: '#475569' },                   grid: { color: 'rgba(255,255,255,0.04)' } }
       }
-    }
-  });
+    });
+  }
+
+  // ── init with 1Y ─────────────────────────────────────────
+  setPeriod('1A');
+})();
 </script>
 <?php endif; ?>
 <script>
