@@ -172,7 +172,7 @@ def main(context):
     last_price_docs = db.list_documents(DB_ID, "data", queries=[
         Query.greater_than('pa', 0),
         Query.order_desc('date'),
-        Query.limit(500),
+        Query.limit(100),
     ])
     last_known_pa = {}
     for d in last_price_docs.documents:
