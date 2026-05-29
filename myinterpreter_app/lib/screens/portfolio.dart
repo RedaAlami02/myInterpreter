@@ -31,18 +31,13 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       final dataRes = await databases.listDocuments(
         databaseId: dbId,
         collectionId: 'data',
-        queries: [Query.orderDesc('date'), Query.limit(5000)],
+        queries: [Query.orderDesc('date'), Query.limit(100)],
       );
       final prices = <String, double>{};
       for (final d in dataRes.documents) {
         final name = d.data['c_name'] as String?;
-        final pa = (d.data['pa'] as num?)?.toDouble() ?? 0;
-        if (name == null) continue;
-        if (!prices.containsKey(name)) {
-          prices[name] = pa;
-        } else if ((prices[name] ?? 0) <= 0 && pa > 0) {
-          prices[name] = pa;
-        }
+        if (name == null || prices.containsKey(name)) continue;
+        prices[name] = (d.data['pa'] as num?)?.toDouble() ?? 0;
       }
       return {
         'holdings': portRes.documents.map((d) => d.data).toList(),
