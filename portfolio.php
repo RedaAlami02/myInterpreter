@@ -133,8 +133,9 @@ try {
         q_limit(200),
     ], $session);
 
-    $latestData = aw_list_docs('data', [q_order_desc('date'), q_limit(100)]);
-    $lastSync   = $latestData[0]['date'] ?? null;
+    // Get last sync timestamp from a single recent record
+    $recentDoc = aw_list_docs('data', [q_order_desc('date'), q_limit(1)]);
+    $lastSync  = $recentDoc[0]['date'] ?? null;
 
     $earningsDocs = aw_list_docs('benefits', [
         q_equal('user_id', $uid),
@@ -147,12 +148,19 @@ try {
     $loadError = 'Impossible de charger les données. Veuillez réessayer.';
 }
 
-// Build price map
+// Build price map — one query per held company, scan for last non-zero pa
 $priceMap = [];
-foreach ($latestData as $d) {
-    $n = $d['c_name'] ?? '';
-    if ($n && !isset($priceMap[$n])) {
-        $priceMap[$n] = (float)($d['pa'] ?? 0);
+foreach ($holdingsDocs as $h) {
+    $name = $h['c_name'] ?? '';
+    if (!$name) continue;
+    $rows = aw_list_docs('data', [
+        q_equal('c_name', $name),
+        q_order_desc('date'),
+        q_limit(50),
+    ]);
+    foreach ($rows as $d) {
+        $pa = (float)($d['pa'] ?? 0);
+        if ($pa > 0) { $priceMap[$name] = $pa; break; }
     }
 }
 

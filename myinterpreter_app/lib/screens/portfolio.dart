@@ -28,16 +28,19 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         collectionId: 'portefeuille',
         queries: [Query.equal('user_id', me.$id), Query.limit(200)],
       );
-      final dataRes = await databases.listDocuments(
-        databaseId: dbId,
-        collectionId: 'data',
-        queries: [Query.orderDesc('date'), Query.limit(100)],
-      );
       final prices = <String, double>{};
-      for (final d in dataRes.documents) {
-        final name = d.data['c_name'] as String?;
+      for (final h in portRes.documents) {
+        final name = h.data['c_name'] as String?;
         if (name == null || prices.containsKey(name)) continue;
-        prices[name] = (d.data['pa'] as num?)?.toDouble() ?? 0;
+        final rows = await databases.listDocuments(
+          databaseId: dbId,
+          collectionId: 'data',
+          queries: [Query.equal('c_name', name), Query.orderDesc('date'), Query.limit(50)],
+        );
+        for (final d in rows.documents) {
+          final pa = (d.data['pa'] as num?)?.toDouble() ?? 0;
+          if (pa > 0) { prices[name] = pa; break; }
+        }
       }
       return {
         'holdings': portRes.documents.map((d) => d.data).toList(),
