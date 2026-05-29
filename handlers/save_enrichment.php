@@ -17,14 +17,9 @@ $name   = trim($_POST['name']   ?? '');
 $symbol = preg_replace('/[^A-Z0-9]/', '', strtoupper($_POST['symbol'] ?? ''));
 if (!$name || !$symbol) { echo json_encode(['ok'=>false,'msg'=>'missing params']); exit; }
 
-// Fetch market proxy
-$ch = curl_init(BASE_URL . '/handlers/market_proxy.php?symbol=' . urlencode($symbol));
-curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>20,
-                        CURLOPT_COOKIE => session_name().'='.session_id()]);
-$body = curl_exec($ch);
-curl_close($ch);
-
-$data = $body ? json_decode($body, true) : null;
+// Fetch enrichment data directly (no self-curl)
+require_once __DIR__ . '/market_proxy.php';
+$data = mkt_fetch_symbol($symbol);
 if (!$data || !empty($data['error'])) {
     echo json_encode(['ok'=>false,'msg'=>'proxy unavailable']); exit;
 }

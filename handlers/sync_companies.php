@@ -15,6 +15,8 @@ set_time_limit(600);
 ob_implicit_flush(true);
 ob_end_flush();
 
+require_once __DIR__ . '/market_proxy.php';
+
 $dryRun = isset($_GET['dry']);
 $only   = isset($_GET['symbol']) ? strtoupper(trim($_GET['symbol'])) : null;
 ?>
@@ -75,22 +77,10 @@ foreach ($companies as $co) {
         flush(); $skipped++; continue;
     }
 
-    // Call market proxy
-    $ch = curl_init(BASE_URL . '/handlers/market_proxy.php?symbol=' . urlencode($symbol));
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>30,
-                            CURLOPT_COOKIE => session_name().'='.session_id()]);
-    $body = curl_exec($ch);
-    $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if (!$body || $http !== 200) {
-        echo "<div class='row'><span class='sym'>{$symbol}</span><span class='name'>".htmlspecialchars($co_name)."</span><span class='err'>✗ proxy error {$http}</span></div>\n";
-        flush(); $errors++; continue;
-    }
-
-    $data = json_decode($body, true);
+    // Fetch enrichment data directly (no self-curl)
+    $data = mkt_fetch_symbol($symbol);
     if (!$data || !empty($data['error'])) {
-        echo "<div class='row'><span class='sym'>{$symbol}</span><span class='name'>".htmlspecialchars($co_name)."</span><span class='err'>✗ ".htmlspecialchars($data['error']??'parse error')."</span></div>\n";
+        echo "<div class='row'><span class='sym'>{$symbol}</span><span class='name'>".htmlspecialchars($co_name)."</span><span class='err'>✗ ".htmlspecialchars($data['error']??'unavailable')."</span></div>\n";
         flush(); $errors++; continue;
     }
 
