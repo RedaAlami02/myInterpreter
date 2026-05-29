@@ -18,6 +18,8 @@ function requireLogin(): void {
             $_SESSION['logged_in']  = true;
             $_SESSION['USER_ID']    = $me['body']['$id'];
             $_SESSION['USER_EMAIL'] = $me['body']['email'] ?? '';
+            // Slide the cookie forward another year on each restore
+            setcookie('aw_session', $_COOKIE['aw_session'], time() + 86400 * 365, '/', '', false, true);
         } else {
             setcookie('aw_session', '', time() - 3600, '/', '', false, true);
             unset($_SESSION['aw_cookie']);
