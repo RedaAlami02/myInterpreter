@@ -17,37 +17,42 @@ if (isset($_POST['add_buy'])) {
     $number = (float) ($_POST['NUMBER']    ?? 0);
     $price  = (float) ($_POST['PRIX_ACHAT']?? 0);
     if ($name && $number > 0 && $price > 0) {
-        $perms = aw_user_permissions($uid);
-        aw_create_doc('achats', [
-            'date'      => date('Y-m-d'),
-            'c_name'    => $name,
-            'quantity'  => $number,
-            'price'     => $price,
-            'user_id'   => $uid,
-        ], $perms, $session);
-
-        // Upsert portefeuille
-        $pf = aw_list_docs('portefeuille', [
-            q_equal('c_name', $name),
-            q_equal('user_id', $uid),
-            q_limit(1),
-        ], $session);
-
-        if (!empty($pf)) {
-            $doc = $pf[0];
-            aw_update_doc('portefeuille', $doc['$id'], [
-                'quantity'   => $doc['quantity'] + $number,
-                'total_cost' => $doc['total_cost'] + $price * $number,
-            ], $session);
-        } else {
-            aw_create_doc('portefeuille', [
+        try {
+            $perms = aw_user_permissions($uid);
+            aw_create_doc('achats', [
+                'date'       => date('Y-m-d'),
                 'c_name'     => $name,
-                'quantity'   => $number,
-                'total_cost' => $price * $number,
+                'number'     => $number,
+                'prix_achat' => $price,
                 'user_id'    => $uid,
             ], $perms, $session);
+
+            // Upsert portefeuille
+            $pf = aw_list_docs('portefeuille', [
+                q_equal('c_name', $name),
+                q_equal('user_id', $uid),
+                q_limit(1),
+            ], $session);
+
+            if (!empty($pf)) {
+                $doc = $pf[0];
+                aw_update_doc('portefeuille', $doc['$id'], [
+                    'quantity'   => $doc['quantity'] + $number,
+                    'total_cost' => $doc['total_cost'] + $price * $number,
+                ], $session);
+            } else {
+                aw_create_doc('portefeuille', [
+                    'c_name'     => $name,
+                    'quantity'   => $number,
+                    'total_cost' => $price * $number,
+                    'user_id'    => $uid,
+                ], $perms, $session);
+            }
+            $flash[] = ['type' => 'success', 'msg' => "Achat de {$number} × {$name} enregistré."];
+        } catch (Throwable $e) {
+            error_log('[myInterpreter] add_buy error: ' . $e->getMessage());
+            $flash[] = ['type' => 'error', 'msg' => 'Erreur lors de l\'enregistrement : ' . $e->getMessage()];
         }
-        $flash[] = ['type' => 'success', 'msg' => "Achat de {$number} × {$name} enregistré."];
     }
 }
 
@@ -58,36 +63,41 @@ if (isset($_POST['add_sell'])) {
     $number = (float) ($_POST['NUMBER2']   ?? 0);
     $price  = (float) ($_POST['PRIX_VENTE']?? 0);
     if ($name && $number > 0 && $price > 0) {
-        $pf = aw_list_docs('portefeuille', [
-            q_equal('c_name', $name),
-            q_equal('user_id', $uid),
-            q_limit(1),
-        ], $session);
+        try {
+            $pf = aw_list_docs('portefeuille', [
+                q_equal('c_name', $name),
+                q_equal('user_id', $uid),
+                q_limit(1),
+            ], $session);
 
-        if (!empty($pf) && $number <= $pf[0]['quantity']) {
-            $doc   = $pf[0];
-            $perms = aw_user_permissions($uid);
-            aw_create_doc('ventes', [
-                'date'     => date('Y-m-d'),
-                'c_name'   => $name,
-                'quantity' => $number,
-                'price'    => $price,
-                'user_id'  => $uid,
-            ], $perms, $session);
+            if (!empty($pf) && $number <= $pf[0]['quantity']) {
+                $doc   = $pf[0];
+                $perms = aw_user_permissions($uid);
+                aw_create_doc('ventes', [
+                    'date'       => date('Y-m-d'),
+                    'c_name'     => $name,
+                    'number'     => $number,
+                    'prix_vente' => $price,
+                    'user_id'    => $uid,
+                ], $perms, $session);
 
-            if ($number == $doc['quantity']) {
-                aw_delete_doc('portefeuille', $doc['$id'], $session);
+                if ($number == $doc['quantity']) {
+                    aw_delete_doc('portefeuille', $doc['$id'], $session);
+                } else {
+                    $avg = $doc['total_cost'] / $doc['quantity'];
+                    aw_update_doc('portefeuille', $doc['$id'], [
+                        'quantity'   => $doc['quantity'] - $number,
+                        'total_cost' => $doc['total_cost'] - $avg * $number,
+                    ], $session);
+                }
+                $flash[] = ['type' => 'success', 'msg' => "Vente de {$number} × {$name} enregistrée."];
+                header('Location: portfolio.php'); exit();
             } else {
-                $avg = $doc['total_cost'] / $doc['quantity'];
-                aw_update_doc('portefeuille', $doc['$id'], [
-                    'quantity'   => $doc['quantity'] - $number,
-                    'total_cost' => $doc['total_cost'] - $avg * $number,
-                ], $session);
+                $flash[] = ['type' => 'error', 'msg' => 'Quantité insuffisante en portefeuille.'];
             }
-            $flash[] = ['type' => 'success', 'msg' => "Vente de {$number} × {$name} enregistrée."];
-            header('Location: portfolio.php'); exit();
-        } else {
-            $flash[] = ['type' => 'error', 'msg' => 'Quantité insuffisante en portefeuille.'];
+        } catch (Throwable $e) {
+            error_log('[myInterpreter] add_sell error: ' . $e->getMessage());
+            $flash[] = ['type' => 'error', 'msg' => 'Erreur lors de la vente : ' . $e->getMessage()];
         }
     }
 }
