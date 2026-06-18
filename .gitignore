@@ -62,6 +62,12 @@ composer.lock
 # Local private files (API references, roadmap — never commit)
 /private/
 ROADMAP.md
+FTP.md
+history.txt
+
+# Agent / Claude Code tooling (local only, may symlink outside repo)
+.claude/
+.agents/
 
 #git
 .gitignore
@@ -74,3 +80,15 @@ myinterpreter_app/.flutter-plugins-dependencies
 myinterpreter_app/android/.gradle/
 myinterpreter_app/android/local.properties
 myinterpreter_app/android/.kotlin/
+
+# Flutter/Android signing & secrets (never commit)
+**/google-services.json
+**/key.properties
+key.properties
+local.properties
+*.keystore
+*.jks
+*.p12
+
+# Environment
+.env
