@@ -7,7 +7,7 @@
             "$id": "6a125537000a4c1668bf",
             "name": "GETprice",
             "runtime": "python-3.9",
-            "buildSpecification": "s-0.5vcpu-512mb",
+            "buildSpecification": "s-2vcpu-2gb",
             "runtimeSpecification": "s-0.5vcpu-512mb",
             "execute": [
                 "any"
@@ -17,7 +17,7 @@
                 "users.read"
             ],
             "schedule": "*/15 8-15 * * 1-5",
-            "timeout": 15,
+            "timeout": 60,
             "enabled": true,
             "logging": true,
             "entrypoint": "src/main.py",

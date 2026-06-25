@@ -80,6 +80,28 @@ CDG_PAYLOAD = {
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+def num(value):
+    """Coerce a CDG value to float, or None.
+
+    The CDG API intermittently returns numeric fields as strings using French
+    formatting (non-breaking/regular spaces as thousands separators, comma as the
+    decimal point), e.g. "1 234,56". Appwrite float attributes reject any string,
+    so every numeric field must pass through here before insert.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    s = str(value).strip().replace('\xa0', '').replace(' ', '').replace(',', '.')
+    if not s:
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
 def rate(value, green, orange):
     if value is None:
         return None
@@ -151,19 +173,19 @@ def main(context):
         name = symbol_to_name.get(sym)
         if not name:
             continue
-        cours_ref = row.get('CoursDeReferance', 0)
-        cours     = row.get('DernierCours', 0)
+        cours_ref = num(row.get('CoursDeReferance'))
+        cours     = num(row.get('DernierCours'))
         name_to_market[name] = {
             'symbol':      sym,
             'cours':       cours,
             'cours_ref':   cours_ref,
-            'open_price':  row.get('Ouverture'),
-            'high':        row.get('PlusHaut'),
-            'low':         row.get('PlusBas'),
-            'volume':      row.get('Volume'),
-            'qty_traded':  row.get('QteEchangee'),
-            'market_cap':  row.get('Capitalisation'),
-            'variation':   row.get('Variation'),
+            'open_price':  num(row.get('Ouverture')),
+            'high':        num(row.get('PlusHaut')),
+            'low':         num(row.get('PlusBas')),
+            'volume':      num(row.get('Volume')),
+            'qty_traded':  num(row.get('QteEchangee')),
+            'market_cap':  num(row.get('Capitalisation')),
+            'variation':   num(row.get('Variation')),
             'variation_v': round(cours - cours_ref, 4) if cours and cours_ref else None,
             'data_chart':  fit_chart(row.get('DataChart', '')),
         }
@@ -179,6 +201,18 @@ def main(context):
         pa = d._data.get('pa', 0) or 0
         if n and n not in last_known_pa and pa > 0:
             last_known_pa[n] = pa
+
+    # 4b. Preload latest_prices once (c_name -> doc id) so the per-company loop
+    #     does a single update/create instead of a SELECT + write each iteration.
+    latest_price_id, lp_limit, lp_offset = {}, 100, 0
+    while True:
+        page = db.list_documents(DB_ID, "latest_prices",
+                                 queries=[Query.limit(lp_limit), Query.offset(lp_offset)])
+        for d in page.documents:
+            latest_price_id[d._data.get('c_name')] = d.id
+        if len(page.documents) < lp_limit:
+            break
+        lp_offset += lp_limit
 
     # 4. Compute ratios and insert stock docs
     for name, m in name_to_market.items():
@@ -228,34 +262,35 @@ def main(context):
         db.create_document(DB_ID, "data", ID.unique(), doc)
         inserted += 1
 
-        # Upsert into latest_prices (one row per company, always current)
+        # Upsert into latest_prices (one row per company, always current).
+        # Uses the preloaded id map — no per-company SELECT.
         if pa:
-            existing = db.list_documents(DB_ID, "latest_prices", queries=[
-                Query.equal('c_name', name), Query.limit(1)
-            ])
             lp_doc = {'c_name': name, 'pa': pa, 'date': now}
-            if existing.documents:
-                db.update_document(DB_ID, "latest_prices", existing.documents[0].id, lp_doc)
+            existing_id = latest_price_id.get(name)
+            if existing_id:
+                db.update_document(DB_ID, "latest_prices", existing_id, lp_doc)
             else:
-                db.create_document(DB_ID, "latest_prices", ID.unique(), lp_doc)
+                new_doc = db.create_document(DB_ID, "latest_prices", ID.unique(), lp_doc)
+                latest_price_id[name] = new_doc.id
 
     # 5. Insert MASI index as its own doc (c_name="MASI")
-    if masi.get('Cours'):
+    masi_cours = num(masi.get('Cours'))
+    if masi_cours:
         masi_doc = {k: v for k, v in {
             'date':        now,
             'c_name':      'MASI',
-            'pa':          masi['Cours'],
-            'cours_ref':   masi.get('CoursVeille'),
-            'variation':   masi.get('VariationP'),
-            'variation_v': masi.get('VariationV'),
-            'high':        masi.get('PlusHaut'),
-            'low':         masi.get('PlusBas'),
-            'volume':      masi.get('Volume'),
-            'qty_traded':  masi.get('QteEchange'),
-            'market_cap':  masi.get('Capitalisation'),
+            'pa':          masi_cours,
+            'cours_ref':   num(masi.get('CoursVeille')),
+            'variation':   num(masi.get('VariationP')),
+            'variation_v': num(masi.get('VariationV')),
+            'high':        num(masi.get('PlusHaut')),
+            'low':         num(masi.get('PlusBas')),
+            'volume':      num(masi.get('Volume')),
+            'qty_traded':  num(masi.get('QteEchange')),
+            'market_cap':  num(masi.get('Capitalisation')),
         }.items() if v is not None}
         db.create_document(DB_ID, "data", ID.unique(), masi_doc)
-        context.log(f"Inserted MASI doc: {masi['Cours']}")
+        context.log(f"Inserted MASI doc: {masi_cours}")
 
     context.log(f"Inserted {inserted} stock docs at {now}")
     return context.res.json({"inserted": inserted, "masi": bool(masi.get('Cours')),
