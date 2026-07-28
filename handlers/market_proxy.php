@@ -11,7 +11,13 @@ function mkt_batch(array $requests): array {
     $handles = [];
     foreach ($requests as $key => $spec) {
         $ch  = curl_init($spec['url']);
-        $hdr = array_merge(['Accept: */*', 'User-Agent: Mozilla/5.0 (compatible)'], $spec['extra_headers'] ?? []);
+        // the fundamentals provider's proxy returns 403 without a same-origin Referer/Origin.
+        $hdr = array_merge([
+            'Accept: */*',
+            'User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+            'Referer: https://fundamentals.example/',
+            'Origin: https://fundamentals.example',
+        ], $spec['extra_headers'] ?? []);
         $opts = [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10, CURLOPT_HTTPHEADER => $hdr];
         if (!empty($spec['post'])) {
             $opts[CURLOPT_POST]         = true;
