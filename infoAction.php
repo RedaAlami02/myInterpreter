@@ -136,7 +136,7 @@ if ($awSession && !empty($name ?? '')) {
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=3" rel="stylesheet">
-  <link href="assets/css/infoAction.css?v=4" rel="stylesheet">
+  <link href="assets/css/infoAction.css?v=5" rel="stylesheet">
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
@@ -229,9 +229,17 @@ if ($awSession && !empty($name ?? '')) {
                   <?php if ($symbol): ?>
                     <span class="ticker-badge"><?= htmlspecialchars($symbol) ?></span>
                   <?php endif; ?>
-                  <?= htmlspecialchars($company['name'] ?? $name) ?>
+                  <?= htmlspecialchars(display_name($company['name'] ?? $name, $company['ext_name'] ?? null)) ?>
                   <?php if (!empty($company['sector'])): ?>
                     <span class="sector-badge"><?= htmlspecialchars($company['sector']) ?></span>
+                  <?php endif; ?>
+                  <?php if (!empty($company['fiscal_year'])): ?>
+                    <?php // Every figure below comes from this one financial year.
+                          // Shown once rather than repeated on each metric. ?>
+                    <span class="fy-badge"
+                          data-tooltip="Tous les chiffres financiers ci-dessous proviennent de l'exercice <?= (int)$company['fiscal_year'] ?>. Les ratios (PER, PEG, P/R, P/B) combinent ces comptes avec le cours actuel.">
+                      Exercice <?= (int)$company['fiscal_year'] ?>
+                    </span>
                   <?php endif; ?>
                 </h4>
                 <?php if (!empty($company['description'])): ?>
@@ -251,6 +259,13 @@ if ($awSession && !empty($name ?? '')) {
             </div>
 
             <!-- Fundamentals grid -->
+            <?php if (!empty($company['fiscal_year'])): ?>
+              <p class="fund-source">
+                <i class="fas fa-calendar-alt me-1"></i>
+                Chiffres financiers : <strong>exercice <?= (int)$company['fiscal_year'] ?></strong>
+                <span class="muted">· source fundamentals.example · les ratios combinent ces comptes avec le cours du jour</span>
+              </p>
+            <?php endif; ?>
             <div class="fundamentals-grid">
               <?php
               $funds = [

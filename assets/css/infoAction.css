@@ -225,3 +225,30 @@
   color: var(--emerald);
 }
 .suggestion-chip .mono { font-size: 0.72rem; }
+
+/* ── Fiscal year badge ───────────────────────────────────── */
+/* Shown once beside the company name: every financial figure on the page
+   comes from this one year, so repeating it per metric would be noise. */
+.fy-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--violet-dim, var(--surface-3));
+  border: 1px solid var(--border);
+  color: var(--text-mute);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  white-space: nowrap;
+  cursor: help;
+}
+.fund-source {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  color: var(--text-mute);
+}
+.fund-source strong { color: var(--text); }
