@@ -1,0 +1,106 @@
+/* dividendes.css — calendrier des dividendes */
+
+.div-page { max-width: 100%; margin: 0; padding: 2.5rem 0 60px; }
+
+.div-hero { text-align: center; margin-bottom: 2rem; }
+.div-hero h1 {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.div-hero p { color: var(--text-mute); font-size: 0.9rem; }
+
+/* ── Summary strip ───────────────────────────────────────── */
+.div-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 28px;
+  padding: 18px 22px;
+  margin-bottom: 26px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.div-stat { display: flex; flex-direction: column; }
+.div-stat-val {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+.div-stat-lbl { font-size: 0.72rem; color: var(--text-mute); }
+
+.div-years { display: flex; gap: 5px; margin-left: auto; flex-wrap: wrap; }
+.div-year-btn {
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-mute);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.div-year-btn:hover { border-color: var(--cyan-glow); color: var(--cyan); }
+.div-year-btn.active {
+  background: var(--cyan-dim);
+  border-color: var(--cyan-glow);
+  color: var(--cyan);
+}
+
+/* ── Section headings ────────────────────────────────────── */
+.div-sec-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin: 0 0 12px;
+}
+.div-sec-title .muted {
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ── Row states ──────────────────────────────────────────── */
+/* Already-paid rows stay readable but recede — they are reference, not news. */
+tr.div-done { opacity: .5; }
+
+.div-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.div-badge.confirmed   { background: var(--emerald-dim); color: var(--emerald); }
+.div-badge.estimated   { background: var(--amber-dim);   color: var(--amber); }
+.div-badge.quarterly   { background: var(--violet-dim);  color: var(--violet); }
+.div-badge.exceptional { background: var(--cyan-dim);    color: var(--cyan); }
+
+.fund-source {
+  margin: 0 0 10px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border-left: 3px solid var(--violet);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+.fund-source strong { color: var(--violet); }
+.fund-source .muted { color: var(--text-mute); }
+
+@media (max-width: 640px) {
+  .div-summary { gap: 18px; }
+  .div-years { margin-left: 0; width: 100%; }
+}

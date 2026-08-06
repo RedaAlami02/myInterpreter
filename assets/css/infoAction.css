@@ -233,13 +233,15 @@
   display: inline-flex;
   align-items: center;
   margin-left: 8px;
-  padding: 3px 10px;
+  padding: 4px 11px;
   border-radius: 999px;
-  background: var(--violet-dim, var(--surface-3));
-  border: 1px solid var(--border);
-  color: var(--text-mute);
+  /* Readable, not shouty. --text-mute on --violet-dim measured ~2:1 contrast
+     against the page background, which made this effectively invisible. */
+  background: rgba(129,140,248,0.18);
+  border: 1px solid rgba(129,140,248,0.45);
+  color: var(--violet);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   vertical-align: middle;
@@ -248,7 +250,107 @@
 }
 .fund-source {
   margin: 0 0 10px;
-  font-size: 0.78rem;
-  color: var(--text-mute);
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border-left: 3px solid var(--violet);
+  font-size: 0.82rem;
+  color: var(--text-dim);
 }
-.fund-source strong { color: var(--text); }
+.fund-source strong { color: var(--violet); }
+.fund-source .muted { color: var(--text-mute); }
+
+/* ── Panel tabs: snapshots vs dividends ──────────────────── */
+/* Both panels ship in the page; the tab only toggles `hidden`, so switching
+   costs nothing. Replaces a single 795-row table that made this page 564 KB. */
+.panel-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 14px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 10px 16px;
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.panel-tab:hover { color: var(--text); }
+.panel-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.tab-badge {
+  display: inline-block;
+  margin-left: 7px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--emerald-dim);
+  color: var(--emerald);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* ── Dividend card ───────────────────────────────────────── */
+.div-card {
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--emerald);
+  margin-bottom: 18px;
+}
+.div-card.is-past { border-left-color: var(--text-mute); opacity: .85; }
+.div-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+.div-label { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 4px; }
+.div-tag-exc {
+  margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  background: var(--amber-dim); color: var(--amber);
+  font-size: 0.68rem; font-weight: 700;
+}
+.div-amount {
+  font-family: var(--font-mono); font-size: 1.9rem; font-weight: 700;
+  color: var(--text); line-height: 1.1;
+}
+.div-unit { font-size: 0.8rem; font-weight: 500; color: var(--text-dim); margin-left: 4px; }
+.div-yield { text-align: right; }
+.div-yield-val {
+  font-family: var(--font-mono); font-size: 1.4rem; font-weight: 700; color: var(--emerald);
+}
+.div-yield-lbl { font-size: 0.72rem; color: var(--text-dim); }
+
+.div-dates {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border);
+}
+.div-date-cell { display: flex; flex-direction: column; gap: 4px; }
+.div-date-lbl { font-size: 0.72rem; color: var(--text-mute); text-transform: uppercase; letter-spacing: .04em; }
+.div-date-val { font-family: var(--font-mono); font-size: 0.92rem; color: var(--text); }
+.div-badge {
+  align-self: flex-start; padding: 3px 10px; border-radius: 999px;
+  font-size: 0.74rem; font-weight: 700;
+}
+.div-badge.confirmed { background: var(--emerald-dim); color: var(--emerald); }
+.div-badge.estimated { background: var(--amber-dim);   color: var(--amber); }
+.div-note {
+  margin: 12px 0 0; font-size: 0.79rem; color: var(--text-dim);
+  padding-top: 10px; border-top: 1px dashed var(--border);
+}
+.div-note strong { color: var(--text); }
+.div-hist-title {
+  font-family: var(--font-display); font-weight: 700; font-size: 0.95rem;
+  margin: 0 0 10px; color: var(--text);
+}
+.div-row-current { background: rgba(34,211,238,0.05); }
+
+@media (max-width: 520px) {
+  .div-head { flex-direction: column; gap: 10px; }
+  .div-yield { text-align: left; }
+  .panel-tab { padding: 9px 11px; font-size: 0.84rem; }
+}

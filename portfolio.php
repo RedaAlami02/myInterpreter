@@ -4,6 +4,7 @@ session_start();
 require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/auth.php';
+require_once 'core/dividends.php';
 requireLogin();
 
 $uid     = aw_user_id();
@@ -166,6 +167,18 @@ foreach ($lpDocs as $d) {
     if ($n) $priceMap[$n] = (float)($d['pa'] ?? 0);
 }
 
+// ─── Expected dividend income ─────────────────────────────
+// One query for the whole year, then joined in memory against the holdings.
+// Quantities come from `portefeuille`, so this is what the user would actually
+// receive — not a market-wide yield.
+$divYear   = (int)date('Y');
+$divToday  = date('Y-m-d');
+$divByName = [];
+foreach (div_for_year($divYear) as $d) {
+    $n = $d['c_name'] ?? '';
+    if ($n !== '') $divByName[$n][] = $d;
+}
+
 $holdings = [];
 $chartNames = []; $chartValues = []; $chartBuys = [];
 $totalCurrentVal = 0.0; $totalBuyVal = 0.0;
@@ -191,6 +204,46 @@ foreach ($holdingsDocs as $h) {
 
 $diffDisplay = $totalCurrentVal - $totalBuyVal;
 $earnings    = array_map(fn($d) => ['DATE' => fmt_date($d['date']), 'VALUE' => $d['value']], $earningsDocs);
+
+// ─── Dividend income rows, one per holding that pays ──────
+// Aggregated by company first: two lots of the same stock are one payment line,
+// otherwise the same dividend would appear twice and the total would be right
+// only by accident.
+$divQty = [];
+foreach ($holdingsDocs as $h) {
+    $n = $h['c_name'] ?? '';
+    if ($n !== '') $divQty[$n] = ($divQty[$n] ?? 0) + (float)($h['quantity'] ?? 0);
+}
+
+$divLines = [];
+$divTotalYear = 0.0; $divTotalUpcoming = 0.0; $divPaying = 0;
+foreach ($divQty as $name => $qty) {
+    if ($qty <= 0 || empty($divByName[$name])) continue;
+    $paid = false;
+    foreach ($divByName[$name] as $d) {
+        $amt = (float)($d['amount'] ?? 0);
+        if ($amt <= 0) continue;
+        $gross    = $amt * $qty;
+        $when     = div_date_end($d) ?: div_date($d);
+        $upcoming = $when && $when >= $divToday;
+        $divLines[] = [
+            'name'      => $name,
+            'qty'       => $qty,
+            'amount'    => $amt,
+            'gross'     => $gross,
+            'row'       => $d,
+            'upcoming'  => $upcoming,
+            'sort'      => div_date($d) ?: '9999-99-99',
+            'yield'     => div_yield($d, $priceMap[$name] ?? null),
+        ];
+        $divTotalYear += $gross;
+        if ($upcoming) $divTotalUpcoming += $gross;
+        $paid = true;
+    }
+    if ($paid) $divPaying++;
+}
+usort($divLines, fn($a, $b) => strcmp($a['sort'], $b['sort']));
+$divYieldOnCost = $totalBuyVal > 0 ? $divTotalYear / $totalBuyVal * 100 : null;
 
 // Companies list — session-cached for 5 min to avoid re-fetching on every load
 if (empty($_SESSION['company_list_cache']) || (time() - ($_SESSION['company_list_ts'] ?? 0)) > 300) {
@@ -222,7 +275,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link href="assets/css/global.css?v=3" rel="stylesheet">
-  <link href="assets/css/portfolio.css?v=3" rel="stylesheet">
+  <link href="assets/css/portfolio.css?v=4" rel="stylesheet">
   <link href="assets/css/statistics.css?v=3" rel="stylesheet">
 </head>
 <body>
@@ -377,6 +430,76 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
       </div>
       <?php else: ?>
         <div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>Aucune position ouverte.</div>
+      <?php endif; ?>
+
+      <!-- ── Revenus de dividendes ─────────────────────────── -->
+      <?php if ($divLines): ?>
+      <div class="div-panel mb-4">
+        <div class="div-panel-head">
+          <h5><i class="fas fa-coins me-2 t-emerald"></i>Revenus de dividendes <?= $divYear ?></h5>
+          <div class="div-panel-totals">
+            <div class="div-total">
+              <span class="div-total-val"><?= number_format($divTotalYear, 2, ',', ' ') ?></span>
+              <span class="div-total-lbl">MAD sur l'année</span>
+            </div>
+            <?php if ($divTotalUpcoming > 0): ?>
+            <div class="div-total">
+              <span class="div-total-val t-cyan"><?= number_format($divTotalUpcoming, 2, ',', ' ') ?></span>
+              <span class="div-total-lbl">MAD à venir</span>
+            </div>
+            <?php endif; ?>
+            <?php if ($divYieldOnCost !== null): ?>
+            <div class="div-total">
+              <span class="div-total-val t-emerald"><?= number_format($divYieldOnCost, 2, ',', ' ') ?>&nbsp;%</span>
+              <span class="div-total-lbl">rendement / prix d'achat</span>
+            </div>
+            <?php endif; ?>
+          </div>
+        </div>
+
+        <div class="card-glass overflow-x-auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>Société</th>
+              <th class="num">Actions</th>
+              <th class="num">MAD/action</th>
+              <th class="num">Rendement</th>
+              <th>Détachement</th>
+              <th>Paiement</th>
+              <th class="num">Montant brut</th>
+            </tr></thead>
+            <tbody>
+            <?php foreach ($divLines as $l): $r = $l['row']; ?>
+              <tr class="<?= $l['upcoming'] ? 'div-upcoming' : 'div-done' ?>">
+                <td>
+                  <a href="infoAction.php?name=<?= urlencode($l['name']) ?>" class="t-cyan">
+                    <?= htmlspecialchars($l['name']) ?></a>
+                  <?php if (!div_confirmed($r)): ?>
+                    <span class="div-badge estimated">prévu</span>
+                  <?php endif; ?>
+                  <?php if (strcasecmp((string)($r['frequency'] ?? ''), 'Trimestriel') === 0): ?>
+                    <span class="div-badge quarterly">trim.</span>
+                  <?php endif; ?>
+                </td>
+                <td class="num mono"><?= number_format($l['qty'], 0, ',', ' ') ?></td>
+                <td class="num mono"><?= number_format($l['amount'], 2, ',', ' ') ?></td>
+                <td class="num mono"><?= $l['yield'] === null ? '—' : number_format($l['yield'], 2, ',', ' ') . '&nbsp;%' ?></td>
+                <td class="date"><?= fmt_date($r['ex_date'] ?? '', '—') ?></td>
+                <td class="date"><?= div_fmt_date($r) ?></td>
+                <td class="num mono div-gross"><?= number_format($l['gross'], 2, ',', ' ') ?></td>
+              </tr>
+            <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="fund-source mt-2">
+          <i class="fas fa-info-circle me-1"></i>
+          <?= $divPaying ?> de vos <?= count($divQty) ?> positions versent un dividende cette année.
+          <span class="muted">Montants bruts, avant retenue à la source · les lignes « prévu »
+          n'ont pas encore été votées en assemblée générale · source calendar.example</span>
+        </p>
+      </div>
       <?php endif; ?>
 
       <!-- Save snapshot -->

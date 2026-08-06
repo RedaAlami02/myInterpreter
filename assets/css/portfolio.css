@@ -119,3 +119,34 @@
 .tbl td.dur          { color: var(--text-mute); text-align: center; font-size: 0.78rem; }
 .tbl td.benefice     { text-align: right; font-weight: 700; }
 .badge-split         { font-size: 0.7rem; background: var(--surface-3); color: var(--text-mute); padding: 1px 5px; border-radius: 4px; }
+
+/* ── Revenus de dividendes ───────────────────────────────── */
+.div-panel { margin-top: 8px; }
+.div-panel-head {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 16px; margin-bottom: 12px;
+}
+.div-panel-head h5 {
+  font-family: var(--font-display); font-weight: 700; font-size: 1rem; margin: 0;
+}
+.div-panel-totals { display: flex; gap: 22px; flex-wrap: wrap; }
+.div-total { display: flex; flex-direction: column; align-items: flex-end; }
+.div-total-val { font-family: var(--font-mono); font-size: 1.25rem; font-weight: 700; color: var(--text); }
+.div-total-lbl { font-size: 0.7rem; color: var(--text-mute); }
+
+.div-panel .div-gross { font-weight: 700; color: var(--emerald); }
+.div-panel tr.div-done { opacity: .55; }
+.div-panel tr.div-done .div-gross { color: var(--text-dim); }
+.div-panel tr.div-upcoming { background: rgba(16,185,129,0.04); }
+
+.div-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 8px;
+  border-radius: 999px; font-size: 0.68rem; font-weight: 700;
+}
+.div-badge.estimated { background: var(--amber-dim);  color: var(--amber); }
+.div-badge.quarterly { background: var(--violet-dim); color: var(--violet); }
+
+@media (max-width: 640px) {
+  .div-panel-head { flex-direction: column; align-items: flex-start; }
+  .div-total { align-items: flex-start; }
+}

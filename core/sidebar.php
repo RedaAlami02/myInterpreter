@@ -46,6 +46,10 @@ function _sb_active(string $page): string {
         <span class="nav-badge"><?= (int)$screenerCount ?></span>
       <?php endif; ?>
     </a>
+    <a class="nav-item<?= _sb_active('dividendes.php') ?>" href="dividendes.php">
+      <span class="nav-icon">◈</span>
+      <span>Dividendes</span>
+    </a>
   </nav>
 
   <?php if ($_sbLogged): ?>

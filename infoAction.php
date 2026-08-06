@@ -3,6 +3,7 @@ session_start();
 require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/Action.php';
+require_once 'core/dividends.php';
 
 $allCompanies = [];
 $company      = null;
@@ -11,6 +12,12 @@ $sparkLabels  = [];
 $sparkData    = [];
 $searched     = false;
 $dbError      = null;
+$divRows      = [];
+$divNext      = null;
+$divWhen      = null;
+$divHistory   = [];
+$divUsualMonth = null;
+$divPrice     = 0.0;
 $suggestions  = [];
 $symbolTo     = [];   // ticker symbol => stored company name
 
@@ -96,6 +103,14 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
                 $fmtRes = aw_list_docs('format', [q_equal('name', $name), q_limit(1)]);
                 if (!empty($fmtRes)) $symbol = $fmtRes[0]['symbol'] ?? null;
             }
+
+            // ─── Dividends ───────────────────────────────────
+            $divRows            = div_for_company($name);
+            [$divNext, $divWhen] = div_next($divRows);
+            $divHistory         = div_history($divRows, (int)date('Y'));
+            $divUsualMonth      = ($divNext && !div_confirmed($divNext))
+                                    ? div_usual_month($divRows, (int)date('Y')) : null;
+            $divPrice           = (float)($history[0]['pa'] ?? 0);
         }
     } catch (Throwable $e) {
         $dbError = $e->getMessage();
@@ -136,7 +151,7 @@ if ($awSession && !empty($name ?? '')) {
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=3" rel="stylesheet">
-  <link href="assets/css/infoAction.css?v=5" rel="stylesheet">
+  <link href="assets/css/infoAction.css?v=7" rel="stylesheet">
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
@@ -324,9 +339,160 @@ if ($awSession && !empty($name ?? '')) {
             </div>
             <?php endif; ?>
 
-            <h5 class="mb-3" style="font-family:var(--font-display);font-weight:700">
-              <i class="fas fa-history me-2 t-cyan"></i>Historique des snapshots
-            </h5>
+            <?php
+              // The snapshot table used to render every stored day — 795 rows for
+              // IAM, a 564 KB page. The chart above already covers the same ground
+              // with period buttons, so the table now shows a recent window and
+              // says so rather than pretending to be the full record.
+              $SNAP_WINDOW  = 60;
+              $historyShown = array_slice($history, 0, $SNAP_WINDOW);
+            ?>
+            <div class="panel-tabs" role="tablist">
+              <button class="panel-tab active" data-panel="snapshots" role="tab" aria-selected="true">
+                <i class="fas fa-history me-2"></i>Historique des snapshots
+              </button>
+              <button class="panel-tab" data-panel="dividendes" role="tab" aria-selected="false">
+                <i class="fas fa-coins me-2"></i>Dividendes
+                <?php if ($divNext && !empty($divNext['amount'])): ?>
+                  <span class="tab-badge"><?= number_format((float)$divNext['amount'], 2, ',', ' ') ?></span>
+                <?php endif; ?>
+              </button>
+            </div>
+
+            <!-- ── Dividendes ─────────────────────────────── -->
+            <div class="panel-body" id="panel-dividendes" hidden>
+              <?php if (!$divRows): ?>
+                <div class="alert alert-info mb-0">
+                  <i class="fas fa-info-circle me-2"></i>
+                  Aucun dividende connu pour cette société.
+                  <span class="muted">Elle ne figure pas au calendrier de distribution.</span>
+                </div>
+              <?php else: ?>
+                <?php if ($divNext): ?>
+                  <?php
+                    $amt   = (float)($divNext['amount'] ?? 0);
+                    $yield = div_yield($divNext, $divPrice);
+                    $conf  = div_confirmed($divNext);
+                    $isQ   = strcasecmp((string)($divNext['frequency'] ?? ''), 'Trimestriel') === 0;
+                  ?>
+                  <div class="div-card <?= $divWhen === 'past' ? 'is-past' : '' ?>">
+                    <div class="div-head">
+                      <div>
+                        <div class="div-label">
+                          <?= $divWhen === 'past' ? 'Dernier dividende versé' : 'Prochain dividende' ?>
+                          <?php if ($divNext['type'] && stripos($divNext['type'], 'exceptionnel') !== false): ?>
+                            <span class="div-tag-exc"><?= htmlspecialchars($divNext['type']) ?></span>
+                          <?php endif; ?>
+                        </div>
+                        <div class="div-amount">
+                          <?= $amt > 0 ? number_format($amt, 2, ',', ' ') : '—' ?>
+                          <span class="div-unit">MAD<?= $isQ ? '/an' : '/action' ?></span>
+                        </div>
+                      </div>
+                      <?php if ($yield !== null): ?>
+                        <div class="div-yield">
+                          <div class="div-yield-val"><?= number_format($yield, 2, ',', ' ') ?>&nbsp;%</div>
+                          <div class="div-yield-lbl">rendement</div>
+                        </div>
+                      <?php endif; ?>
+                    </div>
+
+                    <div class="div-dates">
+                      <div class="div-date-cell">
+                        <span class="div-date-lbl">Détachement</span>
+                        <span class="div-date-val"><?= fmt_date($divNext['ex_date'] ?? '', '—') ?></span>
+                      </div>
+                      <div class="div-date-cell">
+                        <span class="div-date-lbl">Paiement</span>
+                        <span class="div-date-val"><?= div_fmt_date($divNext) ?></span>
+                      </div>
+                      <div class="div-date-cell">
+                        <span class="div-date-lbl">Statut</span>
+                        <?php if ($conf): ?>
+                          <span class="div-badge confirmed"><i class="fas fa-check me-1"></i>Confirmé</span>
+                        <?php else: ?>
+                          <span class="div-badge estimated"><i class="fas fa-clock me-1"></i>Prévu</span>
+                        <?php endif; ?>
+                      </div>
+                    </div>
+
+                    <?php if (!$conf): ?>
+                      <p class="div-note">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Date non encore votée en assemblée générale — l'estimation vient de la source.
+                        <?php if ($divUsualMonth): ?>
+                          Cette société verse habituellement en <strong><?= htmlspecialchars($divUsualMonth) ?></strong>.
+                        <?php endif; ?>
+                      </p>
+                    <?php endif; ?>
+                    <?php if ($isQ): ?>
+                      <p class="div-note">
+                        <i class="fas fa-repeat me-1"></i>
+                        Versement <strong>trimestriel</strong> — le montant indiqué est le total annuel.
+                      </p>
+                    <?php endif; ?>
+                  </div>
+                <?php endif; ?>
+
+                <?php if ($divHistory): ?>
+                  <h6 class="div-hist-title">Historique des versements</h6>
+                  <div class="card-glass overflow-x-auto">
+                    <table class="tbl">
+                      <thead><tr>
+                        <th>ANNÉE</th><th class="num">MONTANT</th>
+                        <th class="num">VARIATION</th><th>DÉTACHEMENT</th><th>PAIEMENT</th>
+                      </tr></thead>
+                      <tbody>
+                      <?php
+                        $byYear = [];
+                        foreach ($divRows as $r) $byYear[(int)$r['year']][] = $r;
+                        krsort($byYear);
+                        $prevAmt = null;
+                        // Oldest-first pass to compute year-on-year change, then render newest-first.
+                        $ordered = array_reverse($byYear, true);
+                        $delta = [];
+                        foreach ($ordered as $y => $rs) {
+                            $tot = 0; foreach ($rs as $r) $tot += (float)($r['amount'] ?? 0);
+                            $delta[$y] = ($prevAmt !== null && $prevAmt > 0 && $tot > 0)
+                                       ? ($tot - $prevAmt) / $prevAmt * 100 : null;
+                            if ($tot > 0) $prevAmt = $tot;
+                        }
+                        foreach ($byYear as $y => $rs):
+                          $tot = 0; foreach ($rs as $r) $tot += (float)($r['amount'] ?? 0);
+                          $r0  = $rs[0];
+                          $dv  = $delta[$y] ?? null;
+                      ?>
+                        <tr<?= $y === (int)date('Y') ? ' class="div-row-current"' : '' ?>>
+                          <td class="mono"><?= $y ?><?= $y === (int)date('Y') ? ' <span class="muted">(en cours)</span>' : '' ?></td>
+                          <td class="num mono"><?= $tot > 0 ? number_format($tot, 2, ',', ' ') : '—' ?></td>
+                          <td class="num mono <?= $dv === null ? '' : ($dv >= 0 ? 'c-green' : 'c-red') ?>">
+                            <?= $dv === null ? '—' : ($dv >= 0 ? '+' : '') . number_format($dv, 1, ',', ' ') . '&nbsp;%' ?>
+                          </td>
+                          <td class="date"><?= fmt_date($r0['ex_date'] ?? '', '—') ?></td>
+                          <td class="date"><?= div_fmt_date($r0) ?></td>
+                        </tr>
+                      <?php endforeach; ?>
+                      </tbody>
+                    </table>
+                  </div>
+                <?php endif; ?>
+
+                <p class="fund-source mt-3">
+                  <i class="fas fa-calendar-alt me-1"></i>
+                  Calendrier de distribution · <strong>source calendar.example</strong>
+                  <span class="muted">· le dividende versé en <?= date('Y') ?> provient de l'exercice <?= date('Y') - 1 ?></span>
+                </p>
+              <?php endif; ?>
+            </div>
+
+            <!-- ── Snapshots ──────────────────────────────── -->
+            <div class="panel-body" id="panel-snapshots">
+            <p class="fund-source">
+              <i class="fas fa-clock-rotate-left me-1"></i>
+              <?= count($historyShown) ?> derniers jours
+              <span class="muted">sur <?= number_format(count($history), 0, ',', ' ') ?> enregistrés ·
+              l'évolution complète est dans le graphique ci-dessus</span>
+            </p>
             <div class="card-glass overflow-x-auto">
               <table class="tbl">
                 <thead><tr>
@@ -339,7 +505,7 @@ if ($awSession && !empty($name ?? '')) {
                   <th class="num col-pb">P/B</th>
                 </tr></thead>
                 <tbody>
-                  <?php foreach ($history as $row):
+                  <?php foreach ($historyShown as $row):
                     $per = (float)($row['per'] ?? 0);
                     $peg = (float)($row['peg'] ?? 0);
                     $pr  = (float)($row['pr']  ?? 0);
@@ -370,6 +536,7 @@ if ($awSession && !empty($name ?? '')) {
                 </tbody>
               </table>
             </div>
+            </div><!-- /panel-snapshots -->
 
           <?php else: ?>
             <div class="alert alert-info">
@@ -736,6 +903,22 @@ if ($awSession && !empty($name ?? '')) {
 </script>
 <?php endif; ?>
 <script>
+// Panel tabs: snapshots vs dividends. Both panels are in the DOM already, so
+// switching is instant and needs no request.
+document.querySelectorAll('.panel-tab').forEach(function (tab) {
+  tab.addEventListener('click', function () {
+    var want = tab.dataset.panel;
+    document.querySelectorAll('.panel-tab').forEach(function (t) {
+      var on = t === tab;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('.panel-body').forEach(function (p) {
+      p.hidden = (p.id !== 'panel-' + want);
+    });
+  });
+});
+
 function toggleDesc(btn) {
   const p     = btn.closest('.company-desc');
   const short = p.querySelector('.desc-short');
