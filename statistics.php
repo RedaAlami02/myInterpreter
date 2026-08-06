@@ -119,13 +119,32 @@ function stats(): void
     }
 
     $grandTotal = 0.0;
+    $grandFrais = 0.0;
     ?>
     <div class="stats-wrap">
+      <style>
+        /* Pin the Valeur column (header, body rows and footer total rows) so it
+           stays visible while scrolling this wide FIFO table horizontally. */
+        #histoTbl thead th.h-name,
+        #histoTbl tbody td.name-cell,
+        #histoTbl tfoot td.foot-lbl {
+          position: sticky; left: 0; z-index: 2;
+          background: var(--surface-1);
+        }
+        /* Footer totals: label pinned left, amount pinned right, empty middle
+           scrolls between them — so neither the label nor the value is ever hidden. */
+        #histoTbl tfoot td.foot-lbl { white-space: nowrap; text-align: left; }
+        #histoTbl tfoot td.foot-val {
+          position: sticky; right: 0; z-index: 2;
+          background: var(--surface-1);
+        }
+        #histoTbl thead th.h-name { z-index: 3; }
+      </style>
       <h2><i class="fas fa-chart-bar me-2 t-amber"></i>Statistiques P&L</h2>
       <p class="sub">Correspondance FIFO des achats et des ventes par valeur.</p>
 
       <div class="overflow-x-auto">
-        <table class="tbl">
+        <table class="tbl" id="histoTbl">
           <thead>
             <tr>
               <th class="h-name"  rowspan="2">Valeur</th>
@@ -158,6 +177,7 @@ function stats(): void
                   <?php else:
                     $cls = $r['benefice'] > 0 ? 'pos' : ($r['benefice'] < 0 ? 'neg' : 'zero');
                     $grandTotal += $r['benefice'];
+                    $grandFrais += commission($r['achat_montant']) + commission($r['vente_montant']);
                   ?>
                     <td class="date"><?= fmt_date($r['achat_date']) ?></td>
                     <td class="num mono"><?= monofmt($r['achat_nombre'], 0) ?><?= $r['is_split'] ? ' <span class="badge-split">S</span>' : '' ?></td>
@@ -179,21 +199,29 @@ function stats(): void
           <tfoot>
             <?php
               $taxAmt  = $grandTotal * TAX_RATE;
-              $netAmt  = $grandTotal - $taxAmt;
+              $netAmt  = $grandTotal - $taxAmt - $grandFrais;
               $grossCls= $grandTotal >= 0 ? 'total-pos' : 'total-neg';
               $netCls  = $netAmt   >= 0 ? 'total-pos' : 'total-neg';
             ?>
             <tr>
-              <td class="lbl" colspan="10">Bénéfice brut</td>
-              <td class="num <?= $grossCls ?>"><?= ($grandTotal>=0?'+':'') . monofmt($grandTotal) ?></td>
+              <td class="lbl foot-lbl">Bénéfice brut</td>
+              <td colspan="9"></td>
+              <td class="num foot-val <?= $grossCls ?>"><?= ($grandTotal>=0?'+':'') . monofmt($grandTotal) ?></td>
             </tr>
             <tr>
-              <td class="lbl" colspan="10">Taxe (<?= (TAX_RATE*100) ?>%)</td>
-              <td class="num tax-cell">−<?= monofmt($taxAmt) ?></td>
+              <td class="lbl foot-lbl">Taxe (<?= (TAX_RATE*100) ?>%)</td>
+              <td colspan="9"></td>
+              <td class="num foot-val tax-cell">−<?= monofmt($taxAmt) ?></td>
             </tr>
             <tr>
-              <td class="lbl" colspan="10">Bénéfice net</td>
-              <td class="num <?= $netCls ?>"><?= ($netAmt>=0?'+':'') . monofmt($netAmt) ?></td>
+              <td class="lbl foot-lbl">Frais de courtage (<?= (COMMISSION_RATE*100) ?>% achat + vente)</td>
+              <td colspan="9"></td>
+              <td class="num foot-val tax-cell">−<?= monofmt($grandFrais) ?></td>
+            </tr>
+            <tr>
+              <td class="lbl foot-lbl">Bénéfice net</td>
+              <td colspan="9"></td>
+              <td class="num foot-val <?= $netCls ?>"><?= ($netAmt>=0?'+':'') . monofmt($netAmt) ?></td>
             </tr>
           </tfoot>
         </table>

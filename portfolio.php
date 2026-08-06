@@ -244,10 +244,12 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
     <!-- Info row -->
     <div class="sync-row">
       <span class="sync-label"><i class="fas fa-save me-1"></i>Dernier snapshot :</span>
-      <span class="sync-value"><?= fmt_date($lastSnapDate) ?></span>
+      <span class="sync-value"><?= fmt_datetime($lastSnapDate) ?></span>
       <div class="divider"></div>
       <span class="sync-label"><i class="fas fa-sync me-1"></i>Dernier sync :</span>
-      <span class="sync-value"><?= fmt_date($lastSync) ?></span>
+      <span class="sync-value"><?= fmt_datetime($lastSync) ?></span>
+      <div class="divider"></div>
+      <span class="sync-label muted">Cours différés ~15 min · the market data feed · heure de Casablanca</span>
     </div>
 
     <!-- Tab navigation -->
@@ -300,15 +302,45 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
 
       <!-- Holdings table -->
       <?php if (!empty($holdings)): ?>
+      <style>
+        /* Extra column groups are collapsed by default so the table stays narrow;
+           the toggles below reveal them on demand (progressive disclosure). */
+        #holdingsTbl .col-frais, #holdingsTbl .col-seuil { display: none; }
+        #holdingsTbl.show-frais .col-frais { display: table-cell; }
+        #holdingsTbl.show-seuil .col-seuil { display: table-cell; }
+        .col-toggles { display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+        .col-toggles .lbl { font-size:0.82rem; color:var(--text-mute); margin-right:2px; }
+        .col-toggle { opacity:0.5; }
+        .col-toggle.active { opacity:1; }
+        /* Pin the Société column so it stays visible during horizontal scroll. */
+        #holdingsTbl thead th:first-child,
+        #holdingsTbl tbody td:first-child {
+          position: sticky; left: 0; z-index: 2;
+          background: var(--surface-1);
+        }
+        #holdingsTbl thead th:first-child { z-index: 3; }
+      </style>
+      <div class="col-toggles">
+        <span class="lbl"><i class="fas fa-table-columns me-1"></i>Colonnes :</span>
+        <button type="button" class="btn btn-ghost btn-sm col-toggle" onclick="toggleCols('frais', this)">
+          <i class="fas fa-coins"></i> Frais
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm col-toggle" onclick="toggleCols('seuil', this)">
+          <i class="fas fa-scale-balanced"></i> Équilibre
+        </button>
+      </div>
       <div class="card-glass overflow-x-auto mb-4">
-        <table class="tbl">
+        <table class="tbl" id="holdingsTbl">
           <thead><tr>
             <th>Société</th>
             <th class="num">Actions</th>
             <th class="num">Val. Achat</th>
             <th class="num">Val. Actuelle</th>
             <th class="num">P/MV Latente</th>
-            <th class="num">%</th>
+            <th class="num col-frais">Frais achat</th>
+            <th class="num col-frais">Frais vente (est.)</th>
+            <th class="num col-frais">Total frais</th>
+            <th class="num col-seuil">Seuil équilibre</th>
           </tr></thead>
           <tbody>
             <?php foreach ($holdings as $i => $h):
@@ -317,14 +349,27 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
               $pnl = $cur - $buy;
               $cls = $pnl > 0 ? 'pos' : ($pnl < 0 ? 'neg' : 'zero');
               $pct = ($cur > 0 && $buy > 0) ? ($pnl / $buy) * 100 : null;
+              $fraisAchat = commission($buy);                    // 1 % already paid to build this position
+              $fraisVente = $cur > 0 ? commission($cur) : null;  // 1 % you'd pay to sell now (live estimate)
+              $totalFrais = $fraisAchat + ($fraisVente ?? 0);
+              // Break-even: market value where selling nets exactly the cash paid in,
+              // covering both the 1 % buy commission (already paid) and the 1 % sell commission.
+              //   V·(1−r) = B·(1+r)  →  V_be = B·(1+r)/(1−r)
+              // Break-even value (incl. 1% commission both legs + 10% gain tax).
+              $breakeven  = breakeven_value($buy);
+              // Écart vs current value: how much MORE it must gain to break even (>0 ⇒ to go, ≤0 ⇒ past).
+              $ecartSeuil = ($buy > 0 && $cur > 0) ? ($breakeven - $cur) : null;
             ?>
             <tr>
               <td class="label-cell"><a href="infoAction.php?name=<?= urlencode($h['c_name']) ?>" class="t-cyan"><?= htmlspecialchars($h['c_name']) ?></a></td>
               <td class="num mono"><?= (int)$h['quantity'] ?></td>
               <td class="num mono"><?= number_format($buy, 2) ?></td>
               <td class="num mono"><?= $cur > 0 ? number_format($cur, 2) : '<span class="muted">—</span>' ?></td>
-              <td class="num mono <?= $cls ?>"><?= $cur > 0 ? ($pnl>=0?'+':'') . number_format($pnl,2) : '<span class="muted">—</span>' ?></td>
-              <td class="num mono <?= $pct !== null ? $cls : '' ?>"><?= $pct !== null ? ($pct>=0?'+':'') . number_format($pct,2) . '%' : '<span class="muted">—</span>' ?></td>
+              <td class="num mono <?= $cls ?>"><?php if ($cur > 0): ?><?= ($pnl>=0?'+':'') . number_format($pnl,2) ?><?php if ($pct !== null): ?> <span class="muted">(<?= ($pct>=0?'+':'') . number_format($pct,2) ?>%)</span><?php endif; ?><?php else: ?><span class="muted">—</span><?php endif; ?></td>
+              <td class="num mono muted col-frais"><?= number_format($fraisAchat, 2) ?></td>
+              <td class="num mono muted col-frais"><?= $fraisVente !== null ? number_format($fraisVente, 2) : '<span class="muted">—</span>' ?></td>
+              <td class="num mono col-frais"><?= number_format($totalFrais, 2) ?></td>
+              <td class="num mono col-seuil"><?php if ($breakeven > 0): ?><?= number_format($breakeven, 2) ?><?php if ($ecartSeuil !== null): ?> <span class="muted">(<?= ($ecartSeuil > 0 ? '+' : '') . number_format($ecartSeuil, 2) ?>)</span><?php endif; ?><?php else: ?><span class="muted">—</span><?php endif; ?></td>
             </tr>
             <?php endforeach; ?>
           </tbody>
@@ -464,6 +509,12 @@ function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   document.querySelector(`[onclick="switchTab('${name}')"]`).classList.add('active');
+}
+
+/* ── Collapsible column groups (frais / seuil) — collapsed by default ── */
+function toggleCols(group, btn) {
+  document.getElementById('holdingsTbl').classList.toggle('show-' + group);
+  btn.classList.toggle('active');
 }
 
 /* ── Doughnut charts ───────────────────────────────────── */

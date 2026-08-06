@@ -141,6 +141,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               final isGain = pnl != null && pnl >= 0;
               final pnlColor = pnl == null ? kTextMuted : (isGain ? kPositive : kNegative);
 
+              // Brokerage charges (~1% each leg) + break-even, computed on the fly.
+              final fraisAchat = cost * kCommissionRate;                       // already paid
+              final fraisVente = pa != null ? (qty * pa) * kCommissionRate : null; // est. on exit
+              // Break-even incl. 1% commission both legs + 10% gain tax:
+              //   V·(1−r−t) = B·(1+r−t)  →  V = B·(1+r−t)/(1−r−t)
+              final breakeven  = cost > 0
+                  ? cost * (1 + kCommissionRate - kTaxRate) / (1 - kCommissionRate - kTaxRate)
+                  : 0.0;
+              final ecart      = (cost > 0 && pa != null) ? breakeven - (qty * pa) : null; // still to gain
+
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -209,6 +219,23 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       ),
                     ),
                   ]),
+                  // Row 4: brokerage charges + break-even (computed ~1% each leg)
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.only(top: 8),
+                    decoration: const BoxDecoration(
+                      border: Border(top: BorderSide(color: kBorder)),
+                    ),
+                    child: Column(children: [
+                      _feeRow('Frais achat (1%)', '${fraisAchat.toStringAsFixed(2)} MAD'),
+                      _feeRow('Frais vente est. (1%)',
+                          fraisVente != null ? '${fraisVente.toStringAsFixed(2)} MAD' : '—'),
+                      _feeRow('Seuil équilibre', breakeven > 0
+                          ? '${breakeven.toStringAsFixed(2)}'
+                              '${ecart != null ? '  (${ecart >= 0 ? '+' : ''}${ecart.toStringAsFixed(2)})' : ''}'
+                          : '—'),
+                    ]),
+                  ),
                 ]),
               );
             }),
@@ -230,4 +257,13 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
   Widget _vDivider() => Container(
     width: 1, height: 32, color: kBorder, margin: const EdgeInsets.symmetric(horizontal: 4));
+
+  Widget _feeRow(String label, String value) => Padding(
+    padding: const EdgeInsets.only(top: 3),
+    child: Row(children: [
+      Expanded(child: Text(label, style: GoogleFonts.inter(color: kTextMuted, fontSize: 11))),
+      Text(value, style: GoogleFonts.inter(
+        color: kTextMuted, fontSize: 11, fontWeight: FontWeight.w500)),
+    ]),
+  );
 }

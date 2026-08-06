@@ -78,12 +78,16 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       }
       final avgCost = totalQty > 0 ? totalCost / totalQty : 0.0;
       final gain = (sellPrice - avgCost) * sellQty;
-      gains.add({'c_name': name, 'gain': gain, 'qty': sellQty, 'date': d.data['date']});
+      // Brokerage commission (~1%) on both legs of this realized trade.
+      final frais = (sellPrice * sellQty + avgCost * sellQty) * kCommissionRate;
+      gains.add({'c_name': name, 'gain': gain, 'qty': sellQty, 'date': d.data['date'], 'frais': frais});
     }
 
     final totalGain = gains.fold<double>(0, (s, g) => s + (g['gain'] as double));
+    final totalFrais = gains.fold<double>(0, (s, g) => s + (g['frais'] as double));
     const taxRate = 0.10;
     final taxOwed = totalGain > 0 ? totalGain * taxRate : 0.0;
+    final netGain = totalGain - taxOwed - totalFrais;
 
     // PER-sorted company list (exclude stocks with null/zero PER)
     final perList = latest.values
@@ -91,7 +95,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         .toList()
       ..sort((a, b) => (a['per'] as num).compareTo(b['per'] as num));
 
-    return {'counts': counts, 'gains': gains, 'totalGain': totalGain, 'taxOwed': taxOwed, 'perList': perList};
+    return {'counts': counts, 'gains': gains, 'totalGain': totalGain, 'taxOwed': taxOwed,
+            'totalFrais': totalFrais, 'netGain': netGain, 'perList': perList};
     } catch (e, st) {
       print('DEBUG stats ERROR: $e');
       print('DEBUG stats STACK: $st');
@@ -129,6 +134,15 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
+  Widget _totalRow(String label, double amount, {required Color valueColor, bool big = false}) => Row(children: [
+    Expanded(child: Text(label, style: GoogleFonts.inter(
+      color: big ? kTextPrimary : kTextMuted, fontSize: big ? 13 : 12,
+      fontWeight: big ? FontWeight.w600 : FontWeight.w400))),
+    Text('${amount >= 0 ? '+' : ''}${amount.toStringAsFixed(2)} MAD',
+      style: GoogleFonts.inter(color: valueColor, fontSize: big ? 18 : 13,
+        fontWeight: big ? FontWeight.w700 : FontWeight.w600)),
+  ]);
+
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -161,6 +175,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           final gains = snap.data!['gains'] as List<Map<String, dynamic>>;
           final totalGain = snap.data!['totalGain'] as double;
           final taxOwed = snap.data!['taxOwed'] as double;
+          final totalFrais = snap.data!['totalFrais'] as double;
+          final netGain = snap.data!['netGain'] as double;
           final perList = snap.data!['perList'] as List<Map<String, dynamic>>;
 
           return ListView(
@@ -293,23 +309,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: kBorder),
                 ),
-                child: Row(children: [
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Total gain', style: GoogleFonts.inter(color: kTextMuted, fontSize: 12)),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${totalGain >= 0 ? '+' : ''}${totalGain.toStringAsFixed(2)} MAD',
-                      style: GoogleFonts.inter(
-                        color: totalGain >= 0 ? kPositive : kNegative,
-                        fontSize: 20, fontWeight: FontWeight.w700),
-                    ),
-                  ])),
-                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text('Tax (10%)', style: GoogleFonts.inter(color: kTextMuted, fontSize: 12)),
-                    const SizedBox(height: 4),
-                    Text('${taxOwed.toStringAsFixed(2)} MAD',
-                      style: GoogleFonts.inter(color: kTextMuted, fontSize: 14, fontWeight: FontWeight.w600)),
-                  ]),
+                child: Column(children: [
+                  _totalRow('Bénéfice brut', totalGain,
+                    valueColor: totalGain >= 0 ? kPositive : kNegative, big: true),
+                  const SizedBox(height: 10),
+                  _totalRow('Taxe (10%)', -taxOwed, valueColor: kTextMuted),
+                  const SizedBox(height: 6),
+                  _totalRow('Frais courtage (1%)', -totalFrais, valueColor: kTextMuted),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: Divider(height: 1),
+                  ),
+                  _totalRow('Bénéfice net', netGain,
+                    valueColor: netGain >= 0 ? kPositive : kNegative, big: true),
                 ]),
               ),
               const SizedBox(height: 16),
