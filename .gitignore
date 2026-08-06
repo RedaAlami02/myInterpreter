@@ -99,3 +99,5 @@ backup_delete_rows.json
 session.txt
 # Stray root-level Appwrite config — the real one is cloud_function/appwrite.config.json
 /appwrite.config.json
+
+# Local error-watcher state lives in ~/.myinterpreter, nothing to ignore here
