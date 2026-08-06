@@ -196,3 +196,50 @@ tr.no-results td {
   font-weight: 700;
   color: var(--cyan);
 }
+
+/* ── Ticker symbol badge (inside the company cell) ───────── */
+td.company-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ticker-badge {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  color: var(--text-mute);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* ── Sector cell ─────────────────────────────────────────── */
+td.sector-cell {
+  font-size: 0.78rem;
+  color: var(--text-mute);
+  white-space: nowrap;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Data source / freshness line under the hero ─────────── */
+.screener-hero .data-source {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  color: var(--text-mute);
+  line-height: 1.6;
+}
+.screener-hero .data-source strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+/* Instrument that did not trade during the session */
+.trend-untraded {
+  color: var(--text-mute);
+  font-style: italic;
+  font-size: 0.74rem;
+}

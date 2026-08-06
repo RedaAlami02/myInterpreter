@@ -115,6 +115,7 @@ $newestDate     = null;
 $avgPER         = null;
 $allGreen       = 0;
 $totalCompanies = 0;
+$ratedCount     = 0;
 $masiSeries     = [];
 $masiLast       = null;
 $masiChange     = null;
@@ -185,12 +186,17 @@ if ($isLoggedIn) {
         }
 
         if (!empty($masiFullSeries)) {
-            $latest        = end($masiFullSeries);
-            $masiLast      = $latest['v'];
+            // These were named $latest/$prev, which are the per-company snapshot
+            // maps built above and still needed by the ratio loop further down.
+            // Reassigning them here left that loop iterating over a single MASI
+            // point, so the dashboard's company table, top gainers/losers, average
+            // PER and 4/4 count were all computed from garbage.
+            $masiLatest    = end($masiFullSeries);
+            $masiLast      = $masiLatest['v'];
             // variation vs previous day
-            $prev          = count($masiFullSeries) >= 2 ? $masiFullSeries[count($masiFullSeries)-2]['v'] : $masiLast;
-            $masiChange    = round($masiLast - $prev, 2);
-            $masiChangePct = $prev ? round(($masiLast - $prev) / $prev * 100, 2) : null;
+            $masiPrev      = count($masiFullSeries) >= 2 ? $masiFullSeries[count($masiFullSeries)-2]['v'] : $masiLast;
+            $masiChange    = round($masiLast - $masiPrev, 2);
+            $masiChangePct = $masiPrev ? round(($masiLast - $masiPrev) / $masiPrev * 100, 2) : null;
             // keep $masiSeries for legacy check (just need count >= 2)
             $masiSeries    = array_column($masiFullSeries, 'v');
         } else {
@@ -211,11 +217,14 @@ if ($isLoggedIn) {
         }
 
         // Score / PER stats
+        // Mirrors rateColor() in screener.php: a ratio is only scoreable when it
+        // is strictly positive. A bare `<` let negative values (a negative P/R
+        // from a negative ROE) count as green and inflate the 0-4 score.
         function _dash_rate(string $ratio, float $val): string {
-            if ($val == 0) return 'none';
+            if ($val <= 0) return 'none';
             switch ($ratio) {
                 case 'PER': return $val < PER_GREEN ? 'green' : ($val < PER_ORANGE ? 'orange' : 'red');
-                case 'PEG': return ($val > 0 && $val < PEG_GREEN) ? 'green' : (($val > 0 && $val < PEG_ORANGE) ? 'orange' : 'red');
+                case 'PEG': return $val < PEG_GREEN ? 'green' : ($val < PEG_ORANGE ? 'orange' : 'red');
                 case 'PR':  return $val < PR_GREEN  ? 'green' : ($val < PR_ORANGE  ? 'orange' : 'red');
                 case 'PB':  return $val < PB_GREEN  ? 'green' : ($val < PB_ORANGE  ? 'orange' : 'red');
             }
@@ -230,8 +239,15 @@ if ($isLoggedIn) {
 
         $rows = [];
         foreach ($latest as $name => $r) {
+            // MASI is the index, not a company — it has no ratios and must not
+            // land in the movers lists.
+            if ($name === 'MASI') continue;
+
+            // Companies with negative or unknown earnings are kept. Their PER is
+            // not scoreable, but their price movement is just as real as anyone
+            // else's, and dropping them here silently excluded them from the top
+            // gainers and losers.
             $per = (float)($r['per'] ?? 0);
-            if ($per <= 0) continue;
             $colors = [
                 'PER' => _dash_rate('PER', $per),
                 'PEG' => _dash_rate('PEG', (float)($r['peg'] ?? 0)),
@@ -262,7 +278,13 @@ if ($isLoggedIn) {
 
         $totalCompanies = count($rows);
         $screenerCount  = $totalCompanies ?: null;
-        $avgPER         = $totalCompanies ? round(array_sum(array_column($rows, 'PER')) / $totalCompanies, 2) : null;
+        // The average is over companies that actually have a PER — including a
+        // negative one would drag the mean below zero and make it meaningless.
+        $ratedRows      = array_filter($rows, fn($r) => $r['PER'] > 0);
+        $ratedCount     = count($ratedRows);
+        $avgPER         = $ratedCount
+            ? round(array_sum(array_column($ratedRows, 'PER')) / $ratedCount, 2)
+            : null;
         $allGreen       = count(array_filter($rows, fn($r) => $r['score'] === 4));
 
         $withTrend = array_filter($rows, fn($r) => $r['trend'] !== null);
@@ -526,7 +548,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
         <div class="glow cyan"></div>
         <div class="m-label">Sociétés suivies</div>
         <div class="m-val"><?= (int)$companyCount ?></div>
-        <div class="m-delta"><?= (int)$totalCompanies ?> avec ratios</div>
+        <div class="m-delta"><?= (int)$ratedCount ?> avec ratios</div>
       </div>
       <div class="metric">
         <div class="glow purple"></div>
@@ -538,7 +560,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
         <div class="glow pink"></div>
         <div class="m-label">PER moyen</div>
         <div class="m-val"><?= $avgPER !== null ? number_format($avgPER, 2, ',', ' ') : '—' ?></div>
-        <div class="m-delta">sur <?= (int)$totalCompanies ?> sociétés</div>
+        <div class="m-delta">sur <?= (int)$ratedCount ?> sociétés</div>
       </div>
       <div class="metric">
         <div class="glow green"></div>

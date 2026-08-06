@@ -11,11 +11,18 @@ $sparkLabels  = [];
 $sparkData    = [];
 $searched     = false;
 $dbError      = null;
+$suggestions  = [];
+$symbolTo     = [];   // ticker symbol => stored company name
 
 // ─── Initial company list ─────────────────────────────────
 try {
     $companyDocs  = aw_list_docs('company', [q_order_asc('name'), q_limit(500)]);
     $allCompanies = array_values(array_unique(array_filter(array_column($companyDocs, 'name'))));
+
+    // Symbols power ticker lookup ("ATW") and the datalist hints.
+    foreach (aw_list_docs('format', [q_limit(500)]) as $f) {
+        if (!empty($f['symbol']) && !empty($f['name'])) $symbolTo[$f['symbol']] = $f['name'];
+    }
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
 }
@@ -28,10 +35,17 @@ if (!$dbError && isset($_GET['name']) && !empty($_GET['name']) && $_SERVER['REQU
 
 if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])) {
     $searched = true;
-    $name     = trim($_POST['NAME']);
+    $typed    = trim($_POST['NAME']);
+
+    // Resolve what the user typed to a stored name before querying. A bare
+    // exact match here used to reject "Maroc Telecom", "ITM" and "attijari"
+    // alike, which made the whole page look broken.
+    $resolved    = resolve_company($typed, $allCompanies, $symbolTo);
+    $name        = $resolved['name'] ?? $typed;
+    $suggestions = $resolved['suggestions'];
 
     try {
-        $companyRes = aw_list_docs('company', [
+        $companyRes = $resolved['name'] === null ? [] : aw_list_docs('company', [
             q_equal('name', $name),
             q_limit(1),
         ]);
@@ -115,7 +129,7 @@ if ($awSession && !empty($name ?? '')) {
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=3" rel="stylesheet">
-  <link href="assets/css/infoAction.css?v=3" rel="stylesheet">
+  <link href="assets/css/infoAction.css?v=4" rel="stylesheet">
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
@@ -149,8 +163,13 @@ if ($awSession && !empty($name ?? '')) {
                  value="<?= htmlspecialchars($_POST['NAME'] ?? '') ?>">
           <label for="nameInput"><i class="fas fa-building me-2"></i>Nom de l'entreprise</label>
           <datalist id="companyList">
-            <?php foreach ($allCompanies as $n): ?>
-              <option value="<?= htmlspecialchars($n) ?>">
+            <?php
+              // Show the symbol alongside the name so the ticker is discoverable.
+              $symbolOf = array_flip($symbolTo);
+              foreach ($allCompanies as $n):
+                $sy = $symbolOf[$n] ?? '';
+            ?>
+              <option value="<?= htmlspecialchars($n) ?>"<?= $sy ? ' label="' . htmlspecialchars("$n — $sy") . '"' : '' ?>>
             <?php endforeach; ?>
           </datalist>
         </div>
@@ -163,8 +182,27 @@ if ($awSession && !empty($name ?? '')) {
 
     <?php if ($searched): ?>
       <?php if (!$company): ?>
-        <div class="alert alert-danger">
-          <i class="fas fa-times-circle me-2"></i>Entreprise introuvable.
+        <div class="alert alert-<?= $suggestions ? 'warning' : 'danger' ?>">
+          <i class="fas fa-<?= $suggestions ? 'question-circle' : 'times-circle' ?> me-2"></i>
+          <?php if ($suggestions): ?>
+            Aucune correspondance exacte pour
+            « <strong><?= htmlspecialchars($typed) ?></strong> ».
+            Vouliez-vous dire :
+            <div class="suggestion-list">
+              <?php foreach ($suggestions as $s): ?>
+                <a class="suggestion-chip" href="infoAction.php?name=<?= urlencode($s) ?>">
+                  <?= htmlspecialchars($s) ?>
+                  <?php if (!empty(array_flip($symbolTo)[$s])): ?>
+                    <span class="mono muted"><?= htmlspecialchars(array_flip($symbolTo)[$s]) ?></span>
+                  <?php endif; ?>
+                </a>
+              <?php endforeach; ?>
+            </div>
+          <?php else: ?>
+            Entreprise introuvable pour
+            « <strong><?= htmlspecialchars($typed) ?></strong> ».
+            Essayez le nom complet ou le symbole boursier (ex.&nbsp;<span class="mono">ATW</span>).
+          <?php endif; ?>
         </div>
       <?php else: ?>
         <div class="search-result">

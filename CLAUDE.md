@@ -5,7 +5,7 @@
 ## Stack
 - **App**: Flutter (Android), lives in `myinterpreter_app/`
 - **Backend**: Appwrite Cloud (Frankfurt) — auth, database, cloud function
-- **Scraper**: Appwrite Cloud Function (`cloud_function/`) — fetches the market data API every 15 min, Mon–Fri 09:00–15:45 Casablanca time (`*/15 8-14 * * 1-5` UTC)
+- **Scraper**: Appwrite Cloud Function (`cloud_function/`) — fetches the market data API every 15 min, Mon–Fri 09:00–16:45 Casablanca time (`*/15 8-15 * * 1-5` UTC)
 - **Web**: PHP website (repo root) hosted on InfinityFree — fully migrated to Appwrite REST API
 - **CI**: GitHub Actions — builds release APK on every push to master, download from Actions tab
 

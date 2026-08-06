@@ -5,27 +5,43 @@ require_once 'core/Appwrite.php';
 require_once 'core/Action.php';
 
 // ─── Helper: color rating for a ratio ────────────────────
+// A ratio is only meaningful when it is strictly positive. A negative PER means
+// the company loses money; a negative P/R or P/B means a negative denominator.
+// Those must never be scored — before, `-70.97 < PR_GREEN` returned 'green' and
+// inflated the 0-4 composite for exactly the companies that deserve it least.
 function rateColor(string $ratio, float $val): string {
-    if ($val == 0) return 'none';
+    if ($val <= 0) return 'none';
     switch ($ratio) {
         case 'PER': return $val < PER_GREEN ? 'green' : ($val < PER_ORANGE ? 'orange' : 'red');
-        case 'PEG': return ($val > 0 && $val < PEG_GREEN)
-                         ? 'green'
-                         : (($val > 0 && $val < PEG_ORANGE) ? 'orange' : 'red');
+        case 'PEG': return $val < PEG_GREEN ? 'green' : ($val < PEG_ORANGE ? 'orange' : 'red');
         case 'PR':  return $val < PR_GREEN  ? 'green' : ($val < PR_ORANGE  ? 'orange' : 'red');
         case 'PB':  return $val < PB_GREEN  ? 'green' : ($val < PB_ORANGE  ? 'orange' : 'red');
     }
     return 'none';
 }
 
+// Render a ratio cell value: an em-dash whenever the ratio is not meaningful.
+function ratioTxt(float $val): string {
+    return $val > 0 ? number_format($val, 2) : '—';
+}
+
 // ─── Fetch: latest + previous snapshot per company ────────
 $rows    = [];
 $dbError = null;
+
+$lastUpdate = null;
 
 try {
     // Fetch up to 500 records ordered newest-first.
     // First occurrence of each c_name = latest; second = previous (for Δ%).
     $docs = aw_list_docs('data', [q_order_desc('date'), q_limit(500)]);
+
+    // Sector lookup — populated for most companies, surfaced as a column.
+    $sectorOf = [];
+    foreach (aw_list_docs('company', [q_limit(500)]) as $c) {
+        $n = trim($c['name'] ?? '');
+        if ($n !== '' && !empty($c['sector'])) $sectorOf[$n] = $c['sector'];
+    }
 
     $latest = [];  // c_name => doc
     $prev   = [];  // c_name => doc (second occurrence)
@@ -41,8 +57,13 @@ try {
     }
 
     foreach ($latest as $name => $r) {
+        // MASI is an index, not a screenable company.
+        if ($name === 'MASI') { $lastUpdate = $r['date'] ?? $lastUpdate; continue; }
+
+        // A non-positive PER means the company has negative or unknown earnings.
+        // That is information worth showing, not a reason to drop the row — this
+        // `continue` used to hide 9 real listed companies from the screener.
         $per = (float)($r['per'] ?? 0);
-        if ($per <= 0) continue;
 
         $colors = [
             'PER' => rateColor('PER', $per),
@@ -61,8 +82,19 @@ try {
             $trend  = ($prevPA > 0) ? (($pa - $prevPA) / $prevPA * 100) : null;
         }
 
+        if ($lastUpdate === null || ($r['date'] ?? '') > $lastUpdate) {
+            $lastUpdate = $r['date'] ?? $lastUpdate;
+        }
+
+        // TICKER-sourced rows (instruments that did not trade today) carry no
+        // volume at all. Absent volume — not zero volume — is the signal.
+        $traded = isset($r['qty_traded']) && (float)$r['qty_traded'] > 0;
+
         $rows[] = [
             'name'   => $name,
+            'symbol' => $r['symbol'] ?? '',
+            'sector' => $sectorOf[$name] ?? '',
+            'traded' => $traded,
             'PA'     => $pa,
             'CB'     => (float)($r['cb'] ?? 0),
             'PER'    => $per,
@@ -76,22 +108,28 @@ try {
         ];
     }
 
-    // Sort by PER ascending
-    usort($rows, fn($a, $b) => $a['PER'] <=> $b['PER']);
-
-
+    // Sort by PER ascending, with unscoreable companies (PER <= 0) last.
+    usort($rows, function ($a, $b) {
+        $av = $a['PER'] > 0 ? $a['PER'] : INF;
+        $bv = $b['PER'] > 0 ? $b['PER'] : INF;
+        return $av <=> $bv;
+    });
 
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
 }
 
 // ─── Summary stats ────────────────────────────────────────
+// Averages and counts are over companies with a meaningful PER only; the total
+// count covers every listed company we hold a price for.
 $totalCompanies = count($rows);
-$avgPER         = $totalCompanies
-    ? round(array_sum(array_column($rows, 'PER')) / $totalCompanies, 2)
+$rated          = array_filter($rows, fn($r) => $r['PER'] > 0);
+$avgPER         = $rated
+    ? round(array_sum(array_column($rated, 'PER')) / count($rated), 2)
     : 0;
 $allGreen       = count(array_filter($rows, fn($r) => $r['score'] === 4));
-$defaultBelow22 = count(array_filter($rows, fn($r) => $r['PER'] < 22));
+$defaultBelow22 = count(array_filter($rows, fn($r) => $r['PER'] > 0 && $r['PER'] < 22));
+$noPER          = $totalCompanies - count($rated);
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -103,7 +141,7 @@ $defaultBelow22 = count(array_filter($rows, fn($r) => $r['PER'] < 22));
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=3" rel="stylesheet">
-  <link href="assets/css/screener.css?v=3" rel="stylesheet">
+  <link href="assets/css/screener.css?v=4" rel="stylesheet">
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
@@ -117,6 +155,16 @@ $defaultBelow22 = count(array_filter($rows, fn($r) => $r['PER'] < 22));
     <div class="screener-hero">
       <h1><i class="fas fa-filter t-cyan me-2"></i>Stock Screener</h1>
       <p>Filtrez les sociétés par seuil de PER et qualité des ratios. Cliquez sur un en-tête pour trier.</p>
+      <p class="data-source">
+        <i class="fas fa-clock me-1"></i>
+        Dernière mise à jour :
+        <strong><?= fmt_datetime($lastUpdate) ?></strong>
+        <span class="muted">(heure de Casablanca)</span>
+        &nbsp;·&nbsp;
+        <i class="fas fa-database me-1"></i>
+        Source : the market data feed — cours différés d’environ 15 minutes,
+        actualisés toutes les 15 min de 09:00 à 16:45, du lundi au vendredi.
+      </p>
     </div>
 
     <?php if ($dbError): ?>
@@ -142,6 +190,10 @@ $defaultBelow22 = count(array_filter($rows, fn($r) => $r['PER'] < 22));
       <div class="stat-chip">
         <span class="stat-chip__value t-emerald"><?= $allGreen ?></span>
         <span class="stat-chip__label">Score 4/4 (tous verts)</span>
+      </div>
+      <div class="stat-chip">
+        <span class="stat-chip__value mono muted" style="font-size:1.3rem"><?= $noPER ?></span>
+        <span class="stat-chip__label">Sans PER (pertes / données manquantes)</span>
       </div>
     </div>
 
@@ -186,38 +238,41 @@ $defaultBelow22 = count(array_filter($rows, fn($r) => $r['PER'] < 22));
         <table class="tbl screener-tbl" id="screenerTable">
           <thead>
             <tr>
-              <th onclick="sortTable(0,'str')" title="Nom de la société">
+              <th onclick="sortTable(0,'str')" title="Nom de la société et symbole boursier">
                 Société <span class="sort-icon">↕</span>
               </th>
-              <th onclick="sortTable(1,'num')" title="Dernier prix connu" class="num">
+              <th onclick="sortTable(1,'str')" title="Secteur d'activité">
+                Secteur <span class="sort-icon">↕</span>
+              </th>
+              <th onclick="sortTable(2,'num')" title="Dernier prix connu" class="num">
                 PA <span class="sort-icon">↕</span>
               </th>
-              <th onclick="sortTable(2,'num')" title="Évolution vs snapshot précédent" class="num">
+              <th onclick="sortTable(3,'num')" title="Variation depuis le cours de référence" class="num">
                 Δ% <span class="sort-icon">↕</span>
               </th>
-              <th onclick="sortTable(3,'num')" title="Score : nombre de ratios verts (0-4)" style="text-align:center">
+              <th onclick="sortTable(4,'num')" title="Score : nombre de ratios verts (0-4)" style="text-align:center">
                 Score <span class="sort-icon">↕</span>
               </th>
-              <th onclick="sortTable(4,'num')" title="Price Earning Ratio — seuil vert : <?= PER_GREEN ?> · orange : <?= PER_ORANGE ?>" style="text-align:center">
+              <th onclick="sortTable(5,'num')" title="Price Earning Ratio — seuil vert : <?= PER_GREEN ?> · orange : <?= PER_ORANGE ?>" style="text-align:center">
                 PER <span class="sort-icon">↕</span>
               </th>
-              <th onclick="sortTable(5,'num')" title="Price/Earnings to Growth — seuil vert : <?= PEG_GREEN ?> · orange : <?= PEG_ORANGE ?>" style="text-align:center">
+              <th onclick="sortTable(6,'num')" title="Price/Earnings to Growth — seuil vert : <?= PEG_GREEN ?> · orange : <?= PEG_ORANGE ?>" style="text-align:center">
                 PEG <span class="sort-icon">↕</span>
               </th>
-              <th onclick="sortTable(6,'num')" title="Price / ROE — seuil vert : <?= PR_GREEN ?> · orange : <?= PR_ORANGE ?>" style="text-align:center">
+              <th onclick="sortTable(7,'num')" title="Price / ROE — seuil vert : <?= PR_GREEN ?> · orange : <?= PR_ORANGE ?>" style="text-align:center">
                 P/R <span class="sort-icon">↕</span>
               </th>
-              <th onclick="sortTable(7,'num')" title="Price to Book — seuil vert : <?= PB_GREEN ?> · orange : <?= PB_ORANGE ?>" style="text-align:center">
+              <th onclick="sortTable(8,'num')" title="Price to Book — seuil vert : <?= PB_GREEN ?> · orange : <?= PB_ORANGE ?>" style="text-align:center">
                 P/B <span class="sort-icon">↕</span>
               </th>
-              <th onclick="sortTable(8,'str')" title="Date du dernier snapshot" class="num">
+              <th onclick="sortTable(9,'str')" title="Horodatage du dernier snapshot (heure de Casablanca)" class="num">
                 Mise à jour <span class="sort-icon">↕</span>
               </th>
             </tr>
           </thead>
           <tbody>
             <?php if (empty($rows)): ?>
-              <tr class="no-results"><td colspan="9">
+              <tr class="no-results"><td colspan="10">
                 <i class="fas fa-inbox fa-2x d-block mb-3 muted"></i>
                 Aucune donnée. Ajoutez des sociétés via <a href="Update.php" class="t-cyan">Update Stock</a>.
               </td></tr>
@@ -226,64 +281,75 @@ $defaultBelow22 = count(array_filter($rows, fn($r) => $r['PER'] < 22));
                 $trendClass = 'trend-flat';
                 $trendTxt   = '—';
                 $trendVal   = 0;
-                if ($r['trend'] !== null) {
+                if (!$r['traded']) {
+                    // No trade today: the price is the last known close, and a
+                    // "0.00%" here would wrongly read as "opened and went flat".
+                    $trendClass = 'trend-untraded';
+                    $trendTxt   = 'non traité';
+                } elseif ($r['trend'] !== null) {
                     $trendVal   = round($r['trend'], 2);
                     $trendClass = $r['trend'] > 0 ? 'trend-up' : ($r['trend'] < 0 ? 'trend-down' : 'trend-flat');
                     $arrow      = $r['trend'] > 0 ? '▲' : ($r['trend'] < 0 ? '▼' : '●');
                     $trendTxt   = $arrow . ' ' . number_format(abs($r['trend']), 2) . '%';
                 }
                 $scoreClass = 'score-' . $r['score'];
+                // Rows with no meaningful PER carry an empty data-per so the JS
+                // filter can treat them as "unrated" rather than as PER = 0,
+                // which would otherwise pass every "PER max" threshold.
+                $perAttr = $r['PER'] > 0 ? $r['PER'] : '';
               ?>
               <tr
-                data-per="<?= $r['PER'] ?>"
+                data-per="<?= $perAttr ?>"
                 data-score="<?= $r['score'] ?>"
-                onclick="window.location='infoAction.php'"
+                data-href="infoAction.php?name=<?= urlencode($r['name']) ?>"
                 style="cursor:pointer"
               >
                 <!-- 0: Company -->
                 <td class="company-cell" data-val="<?= htmlspecialchars($r['name']) ?>">
-                  <a href="infoAction.php?name=<?= urlencode($r['name']) ?>" onclick="event.stopPropagation()">
+                  <a href="infoAction.php?name=<?= urlencode($r['name']) ?>">
                     <i class="fas fa-building" style="font-size:0.75rem;color:var(--text-mute)"></i>
                     <?= htmlspecialchars($r['name']) ?>
                   </a>
+                  <?php if ($r['symbol'] !== ''): ?>
+                    <span class="ticker-badge mono"><?= htmlspecialchars($r['symbol']) ?></span>
+                  <?php endif; ?>
                 </td>
-                <!-- 1: PA -->
+                <!-- 1: Sector -->
+                <td class="sector-cell" data-val="<?= htmlspecialchars($r['sector']) ?>">
+                  <?= $r['sector'] !== '' ? htmlspecialchars($r['sector']) : '—' ?>
+                </td>
+                <!-- 2: PA -->
                 <td class="pa-cell num" data-val="<?= $r['PA'] ?>">
                   <?= number_format($r['PA'], 2) ?>
                 </td>
-                <!-- 2: Trend -->
+                <!-- 3: Trend -->
                 <td class="trend-cell <?= $trendClass ?>" data-val="<?= $trendVal ?>">
                   <?= $trendTxt ?>
                 </td>
-                <!-- 3: Score -->
+                <!-- 4: Score -->
                 <td class="score-cell" data-val="<?= $r['score'] ?>">
                   <span class="score-badge <?= $scoreClass ?>"><?= $r['score'] ?>/4</span>
                 </td>
-                <!-- 4: PER -->
-                <td class="ratio-cell" data-val="<?= $r['PER'] ?>">
-                  <span class="ratio-pill <?= $r['colors']['PER'] ?>"><?= number_format($r['PER'], 2) ?></span>
+                <!-- 5: PER -->
+                <td class="ratio-cell" data-val="<?= $perAttr ?>"
+                    <?= $r['PER'] < 0 ? 'title="Bénéfice par action négatif — le PER n\'a pas de sens"' : '' ?>>
+                  <span class="ratio-pill <?= $r['colors']['PER'] ?>"><?= ratioTxt($r['PER']) ?></span>
                 </td>
-                <!-- 5: PEG -->
-                <td class="ratio-cell" data-val="<?= $r['PEG'] ?>">
-                  <span class="ratio-pill <?= $r['colors']['PEG'] ?>">
-                    <?= $r['PEG'] == 0 ? '—' : number_format($r['PEG'], 2) ?>
-                  </span>
+                <!-- 6: PEG -->
+                <td class="ratio-cell" data-val="<?= $r['PEG'] > 0 ? $r['PEG'] : '' ?>">
+                  <span class="ratio-pill <?= $r['colors']['PEG'] ?>"><?= ratioTxt($r['PEG']) ?></span>
                 </td>
-                <!-- 6: PR -->
-                <td class="ratio-cell" data-val="<?= $r['PR'] ?>">
-                  <span class="ratio-pill <?= $r['colors']['PR'] ?>">
-                    <?= $r['PR'] == 0 ? '—' : number_format($r['PR'], 2) ?>
-                  </span>
+                <!-- 7: PR -->
+                <td class="ratio-cell" data-val="<?= $r['PR'] > 0 ? $r['PR'] : '' ?>">
+                  <span class="ratio-pill <?= $r['colors']['PR'] ?>"><?= ratioTxt($r['PR']) ?></span>
                 </td>
-                <!-- 7: PB -->
-                <td class="ratio-cell" data-val="<?= $r['PB'] ?>">
-                  <span class="ratio-pill <?= $r['colors']['PB'] ?>">
-                    <?= $r['PB'] == 0 ? '—' : number_format($r['PB'], 2) ?>
-                  </span>
+                <!-- 8: PB -->
+                <td class="ratio-cell" data-val="<?= $r['PB'] > 0 ? $r['PB'] : '' ?>">
+                  <span class="ratio-pill <?= $r['colors']['PB'] ?>"><?= ratioTxt($r['PB']) ?></span>
                 </td>
-                <!-- 8: Date -->
+                <!-- 9: Date -->
                 <td class="date-cell" data-val="<?= $r['date'] ?>">
-                  <?= fmt_date($r['date']) ?>
+                  <?= fmt_time($r['date']) ?>
                 </td>
               </tr>
               <?php endforeach; ?>
@@ -302,19 +368,26 @@ $defaultBelow22 = count(array_filter($rows, fn($r) => $r['PER'] < 22));
 <script src="assets/js/app.js"></script>
 <script>
 // ── State ────────────────────────────────────────────────
+const PER_COL    = 5;   // index of the PER column
 let currentPER   = 22;
 let currentScore = 0;
-let sortCol      = 4;   // PER column
+let sortCol      = null;  // no column sorted yet — see the init block
 let sortAsc      = true;
 
 // ── Filter ───────────────────────────────────────────────
+// Rows with no meaningful PER (negative or unknown earnings) carry an empty
+// data-per. They can't satisfy a "PER max" threshold, so they surface only
+// under the "Tout" preset — but they are never removed from the document.
 function applyFilters() {
   const rows = document.querySelectorAll('#screenerTable tbody tr[data-per]');
+  const showAll = currentPER >= 999;
   let visible = 0;
   rows.forEach(row => {
-    const per   = parseFloat(row.dataset.per);
+    const raw   = row.dataset.per;
+    const per   = raw === '' ? NaN : parseFloat(raw);
     const score = parseInt(row.dataset.score);
-    const show  = per < currentPER && score >= currentScore;
+    const passesPER = Number.isNaN(per) ? showAll : per < currentPER;
+    const show  = passesPER && score >= currentScore;
     row.classList.toggle('hidden-row', !show);
     if (show) visible++;
   });
@@ -351,8 +424,11 @@ function sortTable(colIdx, type) {
   if (sortCol === colIdx) {
     sortAsc = !sortAsc;
   } else {
+    // A newly picked column always starts ascending: strings A-Z, numbers
+    // small-first. (This used to read `sortAsc = type === 'str'`, which gave
+    // numeric columns a descending first click — the opposite of its comment.)
     sortCol = colIdx;
-    sortAsc = type === 'str'; // strings start A-Z, numbers start small-first
+    sortAsc = true;
   }
 
   const tbody = document.querySelector('#screenerTable tbody');
@@ -362,12 +438,19 @@ function sortTable(colIdx, type) {
     const av = a.cells[colIdx].dataset.val ?? a.cells[colIdx].textContent.trim();
     const bv = b.cells[colIdx].dataset.val ?? b.cells[colIdx].textContent.trim();
 
-    let cmp;
     if (type === 'num') {
-      cmp = (parseFloat(av) || 0) - (parseFloat(bv) || 0);
-    } else {
-      cmp = av.localeCompare(bv, 'fr');
+      const an = av === '' ? NaN : parseFloat(av);
+      const bn = bv === '' ? NaN : parseFloat(bv);
+      // Blanks ("—" cells) always sink to the bottom, in both directions —
+      // otherwise flipping to descending would bury every rated company under
+      // a block of empty rows.
+      if (Number.isNaN(an) && Number.isNaN(bn)) return 0;
+      if (Number.isNaN(an)) return 1;
+      if (Number.isNaN(bn)) return -1;
+      return sortAsc ? an - bn : bn - an;
     }
+
+    const cmp = av.localeCompare(bv, 'fr');
     return sortAsc ? cmp : -cmp;
   });
 
@@ -386,25 +469,24 @@ function sortTable(colIdx, type) {
 }
 
 // ── Click row → open infoAction ──────────────────────────
-document.querySelectorAll('#screenerTable tbody tr[data-per]').forEach(row => {
-  const nameCell = row.querySelector('.company-cell a');
+// The row's target lives in data-href. There used to be an inline
+// onclick="window.location='infoAction.php'" here as well, which raced this
+// handler and could land the user on the search page with no company selected.
+document.querySelectorAll('#screenerTable tbody tr[data-href]').forEach(row => {
   row.addEventListener('click', (e) => {
     if (e.target.closest('a')) return;   // let direct link clicks through
-    if (nameCell) window.location.href = nameCell.href;
+    window.location.href = row.dataset.href;
   });
 });
 
 // ── Init: sort by PER asc, apply default PER < 22 ───────
+// sortCol starts as null so this call takes the "new column" branch and sets
+// ascending. Previously sortCol was pre-set to the PER column, so this same
+// call hit the toggle branch and flipped to descending — while the code below
+// stamped an ascending arrow on the header, making the table lie about itself.
 window.addEventListener('DOMContentLoaded', () => {
-  sortTable(4, 'num');  // sort by PER ascending
+  sortTable(PER_COL, 'num');
   applyFilters();
-  // Mark PER header as sorted
-  const perTh = document.querySelector('#screenerTable thead th:nth-child(5)');
-  if (perTh) {
-    perTh.classList.add('sort-asc');
-    const icon = perTh.querySelector('.sort-icon');
-    if (icon) icon.textContent = '↑';
-  }
 });
 </script>
 </body>

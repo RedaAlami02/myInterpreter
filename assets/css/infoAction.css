@@ -198,3 +198,30 @@
 .holder-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .holder-name { flex: 1; }
 .holder-pct { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text); font-weight: 600; }
+
+/* ── "Did you mean" suggestions ──────────────────────────── */
+.suggestion-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.suggestion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color .15s, color .15s;
+}
+.suggestion-chip:hover {
+  border-color: var(--emerald);
+  color: var(--emerald);
+}
+.suggestion-chip .mono { font-size: 0.72rem; }
