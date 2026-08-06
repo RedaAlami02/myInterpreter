@@ -36,11 +36,14 @@ try {
     // First occurrence of each c_name = latest; second = previous (for Δ%).
     $docs = aw_list_docs('data', [q_order_desc('date'), q_limit(500)]);
 
-    // Sector lookup — populated for most companies, surfaced as a column.
+    // Sector column + readable display label, from one pass over `company`.
     $sectorOf = [];
+    $labelOf  = [];
     foreach (aw_list_docs('company', [q_limit(500)]) as $c) {
         $n = trim($c['name'] ?? '');
-        if ($n !== '' && !empty($c['sector'])) $sectorOf[$n] = $c['sector'];
+        if ($n === '') continue;
+        if (!empty($c['sector'])) $sectorOf[$n] = $c['sector'];
+        $labelOf[$n] = display_name($n, $c['ext_name'] ?? null);
     }
 
     $latest = [];  // c_name => doc
@@ -92,6 +95,8 @@ try {
 
         $rows[] = [
             'name'   => $name,
+            // Readable label for display; `name` stays the link/sort key.
+            'label'  => $labelOf[$name] ?? $name,
             'symbol' => $r['symbol'] ?? '',
             'sector' => $sectorOf[$name] ?? '',
             'traded' => $traded,
@@ -305,12 +310,13 @@ $noPER          = $totalCompanies - count($rated);
                 style="cursor:pointer"
               >
                 <!-- 0: Company -->
-                <td class="company-cell" data-val="<?= htmlspecialchars($r['name']) ?>">
+                <td class="company-cell" data-val="<?= htmlspecialchars($r['label']) ?>"
+                    <?= $r['label'] !== $r['name'] ? 'title="' . htmlspecialchars($r['name']) . '"' : '' ?>>
                   <a href="infoAction.php?name=<?= urlencode($r['name']) ?>">
                     <i class="fas fa-building" style="font-size:0.75rem;color:var(--text-mute)"></i>
-                    <?= htmlspecialchars($r['name']) ?>
+                    <?= htmlspecialchars($r['label']) ?>
                   </a>
-                  <?php if ($r['symbol'] !== ''): ?>
+                  <?php if ($r['symbol'] !== '' && strcasecmp($r['label'], $r['symbol']) !== 0): ?>
                     <span class="ticker-badge mono"><?= htmlspecialchars($r['symbol']) ?></span>
                   <?php endif; ?>
                 </td>

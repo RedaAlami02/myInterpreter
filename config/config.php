@@ -135,6 +135,41 @@ const COMPANY_ALIASES = [
     'CMT'                   => 'MINIERE TOUISSIT',
 ];
 
+// ─── Display names ────────────────────────────────────────────────────────────
+// Stored names are Casablanca Bourse short labels and are the join key for five
+// collections, so they must never change. But several are opaque to a reader —
+// "IAM" tells you nothing, and pairing it with its own ticker gave "IAM — IAM".
+// display_name() picks the most informative label available, purely for display.
+//
+// Commercial brands that differ from the legal name, where neither the stored
+// name nor the fundamentals provider's ext_name is what a person would actually recognise.
+// Names only — the ticker is appended separately, so never bake it in here.
+const COMPANY_DISPLAY_NAMES = [
+    'IAM'  => 'Maroc Telecom',
+    'BCP'  => 'Banque Centrale Populaire',
+    'BMCI' => 'Banque Marocaine pour le Commerce et l’Industrie',
+    'CTM'  => 'Compagnie de Transports au Maroc',
+    'SMI'  => 'Société Métallurgique d’Imiter',
+    'SNEP' => 'Société Nationale d’Électrolyse et de Pétrochimie',
+    'HPS'  => 'HighTech Payment Systems',
+    'SGTM' => 'Société Générale des Travaux du Maroc',
+];
+
+/**
+ * Human-readable label for a company. Never used as a lookup key.
+ *
+ * Order: curated brand name, then the fundamentals provider's ext_name when it is genuinely more
+ * informative than the stored name, then the stored name. The length test keeps
+ * ext_name from making things worse — it holds "CIH" for "CIH BANK" and "CDM"
+ * for "CREDIT DU MAROC", which are steps backwards.
+ */
+function display_name(string $name, ?string $extName = null): string {
+    if (isset(COMPANY_DISPLAY_NAMES[$name])) return COMPANY_DISPLAY_NAMES[$name];
+    $ext = trim((string)$extName);
+    if ($ext !== '' && mb_strlen($ext) > mb_strlen($name)) return $ext;
+    return $name;
+}
+
 // Casefold for comparison: uppercase, strip accents, drop everything that is not
 // a letter or a digit. "Zellidja S.A" and "zellidja sa" both become ZELLIDJASA.
 function norm_name(string $s): string {

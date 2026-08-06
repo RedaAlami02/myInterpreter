@@ -19,6 +19,13 @@ try {
     $companyDocs  = aw_list_docs('company', [q_order_asc('name'), q_limit(500)]);
     $allCompanies = array_values(array_unique(array_filter(array_column($companyDocs, 'name'))));
 
+    // Readable label per company, for the search dropdown only — never a key.
+    $labelOf = [];
+    foreach ($companyDocs as $c) {
+        $n = trim($c['name'] ?? '');
+        if ($n !== '') $labelOf[$n] = display_name($n, $c['ext_name'] ?? null);
+    }
+
     // Symbols power ticker lookup ("ATW") and the datalist hints.
     foreach (aw_list_docs('format', [q_limit(500)]) as $f) {
         if (!empty($f['symbol']) && !empty($f['name'])) $symbolTo[$f['symbol']] = $f['name'];
@@ -164,12 +171,19 @@ if ($awSession && !empty($name ?? '')) {
           <label for="nameInput"><i class="fas fa-building me-2"></i>Nom de l'entreprise</label>
           <datalist id="companyList">
             <?php
-              // Show the symbol alongside the name so the ticker is discoverable.
+              // Label = readable name + ticker, always in that order so the
+              // symbol is where the eye expects it. The option's *value* stays
+              // the stored name so selection still resolves exactly.
+              // The only case worth suppressing is a label identical to the
+              // symbol, which is what produced the useless "IAM — IAM"; a
+              // substring test instead would strip the ticker from "CIH BANK".
               $symbolOf = array_flip($symbolTo);
               foreach ($allCompanies as $n):
-                $sy = $symbolOf[$n] ?? '';
+                $sy    = $symbolOf[$n] ?? '';
+                $label = $labelOf[$n] ?? $n;
+                if ($sy && strcasecmp($label, $sy) !== 0) $label .= " — $sy";
             ?>
-              <option value="<?= htmlspecialchars($n) ?>"<?= $sy ? ' label="' . htmlspecialchars("$n — $sy") . '"' : '' ?>>
+              <option value="<?= htmlspecialchars($n) ?>" label="<?= htmlspecialchars($label) ?>">
             <?php endforeach; ?>
           </datalist>
         </div>
