@@ -96,6 +96,7 @@ local.properties
 backup_live_*/
 backup_rename_*.json
 backup_delete_rows.json
+backup_company_*.json
 session.txt
 # Stray root-level Appwrite config — the real one is cloud_function/appwrite.config.json
 /appwrite.config.json
