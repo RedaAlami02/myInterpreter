@@ -19,7 +19,7 @@ $saved = isset($_GET['saved']);
   <title>myInterpreter | Update Stock</title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link href="assets/css/global.css?v=3" rel="stylesheet">
+  <link href="assets/css/global.css?v=4" rel="stylesheet">
   <link href="assets/css/update.css?v=3" rel="stylesheet">
 </head>
 <body>

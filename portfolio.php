@@ -274,7 +274,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <link href="assets/css/global.css?v=3" rel="stylesheet">
+  <link href="assets/css/global.css?v=4" rel="stylesheet">
   <link href="assets/css/portfolio.css?v=4" rel="stylesheet">
   <link href="assets/css/statistics.css?v=3" rel="stylesheet">
 </head>

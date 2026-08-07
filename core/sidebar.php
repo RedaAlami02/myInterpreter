@@ -10,13 +10,13 @@ function _sb_active(string $page): string {
 }
 ?>
 <aside class="sidebar">
-  <div class="brand">
+  <a class="brand" href="index.php" aria-label="Retour au tableau de bord">
     <div class="brand-mark">m</div>
     <div>
       <div class="brand-name">myInterpreter</div>
       <div class="brand-sub">Bourse de Casablanca</div>
     </div>
-  </div>
+  </a>
 
   <nav class="nav-group nav-group--primary">
     <div class="nav-label">Navigation</div>

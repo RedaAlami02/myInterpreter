@@ -145,7 +145,7 @@ $noPER          = $totalCompanies - count($rated);
   <title>myInterpreter | Screener</title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link href="assets/css/global.css?v=3" rel="stylesheet">
+  <link href="assets/css/global.css?v=4" rel="stylesheet">
   <link href="assets/css/screener.css?v=4" rel="stylesheet">
 </head>
 <body>

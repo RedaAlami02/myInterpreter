@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:appwrite/appwrite.dart';
 import '../appwrite_client.dart';
+import '../dividends.dart';
 import '../main.dart' show kAccent, kBorder, kNegative, kPositive, kSurface, kSurfaceHigh, kTextMuted, kTextPrimary;
 import 'buy_sell_sheet.dart';
 
@@ -39,9 +40,22 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         final pa = (d.data['pa'] as num?)?.toDouble() ?? 0;
         if (name != null) prices[name] = pa;
       }
+      // This year's dividends, keyed by company. Best-effort: the portfolio
+      // must still render if the dividend collection is unreachable.
+      final divs = <String, Dividend>{};
+      try {
+        for (final d in await dividendsForYear(DateTime.now().year)) {
+          // Keep whichever row is furthest ahead — an ordinary and an
+          // exceptional dividend can both exist in the same year.
+          final prev = divs[d.cName];
+          if (prev == null || (d.amount ?? 0) > (prev.amount ?? 0)) divs[d.cName] = d;
+        }
+      } catch (_) {}
+
       return {
         'holdings': portRes.documents.map((d) => d.data).toList(),
         'prices': prices,
+        'dividends': divs,
       };
     } catch (e, st) {
       print('ERROR portfolio: $e\n$st');
@@ -71,6 +85,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
       final holdings = snap.data!['holdings'] as List<Map<String, dynamic>>;
       final prices = snap.data!['prices'] as Map<String, double>;
+      final divs = (snap.data!['dividends'] as Map<String, Dividend>?) ?? {};
+      final today = todayIso();
 
       if (holdings.isEmpty) {
         return Center(
@@ -234,6 +250,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                           ? '${breakeven.toStringAsFixed(2)}'
                               '${ecart != null ? '  (${ecart >= 0 ? '+' : ''}${ecart.toStringAsFixed(2)})' : ''}'
                           : '—'),
+                      // Dividend line: only when this holding actually pays, so
+                      // the card does not grow a row of dashes for the rest.
+                      if (divs[name]?.amount != null)
+                        _dividendRow(divs[name]!, qty, today),
                     ]),
                   ),
                 ]),
@@ -257,6 +277,32 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
   Widget _vDivider() => Container(
     width: 1, height: 32, color: kBorder, margin: const EdgeInsets.symmetric(horizontal: 4));
+
+  /// "Dividende à venir · 60,00 MAD — 15 sept. 2026". Green when the money is
+  /// still ahead of you, muted once it has been paid.
+  Widget _dividendRow(Dividend d, double qty, String today) {
+    final ahead = d.isUpcoming(today);
+    final gross = d.amount! * qty;
+    final colour = ahead ? kPositive : kTextMuted;
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Row(children: [
+        Icon(ahead ? Icons.savings : Icons.savings_outlined, size: 12, color: colour),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            ahead
+                ? 'Dividende ${d.confirmed ? '' : 'prévu '}${fmtPayment(d)}'
+                : 'Dividende versé ${fmtPayment(d)}',
+            style: GoogleFonts.inter(color: kTextMuted, fontSize: 11),
+          ),
+        ),
+        Text('${gross.toStringAsFixed(2)} MAD',
+            style: GoogleFonts.inter(
+                color: colour, fontSize: 11, fontWeight: FontWeight.w700)),
+      ]),
+    );
+  }
 
   Widget _feeRow(String label, String value) => Padding(
     padding: const EdgeInsets.only(top: 3),

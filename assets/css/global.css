@@ -526,10 +526,23 @@ body::before {
   display: flex; flex-direction: column;
   min-height: calc(100vh - 32px);
 }
+/* The brand is a link home. Keeping it visually identical to the old <div>
+   means only the affordances change: cursor, hover lift, focus ring. */
 .brand {
   display: flex; align-items: center; gap: 10px;
   padding: 0 10px 18px;
   border-bottom: 1px solid var(--border); margin-bottom: 14px;
+  text-decoration: none; color: inherit;
+  transition: opacity 0.15s;
+}
+.brand:hover { opacity: 0.82; }
+.brand:hover .brand-mark {
+  box-shadow: 0 0 0 1px rgba(34,211,238,0.5), 0 6px 18px -4px rgba(34,211,238,0.7);
+}
+.brand:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-md);
 }
 .brand-mark {
   width: 32px; height: 32px; border-radius: 9px;
