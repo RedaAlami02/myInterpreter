@@ -54,7 +54,9 @@ All rows in `achats`/`ventes`/`portefeuille` are created with `Permission.read/w
 - **FTP**: credentials and upload script stored in session memory (see MEMORY.md)
 - **Auth**: Appwrite cookie-based sessions — `POST /account/sessions/email` returns empty `secret`; real session is in `Set-Cookie` headers. Stored in `$_SESSION['aw_cookie']`, forwarded as `Cookie:` header.
 - **Admin**: `ADMIN_USER_ID = 6a124b8900257649d4c1` — only admin can access Update.php/results.php
-- **Deploy**: rsync to `/tmp/myinterpreter_upload/` then upload via Python ftplib script (see MEMORY.md)
+- **Deploy**: `python3 deploy.py` (`--dry-run` to preview, `--all` to force, or pass paths).
+  It walks the working tree, not git, so the gitignored `config/sources.php` and
+  `config/secrets.php` go up with everything else. Credentials come from `FTP.md`.
 
 ## Install APK on phone
 ```bash
