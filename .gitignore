@@ -107,9 +107,10 @@ session.txt
 # config/sources.example.php is the committed template.
 config/sources.php
 
-# Appwrite cloud functions: their source embeds the upstream endpoints, so the
-# tree is kept local only. Deployed with the Appwrite CLI, not from GitHub.
-cloud_function/
+# Real upstream endpoints for the cloud functions. Each function ships a
+# sources.example.py template instead; the Appwrite CLI uploads the real file
+# because it packages the whole function directory regardless of git.
+cloud_function/functions/*/src/sources.py
 
 # One-off local scripts and notes that name the upstream data providers.
 audit_fundamentals.py

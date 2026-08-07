@@ -1,0 +1,76 @@
+{
+    "projectId": "6a12447800077d5113ae",
+    "projectName": "myInterpreter",
+    "endpoint": "https://fra.cloud.appwrite.io/v1",
+    "functions": [
+        {
+            "$id": "6a125537000a4c1668bf",
+            "name": "GETprice",
+            "runtime": "python-3.9",
+            "buildSpecification": "s-2vcpu-2gb",
+            "runtimeSpecification": "s-0.5vcpu-512mb",
+            "execute": [
+                "any"
+            ],
+            "events": [],
+            "scopes": [
+                "users.read",
+                "functions.write",
+                "executions.write"
+            ],
+            "schedule": "*/15 8-15 * * 1-5",
+            "timeout": 180,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "src/main.py",
+            "commands": "pip install -r requirements.txt",
+            "ignore": [
+                "__pypackages__"
+            ],
+            "deploymentRetention": 0,
+            "path": "functions/getprice"
+        },
+        {
+            "$id": "onboard_company",
+            "name": "onboard_company",
+            "runtime": "python-3.9",
+            "buildSpecification": "s-2vcpu-2gb",
+            "runtimeSpecification": "s-1vcpu-1gb",
+            "execute": [],
+            "events": [],
+            "scopes": [
+                "documents.read",
+                "documents.write"
+            ],
+            "schedule": "",
+            "timeout": 180,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "src/main.py",
+            "commands": "pip install -r requirements.txt",
+            "ignore": [
+                "__pypackages__"
+            ],
+            "deploymentRetention": 0,
+            "path": "functions/onboard_company"
+        },
+        {
+            "$id": "dividends",
+            "name": "dividends",
+            "runtime": "python-3.9",
+            "execute": [],
+            "events": [],
+            "schedule": "0 6 * * 1",
+            "timeout": 180,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "src/main.py",
+            "commands": "pip install -r requirements.txt",
+            "scopes": [
+                "documents.read",
+                "documents.write"
+            ],
+            "path": "functions/dividends"
+        }
+    ]
+}

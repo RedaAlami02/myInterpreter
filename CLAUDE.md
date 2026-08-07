@@ -21,6 +21,17 @@
 | `core/auth.php` | requireLogin(), requireAdmin(), is_admin() |
 | `config/config.php` | Ratio thresholds, ADMIN_USER_ID, CSRF helpers |
 | `appwrite_setup.py` | One-time collection setup (already run — includes `latest_prices`) |
+| `config/sources.php` | Upstream endpoints for the PHP side — **gitignored**, must be uploaded to the host by hand |
+| `cloud_function/functions/*/src/sources.py` | Same, per cloud function — **gitignored**, but the Appwrite CLI uploads it with the function |
+
+## Upstream endpoints
+Never hardcode a data-provider host or name anywhere tracked by git. Real hosts
+live only in `config/sources.php` and each function's `src/sources.py`, both
+gitignored; the committed `*.example.*` files carry `example.invalid`
+placeholders. Functions fall back to env vars (`MARKET_API_URL`,
+`FUNDAMENTALS_BASE`, `CALENDAR_URL`, …) when `sources.py` is absent — see
+`.env.example`. Provider names must not appear in UI text, comments, docs or
+commit messages either; the exchange itself (Bourse de Casablanca) is fine.
 
 ## Appwrite database: `myinterpreter`
 | Collection | Access | Purpose |
