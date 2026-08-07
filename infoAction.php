@@ -17,6 +17,7 @@ $divNext      = null;
 $divWhen      = null;
 $divHistory   = [];
 $divUsualMonth = null;
+$divPredict   = null;
 $divPrice     = 0.0;
 $suggestions  = [];
 $symbolTo     = [];   // ticker symbol => stored company name
@@ -110,6 +111,10 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
             $divHistory         = div_history($divRows, (int)date('Y'));
             $divUsualMonth      = ($divNext && !div_confirmed($divNext))
                                     ? div_usual_month($divRows, (int)date('Y')) : null;
+            // Estimated ex-date, only for companies whose own history is regular
+            // enough to support one. Shown as a window, never as a date.
+            $divPredict         = ($divNext && !div_confirmed($divNext))
+                                    ? div_predict($divRows, (int)date('Y')) : null;
             $divPrice           = (float)($history[0]['pa'] ?? 0);
         }
     } catch (Throwable $e) {
@@ -151,7 +156,7 @@ if ($awSession && !empty($name ?? '')) {
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=3" rel="stylesheet">
-  <link href="assets/css/infoAction.css?v=7" rel="stylesheet">
+  <link href="assets/css/infoAction.css?v=8" rel="stylesheet">
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
@@ -400,7 +405,13 @@ if ($awSession && !empty($name ?? '')) {
                     <div class="div-dates">
                       <div class="div-date-cell">
                         <span class="div-date-lbl">Détachement</span>
-                        <span class="div-date-val"><?= fmt_date($divNext['ex_date'] ?? '', '—') ?></span>
+                        <?php if (!empty($divNext['ex_date'])): ?>
+                          <span class="div-date-val"><?= fmt_date($divNext['ex_date']) ?></span>
+                        <?php elseif ($divPredict): ?>
+                          <span class="div-date-val is-est"><?= div_fmt_window($divPredict) ?></span>
+                        <?php else: ?>
+                          <span class="div-date-val">—</span>
+                        <?php endif; ?>
                       </div>
                       <div class="div-date-cell">
                         <span class="div-date-lbl">Paiement</span>
@@ -417,13 +428,38 @@ if ($awSession && !empty($name ?? '')) {
                     </div>
 
                     <?php if (!$conf): ?>
-                      <p class="div-note">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Date non encore votée en assemblée générale — l'estimation vient de la source.
-                        <?php if ($divUsualMonth): ?>
-                          Cette société verse habituellement en <strong><?= htmlspecialchars($divUsualMonth) ?></strong>.
-                        <?php endif; ?>
-                      </p>
+                      <?php if ($divPredict): ?>
+                        <div class="div-forecast">
+                          <div class="div-forecast-head">
+                            <i class="fas fa-wand-magic-sparkles me-2"></i>
+                            Détachement estimé :
+                            <strong><?= div_fmt_window($divPredict) ?></strong>
+                            <span class="div-badge <?= $divPredict['tight'] ? 'confirmed' : 'estimated' ?>">
+                              <?= $divPredict['tight'] ? 'très régulier' : 'régulier' ?>
+                            </span>
+                          </div>
+                          <p class="div-forecast-body">
+                            Calculé sur <strong><?= $divPredict['years'] ?> années</strong> de versements,
+                            dont les dates n'ont varié que de <strong><?= $divPredict['spread'] ?> jours</strong>.
+                            Paiement attendu vers le <strong><?= fmt_date($divPredict['pay']) ?></strong>
+                            (environ 10 jours après le détachement).
+                            <span class="muted">Estimation, pas un engagement : testée sur l'an dernier,
+                            elle tombe dans la fenêtre annoncée 8 fois sur 10. Une société peut toujours
+                            déplacer son assemblée générale.</span>
+                          </p>
+                        </div>
+                      <?php else: ?>
+                        <p class="div-note">
+                          <i class="fas fa-info-circle me-1"></i>
+                          Date non encore votée en assemblée générale — l'estimation vient de la source.
+                          <?php if ($divUsualMonth): ?>
+                            Cette société verse habituellement en <strong><?= htmlspecialchars($divUsualMonth) ?></strong>,
+                            mais ses dates varient trop d'une année à l'autre pour aller plus loin.
+                          <?php else: ?>
+                            Son historique est trop irrégulier pour estimer une date.
+                          <?php endif; ?>
+                        </p>
+                      <?php endif; ?>
                     <?php endif; ?>
                     <?php if ($isQ): ?>
                       <p class="div-note">

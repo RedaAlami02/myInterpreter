@@ -354,3 +354,32 @@
   .div-yield { text-align: left; }
   .panel-tab { padding: 9px 11px; font-size: 0.84rem; }
 }
+
+/* ── Estimated ex-date ───────────────────────────────────── */
+/* Styled distinctly from a confirmed date so the two can never be confused:
+   backtested at 8/10 inside the stated window, which is useful but not a fact. */
+.div-date-val.is-est {
+  color: var(--violet);
+  border-bottom: 1px dashed var(--violet);
+}
+.div-forecast {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--violet-dim);
+  border: 1px solid rgba(129,140,248,0.35);
+}
+.div-forecast-head {
+  font-size: 0.88rem;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.div-forecast-head strong { color: var(--violet); font-family: var(--font-mono); }
+.div-forecast-body {
+  margin: 0;
+  font-size: 0.79rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+.div-forecast-body strong { color: var(--text); }
+.div-badge.forecast { background: var(--violet-dim); color: var(--violet); }

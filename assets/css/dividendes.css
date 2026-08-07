@@ -104,3 +104,63 @@ tr.div-done { opacity: .5; }
   .div-summary { gap: 18px; }
   .div-years { margin-left: 0; width: 100%; }
 }
+
+/* ── Cycle banner ────────────────────────────────────────── */
+/* The Moroccan dividend calendar is a rhythm, not a set of fixed dates. This
+   explains the rhythm once, so the "estimé" rows below have context. */
+.div-cycle {
+  padding: 18px 22px;
+  margin-bottom: 26px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--emerald);
+  border-radius: var(--radius-lg);
+}
+.div-cycle-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+.div-cycle-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+.div-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.div-step.is-pay { border-color: var(--emerald); background: var(--emerald-dim); }
+.div-step-when {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--cyan);
+}
+.div-step.is-pay .div-step-when { color: var(--emerald); }
+.div-step-what { font-size: 0.76rem; color: var(--text-dim); line-height: 1.4; }
+.div-cycle-note {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.div-cycle-note strong { color: var(--text); }
+
+/* Estimated dates read as estimates — dashed underline, never plain text. */
+.is-est {
+  color: var(--violet);
+  border-bottom: 1px dashed var(--violet);
+  cursor: help;
+  white-space: nowrap;
+}
+.div-badge.forecast { background: var(--violet-dim); color: var(--violet); }
