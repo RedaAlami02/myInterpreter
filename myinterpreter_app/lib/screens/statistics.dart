@@ -39,7 +39,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
     final counts = {'green': 0, 'orange': 0, 'red': 0, 'total': latest.length};
     for (final r in latest.values) {
-      final k = r['per_rating'] as String?;
+      // A negative PER is a loss, not a bargain. Stored ratings written before
+      // the scraper fix put those in 'green', inflating the undervalued count.
+      final per = r['per'] as num?;
+      final k = (per != null && per > 0) ? r['per_rating'] as String? : null;
       if (k != null && counts.containsKey(k)) counts[k] = counts[k]! + 1;
     }
 

@@ -144,7 +144,13 @@ class _StockCard extends StatelessWidget {
     required this.onBuy,
   });
 
-  Widget _badge(String label, String? rating) {
+  /// A rating is only meaningful for a positive ratio. A negative PER or P/B
+  /// means losses or negative equity, not a bargain — but it sorts below the
+  /// green threshold, so unguarded it badges as the best possible value.
+  /// The scraper now stores null for these; this also covers rows written
+  /// before that fix, which would otherwise keep showing green forever.
+  Widget _badge(String label, String? rating, num? value) {
+    if (value == null || value <= 0) rating = null;
     final color = switch (rating) {
       'green'  => kPositive,
       'orange' => const Color(0xFFE3A008),
@@ -191,10 +197,10 @@ class _StockCard extends StatelessWidget {
                     spacing: 4,
                     runSpacing: 4,
                     children: [
-                      _badge('PER', row['per_rating'] as String?),
-                      _badge('PEG', row['peg_rating'] as String?),
-                      _badge('PR',  row['pr_rating']  as String?),
-                      _badge('PB',  row['pb_rating']  as String?),
+                      _badge('PER', row['per_rating'] as String?, row['per'] as num?),
+                      _badge('PEG', row['peg_rating'] as String?, row['peg'] as num?),
+                      _badge('PR',  row['pr_rating']  as String?, row['pr']  as num?),
+                      _badge('PB',  row['pb_rating']  as String?, row['pb']  as num?),
                     ],
                   ),
                 ],
