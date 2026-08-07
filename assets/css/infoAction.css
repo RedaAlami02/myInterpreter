@@ -383,3 +383,51 @@
 }
 .div-forecast-body strong { color: var(--text); }
 .div-badge.forecast { background: var(--violet-dim); color: var(--violet); }
+
+/* ── Stale fundamentals warning ──────────────────────────── */
+/* For a company still trading whose accounts stopped years ago. Deliberately
+   louder than the year badge: the badge says which year, this says it is old. */
+.fy-stale {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 12px;
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(245,158,11,0.10);
+  border: 1px solid rgba(245,158,11,0.4);
+  border-left: 3px solid var(--amber);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+.fy-stale i { color: var(--amber); margin-top: 2px; }
+.fy-stale strong { color: var(--amber); }
+
+/* ── Reported vs projected PER ───────────────────────────── */
+.per-est {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--violet);
+}
+.per-est-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.per-est-cell { display: flex; flex-direction: column; gap: 2px; }
+.per-est-lbl {
+  font-size: 0.68rem; color: var(--text-mute);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.per-est-val {
+  font-family: var(--font-mono); font-size: 1.35rem; font-weight: 700; color: var(--text);
+  line-height: 1.1;
+}
+.per-est-val.is-est { color: var(--violet); }
+.per-est-arrow { color: var(--text-mute); font-size: 0.8rem; }
+.per-est-note {
+  margin: 10px 0 0; padding-top: 9px;
+  border-top: 1px dashed var(--border);
+  font-size: 0.78rem; color: var(--text-dim); line-height: 1.6;
+}
+.per-est-note strong { color: var(--violet); }

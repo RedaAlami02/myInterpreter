@@ -48,6 +48,10 @@ function breakeven_value(float $buyValue): float {
 
 // ─── Ratio thresholds (green / orange; above orange = red) ───────────────────
 define('PER_GREEN',  20);   define('PER_ORANGE',  25);
+// Above this a PER is an artefact of a bad input, not a valuation. Mirrors
+// MAX_PER in the getprice function, which suppresses the stored ratio; this
+// copy guards the projected PER computed on the fly at render time.
+define('MAX_PER', 500.0);
 define('PEG_GREEN',   1);   define('PEG_ORANGE',   2);
 define('PR_GREEN',  1.5);   define('PR_ORANGE',  2.0);
 define('PB_GREEN',  2.0);   define('PB_ORANGE',  3.0);

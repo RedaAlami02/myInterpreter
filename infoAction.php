@@ -18,6 +18,11 @@ $divWhen      = null;
 $divHistory   = [];
 $divUsualMonth = null;
 $divPredict   = null;
+$fyEst        = 0;
+$rnpgEst      = 0.0;
+$perEst       = null;
+$perRep       = null;
+$fyStale      = false;
 $divPrice     = 0.0;
 $suggestions  = [];
 $symbolTo     = [];   // ticker symbol => stored company name
@@ -116,6 +121,32 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
             $divPredict         = ($divNext && !div_confirmed($divNext))
                                     ? div_predict($divRows, (int)date('Y')) : null;
             $divPrice           = (float)($history[0]['pa'] ?? 0);
+
+            // ─── Projected year ──────────────────────────────
+            // A reported year can be unrepresentative while the market prices
+            // something else. IAM's 2024 is its Inwi-settlement year: PER 48
+            // reported, ~12 on the 2025 projection. Both honest; showing only
+            // the first, unlabelled, is what misleads. Computed from market cap
+            // so the share count cannot poison it.
+            $fyEst   = (int)($company['fy_est'] ?? 0);
+            $rnpgEst = (float)($company['rnpg_est'] ?? 0);
+            $perEst  = null;
+            if ($fyEst && $rnpgEst > 0 && $divPrice > 0 && !empty($company['na'])) {
+                $mcap   = $divPrice * (float)$company['na'];
+                $perEst = $mcap / ($rnpgEst * 1e6);
+                // Same ceiling the scraper applies: beyond it the number is an
+                // artefact of a bad input, not a valuation worth showing.
+                if ($perEst <= 0 || $perEst > MAX_PER) $perEst = null;
+            }
+            $perRep = null;
+            if (!empty($company['net_profit']) && $divPrice > 0 && !empty($company['na'])) {
+                $p = $divPrice * (float)$company['na'] / ((float)$company['net_profit'] * 1e6);
+                if ($p > 0 && $p <= MAX_PER) $perRep = $p;
+            }
+
+            // Fundamentals older than this are a hazard on a live, trading stock.
+            $fyStale = !empty($company['fiscal_year'])
+                       && (int)$company['fiscal_year'] < (int)date('Y') - 2;
         }
     } catch (Throwable $e) {
         $dbError = $e->getMessage();
@@ -156,7 +187,7 @@ if ($awSession && !empty($name ?? '')) {
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=4" rel="stylesheet">
-  <link href="assets/css/infoAction.css?v=8" rel="stylesheet">
+  <link href="assets/css/infoAction.css?v=9" rel="stylesheet">
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
@@ -285,6 +316,44 @@ if ($awSession && !empty($name ?? '')) {
                 Chiffres financiers : <strong>exercice <?= (int)$company['fiscal_year'] ?></strong>
                 <span class="muted">· source fundamentals.example · les ratios combinent ces comptes avec le cours du jour</span>
               </p>
+            <?php endif; ?>
+
+            <?php if ($fyStale): ?>
+              <div class="fy-stale">
+                <i class="fas fa-triangle-exclamation me-2"></i>
+                <div>
+                  <strong>Comptes vieux de <?= (int)date('Y') - (int)$company['fiscal_year'] ?> ans.</strong>
+                  Cette société est toujours cotée, mais n'a rien publié depuis
+                  l'exercice <?= (int)$company['fiscal_year'] ?>.
+                  <span class="muted">Les ratios ci-dessous rapprochent le cours d'aujourd'hui
+                  de comptes périmés — traitez-les comme indicatifs, pas comme une valorisation.</span>
+                </div>
+              </div>
+            <?php endif; ?>
+
+            <?php if ($perEst !== null && $fyEst): ?>
+              <div class="per-est">
+                <div class="per-est-row">
+                  <div class="per-est-cell">
+                    <span class="per-est-lbl">PER publié <?= (int)$company['fiscal_year'] ?></span>
+                    <span class="per-est-val"><?= $perRep !== null ? number_format($perRep, 1, ',', ' ') : '—' ?></span>
+                  </div>
+                  <i class="fas fa-arrow-right per-est-arrow"></i>
+                  <div class="per-est-cell">
+                    <span class="per-est-lbl">PER sur prévision <?= $fyEst ?></span>
+                    <span class="per-est-val is-est"><?= number_format($perEst, 1, ',', ' ') ?></span>
+                  </div>
+                </div>
+                <p class="per-est-note">
+                  <i class="fas fa-info-circle me-1"></i>
+                  <?= $fyEst ?> est une <strong>prévision</strong> d'the fundamentals provider, pas un résultat publié
+                  (<?= number_format($rnpgEst, 0, ',', ' ') ?> MMAD de bénéfice attendu).
+                  <span class="muted">Elle n'entre dans aucun ratio du site — les colonnes PER, PEG, P/R et P/B
+                  restent calculées sur l'exercice <?= (int)$company['fiscal_year'] ?>.
+                  Affichée ici parce qu'une année publiée peut être atypique&nbsp;: un litige, une cession
+                  ou une provision exceptionnelle déforme le PER sans rien dire de l'activité.</span>
+                </p>
+              </div>
             <?php endif; ?>
             <div class="fundamentals-grid">
               <?php

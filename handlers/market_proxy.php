@@ -46,14 +46,40 @@ function mkt_sb(string $t, string $col, string $val, bool $single = true, ?strin
     return json_encode(['table' => $t, 'options' => $o]);
 }
 
+// Bounds for mkt_years(): the floor rejects junk keys, the lookback caps how
+// far back a fallback may reach. Mirrors YEAR_FLOOR / MAX_LOOKBACK in the
+// onboard_company function — keep the two in step.
+if (!defined('MKT_YEAR_FLOOR'))   define('MKT_YEAR_FLOOR', 2000);
+if (!defined('MKT_MAX_LOOKBACK')) define('MKT_MAX_LOOKBACK', 6);
+
 function mkt_data(array $r, string $k): ?array {
     $v = $r[$k] ?? null;
     return is_array($v) ? ($v['data'] ?? null) : null;
 }
 
+/**
+ * Reported four-digit year keys present in a payload, newest first.
+ *
+ * These lists used to be literals ('2024','2023','2022','2021'). That fails
+ * silently: the moment the source publishes a newer year the code cannot see
+ * it, and every figure freezes at the last hardcoded year with no error. It had
+ * already happened — the Python side was skipping a published 2025 column. The
+ * keys are now read from the payload, so a new year is picked up the day it
+ * appears. Forecast keys ('2025p') are excluded; they are projections.
+ */
+function mkt_years(array $d): array {
+    $out = [];
+    foreach (array_keys($d) as $k) {
+        $k = (string)$k;
+        if (preg_match('/^\d{4}$/', $k) && (int)$k >= MKT_YEAR_FLOOR) $out[] = $k;
+    }
+    rsort($out);
+    return array_slice($out, 0, MKT_MAX_LOOKBACK);
+}
+
 function mkt_latest(array $r, string $k): ?float {
     $d = mkt_data($r, $k); if (!$d) return null;
-    foreach (['2024','2023','2022','2021'] as $y) { if (isset($d[$y]) && is_numeric($d[$y])) return (float)$d[$y]; }
+    foreach (mkt_years($d) as $y) { if (isset($d[$y]) && is_numeric($d[$y])) return (float)$d[$y]; }
     return null;
 }
 
@@ -67,8 +93,8 @@ function mkt_series(array $r, string $k): array {
 function mkt_cagr(array $r, string $k, int $yr = 5): ?float {
     $d = mkt_data($r, $k); if (!$d) return null;
     $ly = null; $lv = null;
-    for ($y = 2024; $y >= 2021; $y--) {
-        if (isset($d[(string)$y]) && is_numeric($d[(string)$y]) && $d[(string)$y] > 0) { $ly=$y; $lv=(float)$d[(string)$y]; break; }
+    foreach (mkt_years($d) as $ys) {
+        if (is_numeric($d[$ys]) && $d[$ys] > 0) { $ly = (int)$ys; $lv = (float)$d[$ys]; break; }
     }
     if (!$ly) return null;
     $py = (string)($ly - $yr);
@@ -130,9 +156,9 @@ function mkt_fetch_symbol(string $symbol): array {
     $bpa = null;
     $bpa_fin = is_array($fin['beneficeParAction']  ?? null) ? $fin['beneficeParAction']  : [];
     $dpa_fin = is_array($fin['dividendeParAction'] ?? null) ? $fin['dividendeParAction'] : [];
-    foreach (['2024','2023','2022'] as $y) { $v=$bpa_fin[$y]??null; if ($v!==null&&is_numeric($v)){$bpa=(float)$v;break;} }
+    foreach (mkt_years($bpa_fin) as $y) { $v=$bpa_fin[$y]??null; if ($v!==null&&is_numeric($v)){$bpa=(float)$v;break;} }
     if ($bpa===null&&$rnpg!==null&&$nmt!==null&&$nmt>0) $bpa = round($rnpg*1_000_000/$nmt, 2);
-    if ($dpa_v===null) { foreach(['2024','2023','2022'] as $y){$v=$dpa_fin[$y]??null;if($v!==null&&is_numeric($v)){$dpa_v=(float)$v;break;}} }
+    if ($dpa_v===null) { foreach(mkt_years($dpa_fin) as $y){$v=$dpa_fin[$y]??null;if($v!==null&&is_numeric($v)){$dpa_v=(float)$v;break;}} }
 
     $roe = ($rnpg!==null&&$fp!==null&&$fp!=0) ? round($rnpg/$fp*100,2) : null;
     $tc5 = mkt_cagr($s2,'ca',5);
