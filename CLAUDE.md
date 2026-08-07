@@ -93,7 +93,17 @@ logs scroll away. Severity ladder, mirrored in `watch_errors.py`:
 | `notice` | Informational record that something unusual happened. |
 
 `critical` and `error` raise a desktop popup; the rest are logged quietly.
-Run `python3 watch_errors.py &` (log: `~/.myinterpreter/errors.log`).
+
+The watcher runs automatically as a **systemd user service**,
+`~/.config/systemd/user/myinterpreter-watch.service` (enabled, `--interval 300`,
+`Restart=always`). It is bound to `graphical-session.target` because the popups
+need a desktop session. Not a cron job — do not add one.
+
+```bash
+systemctl --user status myinterpreter-watch    # is it alive
+journalctl --user -u myinterpreter-watch -f    # follow
+tail -f ~/.myinterpreter/errors.log            # the colour-coded log
+```
 
 ## PHP website (InfinityFree)
 - **Host**: InfinityFree — PHP only, no Composer, no Node.js. Serves a JS/AES
