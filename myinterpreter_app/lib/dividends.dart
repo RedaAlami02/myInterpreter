@@ -5,7 +5,8 @@ library;
 /// estimated date mean.
 ///
 /// Data comes from the `dividends` collection, filled weekly by the cloud
-/// function from calendar.example. Two properties of that source shape everything:
+/// function from the external dividend calendar. Two properties of that source
+/// shape everything:
 ///
 ///  * A row is *confirmed* only once the AGM has voted, which the source signals
 ///    by publishing an ex-dividend date. Until then its payment date is an

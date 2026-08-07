@@ -3,8 +3,8 @@
  * Dividend helpers, shared by the company page, the portfolio panel and the
  * calendar page so all three agree on what "next payment" and "confirmed" mean.
  *
- * The `dividends` collection is filled by the weekly cloud function from
- * calendar.example. Two properties of that source shape everything here:
+ * The `dividends` collection is filled by the weekly cloud function from the
+ * external dividend calendar. Two properties of that source shape everything:
  *
  *   - A row is *confirmed* only once the AGM has voted, which the source signals
  *     by publishing an ex-dividend date. Until then the payment date is its own

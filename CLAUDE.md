@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**myInterpreter** — Moroccan Bourse (the market data provider) stock analysis app.
+**myInterpreter** — Moroccan stock analysis app (Bourse de Casablanca).
 
 ## Stack
 - **App**: Flutter (Android), lives in `myinterpreter_app/`

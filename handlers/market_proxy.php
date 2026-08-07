@@ -5,18 +5,20 @@
  * Include this file and call mkt_fetch_symbol($symbol) directly (no HTTP needed).
  */
 
+require_once __DIR__ . '/../config/sources.php';
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function mkt_batch(array $requests): array {
     $mh = curl_multi_init();
     $handles = [];
     foreach ($requests as $key => $spec) {
         $ch  = curl_init($spec['url']);
-        // the fundamentals provider's proxy returns 403 without a same-origin Referer/Origin.
+        // The upstream proxy returns 403 without a same-origin Referer/Origin.
         $hdr = array_merge([
             'Accept: */*',
             'User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
-            'Referer: https://fundamentals.example/',
-            'Origin: https://fundamentals.example',
+            'Referer: ' . SRC_FUND_ORIGIN . '/',
+            'Origin: '  . SRC_FUND_ORIGIN,
         ], $spec['extra_headers'] ?? []);
         $opts = [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10, CURLOPT_HTTPHEADER => $hdr];
         if (!empty($spec['post'])) {
@@ -104,8 +106,8 @@ function mkt_cagr(array $r, string $k, int $yr = 5): ?float {
 
 // ── Main fetch function (callable directly or via HTTP) ───────────────────────
 function mkt_fetch_symbol(string $symbol): array {
-    $_SRC1 = 'https://fundamentals.example/api/proxy';
-    $_SRC2 = 'https://fundamentals.example/api/proxy/supabase';
+    $_SRC1 = SRC_FUND_BASE;
+    $_SRC2 = SRC_FUND_BASE . '/supabase';
 
     $s1 = mkt_batch([
         'stock'     => ['url' => "{$_SRC1}/stock/{$symbol}"],

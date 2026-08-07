@@ -314,7 +314,7 @@ if ($awSession && !empty($name ?? '')) {
               <p class="fund-source">
                 <i class="fas fa-calendar-alt me-1"></i>
                 Chiffres financiers : <strong>exercice <?= (int)$company['fiscal_year'] ?></strong>
-                <span class="muted">· source fundamentals.example · les ratios combinent ces comptes avec le cours du jour</span>
+                <span class="muted">· les ratios combinent ces comptes avec le cours du jour</span>
               </p>
             <?php endif; ?>
 
@@ -346,7 +346,7 @@ if ($awSession && !empty($name ?? '')) {
                 </div>
                 <p class="per-est-note">
                   <i class="fas fa-info-circle me-1"></i>
-                  <?= $fyEst ?> est une <strong>prévision</strong> d'the fundamentals provider, pas un résultat publié
+                  <?= $fyEst ?> est une <strong>prévision</strong>, pas un résultat publié
                   (<?= number_format($rnpgEst, 0, ',', ' ') ?> MMAD de bénéfice attendu).
                   <span class="muted">Elle n'entre dans aucun ratio du site — les colonnes PER, PEG, P/R et P/B
                   restent calculées sur l'exercice <?= (int)$company['fiscal_year'] ?>.
@@ -584,7 +584,7 @@ if ($awSession && !empty($name ?? '')) {
 
                 <p class="fund-source mt-3">
                   <i class="fas fa-calendar-alt me-1"></i>
-                  Calendrier de distribution · <strong>source calendar.example</strong>
+                  Calendrier de distribution
                   <span class="muted">· le dividende versé en <?= date('Y') ?> provient de l'exercice <?= date('Y') - 1 ?></span>
                 </p>
               <?php endif; ?>

@@ -4,7 +4,8 @@
  * ordered by payment date so "what lands next" is the first thing visible.
  *
  * Data comes from the `dividends` collection, filled weekly by the cloud
- * function from calendar.example. Entries the AGM has not yet voted are marked
+ * function from the external calendar source. Entries the AGM has not yet
+ * voted are marked
  * "prévu" and styled differently — they must never read as commitments.
  */
 session_start();
@@ -246,7 +247,7 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
 
         <p class="fund-source">
           <i class="fas fa-calendar-alt me-1"></i>
-          Source <strong>calendar.example</strong>, actualisé chaque semaine
+          Calendrier actualisé chaque semaine
           <span class="muted">· un dividende versé en <?= $year ?> provient de l'exercice <?= $year - 1 ?>
           · les rendements sont calculés sur le cours du jour · montants bruts</span>
         </p>

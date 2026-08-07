@@ -146,7 +146,7 @@ const COMPANY_ALIASES = [
 // display_name() picks the most informative label available, purely for display.
 //
 // Commercial brands that differ from the legal name, where neither the stored
-// name nor the fundamentals provider's ext_name is what a person would actually recognise.
+// name nor the provider's ext_name is what a person would actually recognise.
 // Names only — the ticker is appended separately, so never bake it in here.
 const COMPANY_DISPLAY_NAMES = [
     'IAM'  => 'Maroc Telecom',
@@ -162,7 +162,7 @@ const COMPANY_DISPLAY_NAMES = [
 /**
  * Human-readable label for a company. Never used as a lookup key.
  *
- * Order: curated brand name, then the fundamentals provider's ext_name when it is genuinely more
+ * Order: curated brand name, then the provider's ext_name when it is genuinely more
  * informative than the stored name, then the stored name. The length test keeps
  * ext_name from making things worse — it holds "CIH" for "CIH BANK" and "CDM"
  * for "CREDIT DU MAROC", which are steps backwards.

@@ -102,3 +102,19 @@ session.txt
 /appwrite.config.json
 
 # Local error-watcher state lives in ~/.myinterpreter, nothing to ignore here
+
+# Upstream data-source endpoints — real hosts stay off GitHub.
+# config/sources.example.php is the committed template.
+config/sources.php
+
+# Appwrite cloud functions: their source embeds the upstream endpoints, so the
+# tree is kept local only. Deployed with the Appwrite CLI, not from GitHub.
+cloud_function/
+
+# One-off local scripts and notes that name the upstream data providers.
+audit_fundamentals.py
+backfill_dividends.py
+backfill_history.py
+backfill_masi.py
+backfill_projections.py
+unavoidable_issues.md

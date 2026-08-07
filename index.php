@@ -2,6 +2,7 @@
 ob_start();
 session_start();
 require_once 'config/config.php';
+require_once 'config/sources.php';
 require_once 'core/Appwrite.php';
 require_once 'core/auth.php';
 
@@ -88,15 +89,15 @@ function _live_market_status(): array {
     ]]]);
     $ch = curl_init();
     curl_setopt_array($ch, [
-        CURLOPT_URL            => 'https://market-data.example/api/',
+        CURLOPT_URL            => SRC_MARKET_API,
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => $payload,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 3,
         CURLOPT_HTTPHEADER     => [
             'Content-Type: application/json',
-            'Origin: https://market-data.example',
-            'Referer: https://market-data.example/',
+            'Origin: '  . SRC_MARKET_ORIGIN,
+            'Referer: ' . SRC_MARKET_ORIGIN . '/',
         ],
     ]);
     $body = curl_exec($ch);

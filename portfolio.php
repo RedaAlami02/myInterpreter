@@ -302,7 +302,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
       <span class="sync-label"><i class="fas fa-sync me-1"></i>Dernier sync :</span>
       <span class="sync-value"><?= fmt_datetime($lastSync) ?></span>
       <div class="divider"></div>
-      <span class="sync-label muted">Cours différés ~15 min · the market data feed · heure de Casablanca</span>
+      <span class="sync-label muted">Cours différés ~15 min · heure de Casablanca</span>
     </div>
 
     <!-- Tab navigation -->
@@ -497,7 +497,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
           <i class="fas fa-info-circle me-1"></i>
           <?= $divPaying ?> de vos <?= count($divQty) ?> positions versent un dividende cette année.
           <span class="muted">Montants bruts, avant retenue à la source · les lignes « prévu »
-          n'ont pas encore été votées en assemblée générale · source calendar.example</span>
+          n'ont pas encore été votées en assemblée générale</span>
         </p>
       </div>
       <?php endif; ?>

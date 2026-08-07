@@ -167,7 +167,7 @@ $noPER          = $totalCompanies - count($rated);
         <span class="muted">(heure de Casablanca)</span>
         &nbsp;·&nbsp;
         <i class="fas fa-database me-1"></i>
-        Source : the market data feed — cours différés d’environ 15 minutes,
+        Cours différés d’environ 15 minutes,
         actualisés toutes les 15 min de 09:00 à 16:45, du lundi au vendredi.
       </p>
     </div>

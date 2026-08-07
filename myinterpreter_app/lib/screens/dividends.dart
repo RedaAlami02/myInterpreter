@@ -369,7 +369,7 @@ class _DividendsScreenState extends State<DividendsScreen> {
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
         child: Text(
           'Montants bruts, avant retenue à la source. Le dividende versé en $year '
-          "provient de l'exercice ${year - 1}. Source calendar.example, actualisé chaque semaine.",
+          "provient de l'exercice ${year - 1}. Calendrier actualisé chaque semaine.",
           style: GoogleFonts.inter(color: kTextMuted, fontSize: 10, height: 1.5),
         ),
       );
