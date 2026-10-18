@@ -1,6 +1,7 @@
 <?php
 ob_start();
 session_start();
+require_once __DIR__ . '/core/i18n.php';
 require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/auth.php';
@@ -50,7 +51,7 @@ if (isset($_POST['add_buy'])) {
                     'user_id'    => $uid,
                 ], $perms, $session);
             }
-            $flash[] = ['type' => 'success', 'msg' => "Achat de {$number} × {$name} enregistré."];
+            $flash[] = ['type' => 'success', 'msg' => t('Achat de {quantity} × {name} enregistré.', ['quantity' => $number, 'name' => $name])];
         } catch (Throwable $e) {
             error_log('[myInterpreter] add_buy error: ' . $e->getMessage());
             $flash[] = ['type' => 'error', 'msg' => 'Erreur lors de l\'enregistrement : ' . $e->getMessage()];
@@ -92,7 +93,7 @@ if (isset($_POST['add_sell'])) {
                         'total_cost' => $doc['total_cost'] - $avg * $number,
                     ], $session);
                 }
-                $flash[] = ['type' => 'success', 'msg' => "Vente de {$number} × {$name} enregistrée."];
+                $flash[] = ['type' => 'success', 'msg' => t('Vente de {quantity} × {name} enregistrée.', ['quantity' => $number, 'name' => $name])];
                 header('Location: portfolio.php'); exit();
             } else {
                 $flash[] = ['type' => 'error', 'msg' => 'Quantité insuffisante en portefeuille.'];
@@ -165,7 +166,7 @@ foreach ($holdingsDocs as $h) {
     $totalBuyVal     += $cost;
 
     if ($pa <= 0) {
-        $flash[] = ['type' => 'warn', 'msg' => "Prix introuvable pour « {$name} »."];
+        $flash[] = ['type' => 'warn', 'msg' => t('Prix introuvable pour « {name} ».', ['name' => $name])];
     }
 }
 
@@ -238,13 +239,13 @@ $sectorDirectory = market_sector_directory($allCompanies);
 $activeTab = $_GET['tab'] ?? 'portfolio';
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="<?= ui_locale() ?>" dir="<?= ui_direction() ?>">
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="<?= csrf_token() ?>">
-  <title>myInterpreter | Portefeuille</title>
+  <title><?= te('myInterpreter | Portefeuille') ?></title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=5" rel="stylesheet">
@@ -260,28 +261,28 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
 
   <div class="portfolio-wrap animate-up">
     <header class="workspace-heading">
-      <h1>Portefeuille</h1>
-      <p>Vos positions, leur répartition et vos opérations au même endroit.</p>
+      <h1><?= te('Portefeuille') ?></h1>
+      <p><?= te('Vos positions, leur répartition et vos opérations au même endroit.') ?></p>
     </header>
 
     <!-- Flash messages -->
     <?php foreach ($flash as $f): ?>
-      <div class="alert alert-<?= $f['type'] ?>"><i class="fas fa-<?= $f['type']==='success'?'check-circle':'exclamation-triangle' ?> me-2"></i><?= htmlspecialchars($f['msg']) ?></div>
+      <div class="alert alert-<?= $f['type'] ?>"><i class="fas fa-<?= $f['type']==='success'?'check-circle':'exclamation-triangle' ?> me-2"></i><?= te($f['msg']) ?></div>
     <?php endforeach; ?>
     <?php if ($loadError): ?>
-      <div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i><?= htmlspecialchars($loadError) ?></div>
+      <div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i><?= te($loadError) ?></div>
     <?php endif; ?>
 
     <!-- Tab navigation -->
     <div class="tab-nav" role="tablist">
       <button class="tab-btn <?= $activeTab==='portfolio'?'active':'' ?>" onclick="switchTab('portfolio')" type="button">
-        <i class="fas fa-wallet"></i> Portefeuille
+        <i class="fas fa-wallet"></i> <?= te('Portefeuille') ?>
       </button>
       <button class="tab-btn <?= $activeTab==='transactions'?'active':'' ?>" onclick="switchTab('transactions')" type="button">
-        <i class="fas fa-exchange-alt"></i> Transactions
+        <i class="fas fa-exchange-alt"></i> <?= te('Transactions') ?>
       </button>
       <button class="tab-btn <?= $activeTab==='history'?'active':'' ?>" onclick="switchTab('history')" type="button">
-        <i class="fas fa-chart-bar"></i> Historique P&L
+        <i class="fas fa-chart-bar"></i> <?= te('Historique P&L') ?>
       </button>
     </div>
 
@@ -292,17 +293,17 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
       <div class="pf-summary stagger-children">
         <div class="stat-chip">
           <span class="stat-chip__value mono t-cyan"><?= number_format($totalCurrentVal,2) ?></span>
-          <span class="stat-chip__label">Valeur actuelle (MAD)</span>
+          <span class="stat-chip__label"><?= te('Valeur actuelle (MAD)') ?></span>
         </div>
         <div class="stat-chip">
           <span class="stat-chip__value mono t-violet"><?= number_format($totalBuyVal,2) ?></span>
-          <span class="stat-chip__label">Valeur d'achat (MAD)</span>
+          <span class="stat-chip__label"><?= te('Valeur d\'achat (MAD)') ?></span>
         </div>
         <div class="stat-chip">
           <span class="stat-chip__value mono <?= $diffDisplay >= 0 ? 't-emerald' : 't-rose' ?>">
             <?= ($diffDisplay >= 0 ? '+' : '') . number_format($diffDisplay, 2) ?>
           </span>
-          <span class="stat-chip__label">Plus/Moins value latente</span>
+          <span class="stat-chip__label"><?= te('Plus/Moins value latente') ?></span>
         </div>
       </div>
 
@@ -328,26 +329,26 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
         #holdingsTbl thead th:first-child { z-index: 3; }
       </style>
       <div class="col-toggles">
-        <span class="lbl"><i class="fas fa-table-columns me-1"></i>Colonnes :</span>
+        <span class="lbl"><i class="fas fa-table-columns me-1"></i><?= te('Colonnes :') ?></span>
         <button type="button" class="btn btn-ghost btn-sm col-toggle" aria-pressed="false" onclick="toggleCols('frais', this)">
-          <i class="fas fa-coins"></i> Frais
+          <i class="fas fa-coins"></i> <?= te('Frais') ?>
         </button>
         <button type="button" class="btn btn-ghost btn-sm col-toggle" aria-pressed="false" onclick="toggleCols('seuil', this)">
-          <i class="fas fa-scale-balanced"></i> Équilibre
+          <i class="fas fa-scale-balanced"></i> <?= te('Équilibre') ?>
         </button>
       </div>
       <div class="card-glass overflow-x-auto mb-4">
         <table class="tbl" id="holdingsTbl">
           <thead><tr>
-            <th>Société</th>
-            <th class="num">Actions</th>
-            <th class="num">Val. Achat</th>
-            <th class="num">Val. Actuelle</th>
-            <th class="num">P/MV Latente</th>
-            <th class="num col-frais">Frais achat</th>
-            <th class="num col-frais">Frais vente (est.)</th>
-            <th class="num col-frais">Total frais</th>
-            <th class="num col-seuil">Seuil équilibre</th>
+            <th><?= te('Société') ?></th>
+            <th class="num"><?= te('Actions') ?></th>
+            <th class="num"><?= te('Val. Achat') ?></th>
+            <th class="num"><?= te('Val. Actuelle') ?></th>
+            <th class="num"><?= te('P/MV Latente') ?></th>
+            <th class="num col-frais"><?= te('Frais achat') ?></th>
+            <th class="num col-frais"><?= te('Frais vente (est.)') ?></th>
+            <th class="num col-frais"><?= te('Total frais') ?></th>
+            <th class="num col-seuil"><?= te('Seuil équilibre') ?></th>
           </tr></thead>
           <tbody>
             <?php foreach ($holdings as $i => $h):
@@ -383,7 +384,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
         </table>
       </div>
       <?php else: ?>
-        <div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>Aucune position ouverte.</div>
+        <div class="alert alert-info"><i class="fas fa-info-circle me-2"></i><?= te('Aucune position ouverte.') ?></div>
       <?php endif; ?>
 
       <!-- Charts -->
@@ -392,13 +393,13 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
         <div class="charts-track" id="allocationTrack">
           <div class="charts-grid charts-page" id="allocationValues">
             <div class="chart-card">
-              <h5><i class="fas fa-circle-dot me-2 t-cyan"></i>Répartition valeur actuelle</h5>
+              <h5><i class="fas fa-circle-dot me-2 t-cyan"></i><?= te('Répartition valeur actuelle') ?></h5>
               <div class="chart-canvas"><canvas id="chartCurrent"></canvas></div>
             </div>
             <div class="chart-card">
               <div class="chart-heading">
-                <h5><i class="fas fa-circle-dot me-2 t-violet"></i>Répartition valeur d'achat</h5>
-                <button class="chart-switch chart-switch--next" type="button" id="showSectors" aria-label="Afficher la répartition par secteurs" title="Voir les secteurs"><i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                <h5><i class="fas fa-circle-dot me-2 t-violet"></i><?= te('Répartition valeur d\'achat') ?></h5>
+                <button class="chart-switch chart-switch--next" type="button" id="showSectors" aria-label="<?= te('Afficher la répartition par secteurs') ?>" title="<?= te('Voir les secteurs') ?>"><i class="fas fa-arrow-right" aria-hidden="true"></i></button>
               </div>
               <div class="chart-canvas"><canvas id="chartBuy"></canvas></div>
             </div>
@@ -406,26 +407,26 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
           <div class="charts-grid charts-page" id="allocationSectors" aria-hidden="true" inert>
             <div class="chart-card">
               <div class="chart-heading">
-                <button class="chart-switch chart-switch--previous" type="button" id="showValues" aria-label="Afficher la répartition par société" title="Voir les sociétés"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
-                <h5><i class="fas fa-circle-dot me-2 t-cyan"></i>Répartition par secteur</h5>
+                <button class="chart-switch chart-switch--previous" type="button" id="showValues" aria-label="<?= te('Afficher la répartition par société') ?>" title="<?= te('Voir les sociétés') ?>"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
+                <h5><i class="fas fa-circle-dot me-2 t-cyan"></i><?= te('Répartition par secteur') ?></h5>
               </div>
-              <p class="chart-caption">Part des sociétés détenues · une société compte une fois</p>
+              <p class="chart-caption"><?= te('Part des sociétés détenues · une société compte une fois') ?></p>
               <div class="chart-canvas"><canvas id="chartSectors"></canvas></div>
-              <?php if (!$sectorChartRows): ?><p class="sector-note">Aucune société détenue à répartir.</p><?php endif; ?>
+              <?php if (!$sectorChartRows): ?><p class="sector-note"><?= te('Aucune société détenue à répartir.') ?></p><?php endif; ?>
               <?php if ($sectorAllocation['unclassified']): ?>
-                <p class="sector-note">Hors classement officiel : <?= htmlspecialchars(implode(', ', $sectorAllocation['unclassified'])) ?></p>
+                <p class="sector-note"><?= te('Hors classement officiel :') ?> <?= htmlspecialchars(implode(', ', $sectorAllocation['unclassified'])) ?></p>
               <?php endif; ?>
 
             </div>
             <div class="chart-card">
-              <h5><i class="fas fa-bars me-2 t-violet"></i>Couverture des secteurs</h5>
-              <p class="chart-caption">Sociétés détenues / sociétés cotées · Bourse de Casablanca, <?= MARKET_SECTOR_DATE ?></p>
+              <h5><i class="fas fa-bars me-2 t-violet"></i><?= te('Couverture des secteurs') ?></h5>
+              <p class="chart-caption"><?= te('Sociétés détenues / sociétés cotées · Bourse de Casablanca,') ?> <?= MARKET_SECTOR_DATE ?></p>
               <div class="sector-list" role="list">
                 <?php foreach ($sectorRows as $row):
                   $fill = $row['market'] > 0 ? min(100, $row['held'] / $row['market'] * 100) : 0;
                 ?>
-                  <a class="sector-item" role="listitem" data-sector="<?= htmlspecialchars($row['code']) ?>" href="infoAction.php?sector=<?= urlencode($row['code']) ?>#companyDirectory" aria-label="Voir les sociétés du secteur <?= htmlspecialchars($row['label']) ?>">
-                    <div class="sector-item__heading"><span><?= htmlspecialchars($row['label']) ?></span><strong><?= $row['held'] ?>/<?= $row['market'] ?></strong></div>
+                  <a class="sector-item" role="listitem" data-sector="<?= htmlspecialchars($row['code']) ?>" href="infoAction.php?sector=<?= urlencode($row['code']) ?>#companyDirectory" aria-label="Voir les sociétés du secteur <?= te($row['label']) ?>">
+                    <div class="sector-item__heading"><span><?= te($row['label']) ?></span><strong><?= $row['held'] ?>/<?= $row['market'] ?></strong></div>
                     <div class="sector-item__track"><span style="width:<?= number_format($fill, 2, '.', '') ?>%"></span></div>
                   </a>
                 <?php endforeach; ?>
@@ -440,22 +441,22 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
       <?php if ($divLines): ?>
       <div class="div-panel mb-4">
         <div class="div-panel-head">
-          <h5><i class="fas fa-coins me-2 t-emerald"></i>Revenus de dividendes <?= $divYear ?></h5>
+          <h5><i class="fas fa-coins me-2 t-emerald"></i><?= te('Revenus de dividendes') ?> <?= $divYear ?></h5>
           <div class="div-panel-totals">
             <div class="div-total">
               <span class="div-total-val"><?= number_format($divTotalYear, 2, ',', ' ') ?></span>
-              <span class="div-total-lbl">MAD sur l'année</span>
+              <span class="div-total-lbl"><?= te('MAD sur l\'année') ?></span>
             </div>
             <?php if ($divTotalUpcoming > 0): ?>
             <div class="div-total">
               <span class="div-total-val t-cyan"><?= number_format($divTotalUpcoming, 2, ',', ' ') ?></span>
-              <span class="div-total-lbl">MAD à venir</span>
+              <span class="div-total-lbl"><?= te('MAD à venir') ?></span>
             </div>
             <?php endif; ?>
             <?php if ($divYieldOnCost !== null): ?>
             <div class="div-total">
               <span class="div-total-val t-emerald"><?= number_format($divYieldOnCost, 2, ',', ' ') ?>&nbsp;%</span>
-              <span class="div-total-lbl">rendement / prix d'achat</span>
+              <span class="div-total-lbl"><?= te('rendement / prix d\'achat') ?></span>
             </div>
             <?php endif; ?>
           </div>
@@ -464,13 +465,13 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
         <div class="card-glass overflow-x-auto">
           <table class="tbl">
             <thead><tr>
-              <th>Société</th>
-              <th class="num">Actions</th>
-              <th class="num">MAD/action</th>
-              <th class="num">Rendement</th>
-              <th>Détachement</th>
-              <th>Paiement</th>
-              <th class="num">Montant brut</th>
+              <th><?= te('Société') ?></th>
+              <th class="num"><?= te('Actions') ?></th>
+              <th class="num"><?= te('MAD/action') ?></th>
+              <th class="num"><?= te('Rendement') ?></th>
+              <th><?= te('Détachement') ?></th>
+              <th><?= te('Paiement') ?></th>
+              <th class="num"><?= te('Montant brut') ?></th>
             </tr></thead>
             <tbody>
             <?php foreach ($divLines as $l): $r = $l['row']; ?>
@@ -479,10 +480,10 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
                   <a href="infoAction.php?name=<?= urlencode($l['name']) ?>" class="t-cyan">
                     <?= htmlspecialchars($l['name']) ?></a>
                   <?php if (!div_confirmed($r)): ?>
-                    <span class="div-badge estimated">prévu</span>
+                    <span class="div-badge estimated"><?= te('prévu') ?></span>
                   <?php endif; ?>
                   <?php if (strcasecmp((string)($r['frequency'] ?? ''), 'Trimestriel') === 0): ?>
-                    <span class="div-badge quarterly">trim.</span>
+                    <span class="div-badge quarterly"><?= te('trim.') ?></span>
                   <?php endif; ?>
                 </td>
                 <td class="num mono"><?= number_format($l['qty'], 0, ',', ' ') ?></td>
@@ -499,9 +500,8 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
 
         <p class="fund-source mt-2">
           <i class="fas fa-info-circle me-1"></i>
-          <?= $divPaying ?> de vos <?= count($divQty) ?> positions versent un dividende cette année.
-          <span class="muted">Montants bruts, avant retenue à la source · les lignes « prévu »
-          n'ont pas encore été votées en assemblée générale</span>
+          <?= $divPaying ?> <?= te('de vos') ?> <?= count($divQty) ?> <?= te('positions versent un dividende cette année.') ?>
+          <span class="muted"><?= te('Montants bruts, avant retenue à la source · les lignes « prévu » n\'ont pas encore été votées en assemblée générale') ?></span>
         </p>
       </div>
       <?php endif; ?>
@@ -515,52 +515,52 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
 
         <!-- Buy form -->
         <div class="form-card">
-          <h4 class="t-cyan"><i class="fas fa-plus-circle"></i> Ajouter un achat</h4>
+          <h4 class="t-cyan"><i class="fas fa-plus-circle"></i> <?= te('Ajouter un achat') ?></h4>
           <form method="POST" action="" data-loading>
             <?= csrf_field() ?>
             <datalist id="companyListBuy">
               <?php foreach ($allCompanies as $n): ?><option value="<?= htmlspecialchars($n) ?>"><?php endforeach; ?>
             </datalist>
             <div class="mb-3">
-              <label class="form-label small muted">Société</label>
+              <label class="form-label small muted"><?= te('Société') ?></label>
               <input type="text" name="NAME" list="companyListBuy" class="form-control" required>
             </div>
             <div class="mb-3">
-              <label class="form-label small muted">Nombre d'actions</label>
+              <label class="form-label small muted"><?= te('Nombre d\'actions') ?></label>
               <input type="number" name="NUMBER" class="form-control" step="1" min="1" required>
             </div>
             <div class="mb-4">
-              <label class="form-label small muted">Prix d'achat (MAD)</label>
+              <label class="form-label small muted"><?= te('Prix d\'achat (MAD)') ?></label>
               <input type="number" name="PRIX_ACHAT" class="form-control" step="0.01" min="0.01" required>
             </div>
             <button type="submit" name="add_buy" class="btn btn-cyan w-100" data-loading-text="Enregistrement...">
-              <i class="fas fa-plus"></i> Ajouter l'achat
+              <i class="fas fa-plus"></i> <?= te('Ajouter l\'achat') ?>
             </button>
           </form>
         </div>
 
         <!-- Sell form -->
         <div class="form-card">
-          <h4 class="t-rose"><i class="fas fa-minus-circle"></i> Enregistrer une vente</h4>
+          <h4 class="t-rose"><i class="fas fa-minus-circle"></i> <?= te('Enregistrer une vente') ?></h4>
           <form method="POST" action="" data-loading>
             <?= csrf_field() ?>
             <datalist id="companyListSell">
               <?php foreach ($allCompanies as $n): ?><option value="<?= htmlspecialchars($n) ?>"><?php endforeach; ?>
             </datalist>
             <div class="mb-3">
-              <label class="form-label small muted">Société</label>
+              <label class="form-label small muted"><?= te('Société') ?></label>
               <input type="text" name="NAME2" list="companyListSell" class="form-control" required>
             </div>
             <div class="mb-3">
-              <label class="form-label small muted">Nombre d'actions à vendre</label>
+              <label class="form-label small muted"><?= te('Nombre d\'actions à vendre') ?></label>
               <input type="number" name="NUMBER2" class="form-control" step="1" min="1" required>
             </div>
             <div class="mb-4">
-              <label class="form-label small muted">Prix de vente (MAD)</label>
+              <label class="form-label small muted"><?= te('Prix de vente (MAD)') ?></label>
               <input type="number" name="PRIX_VENTE" class="form-control" step="0.01" min="0.01" required>
             </div>
             <button type="submit" name="add_sell" class="btn btn-rose w-100" data-loading-text="Enregistrement...">
-              <i class="fas fa-minus"></i> Enregistrer la vente
+              <i class="fas fa-minus"></i> <?= te('Enregistrer la vente') ?>
             </button>
           </form>
         </div>
@@ -575,7 +575,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
       <?php if (!empty($earnings)): ?>
       <div class="chart-card mb-4">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-          <h5 style="margin:0"><i class="fas fa-chart-line me-2 t-emerald"></i>Évolution P&L</h5>
+          <h5 style="margin:0"><i class="fas fa-chart-line me-2 t-emerald"></i><?= te('Évolution P&L') ?></h5>
           <span id="pnlHoverVal" style="font-family:var(--font-mono);font-size:0.88rem;font-weight:700;color:var(--cyan)"></span>
         </div>
         <div style="position:relative;height:200px"><canvas id="chartPnl"></canvas></div>
@@ -594,7 +594,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
-<script src="assets/js/app.js"></script>
+<script src="assets/js/app.js?v=2"></script>
 <script>
 /* ── Tab switching ─────────────────────────────────────── */
 function switchTab(name) {
@@ -662,9 +662,9 @@ function makeDoughnut(id, labels, data) {
         },
         tooltip: id === 'chartSectors' ? {
           callbacks: {
-            label: (ctx) => `${ctx.raw} société${ctx.raw > 1 ? 's' : ''}`,
+            label: (ctx) => window.I18n.t('Nombre de sociétés : {count}', {count: ctx.raw}),
             afterLabel: (ctx) => (sectorHoldingDetails[sectorChartCodes[ctx.dataIndex]] || []).map(h =>
-              `${h.name} — ${h.has_price ? new Intl.NumberFormat('fr-MA', { maximumFractionDigits: 2 }).format(h.value) + ' MAD' : 'cours indisponible'}`
+              `${h.name} — ${h.has_price ? new Intl.NumberFormat('fr-MA', { maximumFractionDigits: 2 }).format(h.value) + ' MAD' : window.I18n.t('cours indisponible')}`
             )
           }
         } : {},
@@ -692,17 +692,25 @@ makeDoughnut('chartBuy',     <?= json_encode($chartNames) ?>, <?= json_encode($c
 const sectorChartCodes = <?= json_encode(array_column($sectorChartRows, 'code')) ?>;
 const sectorHoldingDetails = <?= json_encode($sectorAllocation['held_companies'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 const sectorDirectory = <?= json_encode($sectorDirectory, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
-makeDoughnut('chartSectors', <?= json_encode(array_column($sectorChartRows, 'label'), JSON_UNESCAPED_UNICODE) ?>, <?= json_encode(array_column($sectorChartRows, 'held')) ?>);
+makeDoughnut('chartSectors', <?= json_encode(array_map('t', array_column($sectorChartRows, 'label')), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>, <?= json_encode(array_column($sectorChartRows, 'held')) ?>);
 
 const allocationTrack = document.getElementById('allocationTrack');
 const allocationValues = document.getElementById('allocationValues');
 const allocationSectors = document.getElementById('allocationSectors');
+function fitAllocationPanel() {
+  const active = allocationTrack.classList.contains('show-sectors') ? allocationSectors : allocationValues;
+  if(active.offsetHeight > 0) allocationTrack.parentElement.style.height = active.offsetHeight + 'px';
+}
+const allocationSizeObserver = new ResizeObserver(fitAllocationPanel);
+allocationSizeObserver.observe(allocationValues);
+allocationSizeObserver.observe(allocationSectors);
 function showAllocationSectors(show) {
   allocationTrack.classList.toggle('show-sectors', show);
   allocationValues.setAttribute('aria-hidden', String(show));
   allocationSectors.setAttribute('aria-hidden', String(!show));
   allocationValues.inert = show;
   allocationSectors.inert = !show;
+  fitAllocationPanel();
 }
 document.getElementById('showSectors').addEventListener('click', () => showAllocationSectors(true));
 document.getElementById('showValues').addEventListener('click', () => showAllocationSectors(false));
@@ -725,14 +733,14 @@ function showSectorHover(item, x, y) {
   const held = (sectorHoldingDetails[code] || []).map(h => h.name);
   sectorHover.replaceChildren();
   for (const [heading, names] of [
-    [`Sociétés du secteur (${all.length})`, all],
-    [`En portefeuille (${held.length})`, held]
+    [window.I18n.t('Sociétés du secteur ({count})', {count: all.length}), all],
+    [window.I18n.t('En portefeuille ({count})', {count: held.length}), held]
   ]) {
     const title = document.createElement('strong');
     title.textContent = heading;
     sectorHover.appendChild(title);
     const list = document.createElement('div');
-    list.textContent = names.length ? names.join(' · ') : 'Aucune';
+    list.textContent = names.length ? names.join(' · ') : window.I18n.t('Aucune');
     sectorHover.appendChild(list);
   }
   sectorHover.hidden = false;

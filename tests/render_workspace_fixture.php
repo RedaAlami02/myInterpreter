@@ -15,6 +15,8 @@ $config = preg_replace("/^define\\('ADMIN_USER_ID'.*$/m", "define('ADMIN_USER_ID
 eval('?>' . $config);
 function aw_user_id() { return 'fixture-user'; }
 require 'core/auth.php';
+$_GET['lang'] = $argv[2] ?? 'fr';
+require 'core/i18n.php';
 require 'core/sector_allocation.php';
 
 $names = ['Atlas Industrie', 'Rive Banque', 'Noria Énergie', 'Orbe Services', 'Cap Finance', 'Ligne Télécom'];

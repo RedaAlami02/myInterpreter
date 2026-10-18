@@ -4,6 +4,7 @@ require_once 'core/Appwrite.php';
 require_once 'core/auth.php';
 require_once 'core/Action.php';
 session_start();
+require_once __DIR__ . '/core/i18n.php';
 require_once 'handlers/storing.php';
 requireAdmin();
 
@@ -50,13 +51,13 @@ $icons = ['PER' => 'fa-chart-pie', 'PEG' => 'fa-balance-scale', 'PR' => 'fa-coin
 $labels = ['PER' => 'P.E.R', 'PEG' => 'PEG', 'PR' => 'P/R', 'PB' => 'P/B'];
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="<?= ui_locale() ?>" dir="<?= ui_direction() ?>">
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="<?= csrf_token() ?>">
-  <title>Analyse — <?= htmlspecialchars($company->NAME) ?></title>
+  <title><?= te('Analyse —') ?> <?= htmlspecialchars($company->NAME) ?></title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=5" rel="stylesheet">
@@ -72,7 +73,7 @@ $labels = ['PER' => 'P.E.R', 'PEG' => 'PEG', 'PR' => 'P/R', 'PB' => 'P/B'];
   <div class="results-wrap animate-up">
 
     <?php if ($manualSaved || $autoSaved): ?>
-      <div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Rapport sauvegardé dans l'historique !</div>
+      <div class="alert alert-success"><i class="fas fa-check-circle me-2"></i><?= te('Rapport sauvegardé dans l\'historique !') ?></div>
     <?php elseif ($saveError): ?>
       <div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i><?= htmlspecialchars($saveError) ?></div>
     <?php endif; ?>
@@ -80,8 +81,8 @@ $labels = ['PER' => 'P.E.R', 'PEG' => 'PEG', 'PR' => 'P/R', 'PB' => 'P/B'];
     <!-- Company headline -->
     <div class="company-headline">
       <h2><?= htmlspecialchars($company->NAME) ?></h2>
-      <p>Analyse des indicateurs de performance · PA <strong class="t-cyan mono"><?= number_format($company->PA, 2) ?></strong>
-        · CB <strong class="t-violet mono"><?= number_format($company->CB, 0, ',', ' ') ?></strong></p>
+      <p><?= te('Analyse des indicateurs de performance · PA') ?> <strong class="t-cyan mono"><?= number_format($company->PA, 2) ?></strong>
+        <?= te('· CB') ?> <strong class="t-violet mono"><?= number_format($company->CB, 0, ',', ' ') ?></strong></p>
     </div>
 
     <!-- Ratio cards -->
@@ -110,29 +111,29 @@ $labels = ['PER' => 'P.E.R', 'PEG' => 'PEG', 'PR' => 'P/R', 'PB' => 'P/B'];
     <div class="card-glass">
       <div class="save-card">
         <div class="save-card__info">
-          <h4><i class="fas fa-database me-2 t-cyan"></i>Validation Finale</h4>
-          <p>Souhaitez-vous enregistrer ce snapshot dans l'historique ? Les ratios calculés seront liés à la date d'aujourd'hui.</p>
+          <h4><i class="fas fa-database me-2 t-cyan"></i><?= te('Validation Finale') ?></h4>
+          <p><?= te('Souhaitez-vous enregistrer ce snapshot dans l\'historique ? Les ratios calculés seront liés à la date d\'aujourd\'hui.') ?></p>
         </div>
         <div class="save-card__actions">
           <form method="POST" action="" data-loading>
             <?= csrf_field() ?>
             <button type="submit" name="confirm_save" class="btn btn-cyan btn-lg w-100" data-loading-text="Sauvegarde...">
-              <i class="fas fa-save"></i> Enregistrer
+              <i class="fas fa-save"></i> <?= te('Enregistrer') ?>
             </button>
           </form>
           <a href="Update.php" class="btn btn-ghost w-100">
-            <i class="fas fa-edit"></i> Modifier
+            <i class="fas fa-edit"></i> <?= te('Modifier') ?>
           </a>
           <a href="infoAction.php?name=<?= urlencode($company->NAME) ?>" class="btn btn-ghost w-100">
-            <i class="fas fa-history"></i> Historique
+            <i class="fas fa-history"></i> <?= te('Historique') ?>
           </a>
         </div>
       </div>
     </div>
     <?php else: ?>
     <div style="text-align:center;margin-top:2rem">
-      <a href="infoAction.php?name=<?= urlencode($company->NAME) ?>" class="btn btn-cyan"><i class="fas fa-history me-2"></i>Voir l'historique</a>
-      <a href="Update.php" class="btn btn-ghost ms-2"><i class="fas fa-plus me-2"></i>Nouvelle analyse</a>
+      <a href="infoAction.php?name=<?= urlencode($company->NAME) ?>" class="btn btn-cyan"><i class="fas fa-history me-2"></i><?= te('Voir l\'historique') ?></a>
+      <a href="Update.php" class="btn btn-ghost ms-2"><i class="fas fa-plus me-2"></i><?= te('Nouvelle analyse') ?></a>
     </div>
     <?php endif; ?>
 
@@ -141,6 +142,6 @@ $labels = ['PER' => 'P.E.R', 'PEG' => 'PEG', 'PR' => 'P/R', 'PB' => 'P/B'];
 </div>
 
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
-<script src="assets/js/app.js"></script>
+<script src="assets/js/app.js?v=2"></script>
 </body>
 </html>

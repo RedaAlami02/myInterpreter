@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/core/i18n.php';
 require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/Action.php';
@@ -220,12 +221,12 @@ if ($awSession && !empty($name ?? '')) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="<?= ui_locale() ?>" dir="<?= ui_direction() ?>">
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>myInterpreter | Consulter Action</title>
+  <title><?= te('myInterpreter | Consulter Action') ?></title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=5" rel="stylesheet">
@@ -242,68 +243,68 @@ if ($awSession && !empty($name ?? '')) {
 
     <?php if ($dbError): ?>
       <div class="alert alert-danger">
-        <strong><i class="fas fa-bug me-2"></i>Erreur PHP/DB :</strong>
+        <strong><i class="fas fa-bug me-2"></i><?= te('Erreur PHP/DB :') ?></strong>
         <pre style="margin-top:8px;font-size:0.8rem;white-space:pre-wrap"><?= htmlspecialchars($dbError) ?></pre>
         <p class="mb-0 mt-2" style="font-size:0.82rem">
-          Vérifiez que <code>stock.sql</code> a bien été importé et que les identifiants DB dans
-          <code>config/config.php</code> sont corrects.
+          <?= te('Vérifiez que') ?> <code>stock.sql</code> <?= te('a bien été importé et que les identifiants DB dans') ?>
+          <code>config/config.php</code> <?= te('sont corrects.') ?>
         </p>
       </div>
     <?php else: ?>
 
     <div class="search-hero">
-      <h1><i class="fas fa-building t-emerald me-2"></i>Sociétés cotées</h1>
-      <p>Parcourez les sociétés par secteur, ou recherchez une fiche et son historique.</p>
+      <h1><i class="fas fa-building t-emerald me-2"></i><?= te('Sociétés cotées') ?></h1>
+      <p><?= te('Parcourez les sociétés par secteur, ou recherchez une fiche et son historique.') ?></p>
     </div>
 
     <?php if (!$searched): ?>
-      <section class="directory-filters" id="companyDirectory" aria-label="Filtres des sociétés">
+      <section class="directory-filters" id="companyDirectory" aria-label="<?= te('Filtres des sociétés') ?>">
         <div class="directory-filters__head">
-          <div><span class="directory-filters__eyebrow">EXPLORER LE MARCHÉ</span><h2>Affiner les sociétés</h2></div>
-          <span class="directory-count" id="directoryCount"><?= $directoryCount ?> société<?= $directoryCount > 1 ? 's' : '' ?></span>
+          <div><span class="directory-filters__eyebrow"><?= te('EXPLORER LE MARCHÉ') ?></span><h2><?= te('Affiner les sociétés') ?></h2></div>
+          <span class="directory-count" id="directoryCount"><?= te('Nombre de sociétés : {count}', ['count' => $directoryCount]) ?></span>
         </div>
         <div class="directory-filters__grid">
           <div class="filter-field sector-picker" id="sectorPicker">
-            <label id="sectorPickerLabel">Secteur</label>
+            <label id="sectorPickerLabel"><?= te('Secteur') ?></label>
             <button class="sector-picker__trigger" id="sectorTrigger" type="button" aria-expanded="false" aria-controls="sectorMenu" aria-labelledby="sectorPickerLabel sectorTriggerText">
-              <span id="sectorTriggerText"><?= $selectedSector === '' ? 'Tous les secteurs' : htmlspecialchars($selectedSector === 'OTHER' ? 'Hors classement officiel' : MARKET_SECTORS[$selectedSector]) ?></span>
+              <span id="sectorTriggerText"><?= te($selectedSector === '' ? 'Tous les secteurs' : ($selectedSector === 'OTHER' ? 'Hors classement officiel' : MARKET_SECTORS[$selectedSector])) ?></span>
               <i class="fas fa-chevron-down" aria-hidden="true"></i>
             </button>
             <div class="sector-picker__menu" id="sectorMenu" hidden>
-              <div class="sector-picker__search"><i class="fas fa-search" aria-hidden="true"></i><input type="search" id="sectorSearch" placeholder="Chercher un secteur" aria-label="Chercher un secteur"></div>
+              <div class="sector-picker__search"><i class="fas fa-search" aria-hidden="true"></i><input type="search" id="sectorSearch" placeholder="<?= te('Chercher un secteur') ?>" aria-label="<?= te('Chercher un secteur') ?>"></div>
               <div class="sector-picker__options">
-                <button type="button" class="sector-option" data-code="" data-label="Tous les secteurs" aria-pressed="<?= $selectedSector === '' ? 'true' : 'false' ?>"><span>Tous les secteurs</span><em><?= count($allCompanies) ?></em></button>
+                <button type="button" class="sector-option" data-code="" data-label="<?= te('Tous les secteurs') ?>" aria-pressed="<?= $selectedSector === '' ? 'true' : 'false' ?>"><span><?= te('Tous les secteurs') ?></span><em><?= count($allCompanies) ?></em></button>
                 <?php foreach (MARKET_SECTORS as $code => $label):
                   if (empty($directoryBySector[$code])) continue;
                 ?>
-                  <button type="button" class="sector-option" data-code="<?= htmlspecialchars($code) ?>" data-label="<?= htmlspecialchars($label) ?>" aria-pressed="<?= $selectedSector === $code ? 'true' : 'false' ?>"><span><?= htmlspecialchars($label) ?></span><em><?= count($directoryBySector[$code]) ?></em></button>
+                  <button type="button" class="sector-option" data-code="<?= htmlspecialchars($code) ?>" data-label="<?= te($label) ?>" aria-pressed="<?= $selectedSector === $code ? 'true' : 'false' ?>"><span><?= te($label) ?></span><em><?= count($directoryBySector[$code]) ?></em></button>
                 <?php endforeach; ?>
                 <?php if ($directoryBySector['OTHER']): ?>
-                  <button type="button" class="sector-option" data-code="OTHER" data-label="Hors classement officiel" aria-pressed="<?= $selectedSector === 'OTHER' ? 'true' : 'false' ?>"><span>Hors classement officiel</span><em><?= count($directoryBySector['OTHER']) ?></em></button>
+                  <button type="button" class="sector-option" data-code="OTHER" data-label="<?= te('Hors classement officiel') ?>" aria-pressed="<?= $selectedSector === 'OTHER' ? 'true' : 'false' ?>"><span><?= te('Hors classement officiel') ?></span><em><?= count($directoryBySector['OTHER']) ?></em></button>
                 <?php endif; ?>
               </div>
-              <p class="sector-picker__empty" id="sectorSearchEmpty" hidden>Aucun secteur trouvé.</p>
+              <p class="sector-picker__empty" id="sectorSearchEmpty" hidden><?= te('Aucun secteur trouvé.') ?></p>
             </div>
           </div>
           <div class="filter-field price-filter" id="priceFilter" data-ceiling="<?= $directoryPriceCeiling ?>">
-            <label for="priceMin">Cours actuel <span>(MAD par action)</span></label>
+            <label for="priceMin"><?= te('Cours actuel') ?> <span><?= te('(MAD par action)') ?></span></label>
             <?php if ($directoryPrices): ?>
               <div class="price-filter__slider">
                 <div class="price-filter__rail"><div class="price-filter__selection" id="priceSelection"></div></div>
-                <input type="range" id="priceMinSlider" min="0" max="1000" value="0" aria-label="Cours minimum">
-                <input type="range" id="priceMaxSlider" min="0" max="1000" value="1000" aria-label="Cours maximum">
+                <input type="range" id="priceMinSlider" min="0" max="1000" value="0" aria-label="<?= te('Cours minimum') ?>">
+                <input type="range" id="priceMaxSlider" min="0" max="1000" value="1000" aria-label="<?= te('Cours maximum') ?>">
               </div>
               <div class="price-filter__inputs">
-                <label>Min. <input type="number" id="priceMin" min="0" max="<?= $directoryPriceCeiling ?>" step="0.01" value="0"></label>
+                <label><?= te('Min.') ?> <input type="number" id="priceMin" min="0" max="<?= $directoryPriceCeiling ?>" step="0.01" value="0"></label>
                 <span aria-hidden="true">→</span>
-                <label>Max. <input type="number" id="priceMax" min="0" max="<?= $directoryPriceCeiling ?>" step="0.01" value="<?= $directoryPriceCeiling ?>"></label>
+                <label><?= te('Max.') ?> <input type="number" id="priceMax" min="0" max="<?= $directoryPriceCeiling ?>" step="0.01" value="<?= $directoryPriceCeiling ?>"></label>
               </div>
-              <p class="price-filter__hint">Glissez les bornes ou saisissez un cours exact.</p>
+              <p class="price-filter__hint"><?= te('Glissez les bornes ou saisissez un cours exact.') ?></p>
             <?php else: ?>
-              <p class="price-filter__hint">Cours indisponibles pour le moment.</p>
+              <p class="price-filter__hint"><?= te('Cours indisponibles pour le moment.') ?></p>
             <?php endif; ?>
           </div>
-          <button class="filter-reset" id="resetDirectoryFilters" type="button"><i class="fas fa-rotate-left" aria-hidden="true"></i> Réinitialiser</button>
+          <button class="filter-reset" id="resetDirectoryFilters" type="button"><i class="fas fa-rotate-left" aria-hidden="true"></i> <?= te('Réinitialiser') ?></button>
         </div>
       </section>
     <?php endif; ?>
@@ -314,7 +315,7 @@ if ($awSession && !empty($name ?? '')) {
           <input type="search" name="NAME" id="nameInput" list="companyList"
                  class="form-control" placeholder=" " required autocomplete="off"
                  value="<?= htmlspecialchars($_POST['NAME'] ?? '') ?>">
-          <label for="nameInput"><i class="fas fa-search me-2"></i>Filtrer la liste ou ouvrir une fiche</label>
+          <label for="nameInput"><i class="fas fa-search me-2"></i><?= te('Filtrer la liste ou ouvrir une fiche') ?></label>
           <datalist id="companyList">
             <?php
               // Label = readable name + ticker, always in that order so the
@@ -334,7 +335,7 @@ if ($awSession && !empty($name ?? '')) {
         </div>
         <button type="submit" class="btn btn-emerald" style="height:58px;padding:0 28px"
                 data-loading-text="Recherche...">
-          <i class="fas fa-search"></i> Afficher
+          <i class="fas fa-search"></i> <?= te('Afficher') ?>
         </button>
       </div>
     </form>
@@ -356,13 +357,13 @@ if ($awSession && !empty($name ?? '')) {
              data-sector="<?= htmlspecialchars($sectorCode ?? 'OTHER') ?>"
              data-price="<?= $currentPrice !== null ? htmlspecialchars((string)$currentPrice) : '' ?>">
             <span class="directory-card__top"><strong><?= htmlspecialchars($companyLabel) ?></strong><?php if ($ticker): ?><span class="mono"><?= htmlspecialchars($ticker) ?></span><?php endif; ?></span>
-            <span class="directory-card__bottom"><span class="directory-card__sector"><?= htmlspecialchars($sectorLabel) ?></span><span class="directory-card__price"><?= $currentPrice !== null ? number_format($currentPrice, 2, ',', ' ') . ' MAD' : 'Cours indisponible' ?></span></span>
+            <span class="directory-card__bottom"><span class="directory-card__sector"><?= te($sectorLabel) ?></span><span class="directory-card__price"><?= $currentPrice !== null ? number_format($currentPrice, 2, ',', ' ') . ' MAD' : t('Cours indisponible') ?></span></span>
           </a>
         <?php endforeach; ?>
       </div>
-      <p class="directory-empty" id="directoryEmpty" <?= $directoryCount > 0 ? 'hidden' : '' ?>>Aucune société ne correspond à ce filtre.</p>
+      <p class="directory-empty" id="directoryEmpty" <?= $directoryCount > 0 ? 'hidden' : '' ?>><?= te('Aucune société ne correspond à ce filtre.') ?></p>
     <?php else: ?>
-      <a class="directory-back" href="infoAction.php<?= $directoryFilterParams ? '?' . htmlspecialchars(http_build_query($directoryFilterParams)) : '' ?>#companyDirectory"><i class="fas fa-arrow-left me-1"></i>Retour à la liste<?= $selectedSector !== '' ? ' du secteur' : '' ?></a>
+      <a class="directory-back" href="infoAction.php<?= $directoryFilterParams ? '?' . htmlspecialchars(http_build_query($directoryFilterParams)) : '' ?>#companyDirectory"><i class="fas fa-arrow-left me-1"></i><?= te('Retour à la liste') ?><?= $selectedSector !== '' ? ' ' . te('du secteur') : '' ?></a>
     <?php endif; ?>
 
     <?php if ($searched): ?>
@@ -370,9 +371,7 @@ if ($awSession && !empty($name ?? '')) {
         <div class="alert alert-<?= $suggestions ? 'warning' : 'danger' ?>">
           <i class="fas fa-<?= $suggestions ? 'question-circle' : 'times-circle' ?> me-2"></i>
           <?php if ($suggestions): ?>
-            Aucune correspondance exacte pour
-            « <strong><?= htmlspecialchars($typed) ?></strong> ».
-            Vouliez-vous dire :
+            <?= te('Aucune correspondance exacte pour «') ?> <strong><?= htmlspecialchars($typed) ?></strong> <?= te('». Vouliez-vous dire :') ?>
             <div class="suggestion-list">
               <?php foreach ($suggestions as $s): ?>
                 <a class="suggestion-chip" href="infoAction.php?name=<?= urlencode($s) ?>">
@@ -384,9 +383,7 @@ if ($awSession && !empty($name ?? '')) {
               <?php endforeach; ?>
             </div>
           <?php else: ?>
-            Entreprise introuvable pour
-            « <strong><?= htmlspecialchars($typed) ?></strong> ».
-            Essayez le nom complet ou le symbole boursier (ex.&nbsp;<span class="mono">ATW</span>).
+            <?= te('Entreprise introuvable pour «') ?> <strong><?= htmlspecialchars($typed) ?></strong> <?= te('». Essayez le nom complet ou le symbole boursier (ex.&nbsp;') ?><span class="mono">ATW</span>).
           <?php endif; ?>
         </div>
       <?php else: ?>
@@ -412,18 +409,18 @@ if ($awSession && !empty($name ?? '')) {
                           // Shown once rather than repeated on each metric. ?>
                     <span class="fy-badge"
                           data-tooltip="Tous les chiffres financiers ci-dessous proviennent de l'exercice <?= (int)$company['fiscal_year'] ?>. Les ratios (PER, PEG, P/R, P/B) combinent ces comptes avec le cours actuel.">
-                      Exercice <?= (int)$company['fiscal_year'] ?>
+                      <?= te('Exercice') ?> <?= (int)$company['fiscal_year'] ?>
                     </span>
                   <?php endif; ?>
                 </h4>
                 <?php if (!empty($company['description'])): ?>
                   <?php $desc = $company['description']; $descShort = mb_substr($desc, 0, 280); $hasMore = mb_strlen($desc) > 280; ?>
-                  <p class="company-desc" id="companyDescText">
+                  <p class="company-desc" id="companyDescText" lang="fr" dir="auto">
                     <span class="desc-short"><?= htmlspecialchars($descShort) ?><?= $hasMore ? '…' : '' ?></span>
                     <?php if ($hasMore): ?>
                       <span class="desc-full" hidden><?= htmlspecialchars($desc) ?></span>
                       <button class="desc-more-btn" onclick="toggleDesc(this)" aria-expanded="false">
-                        <span class="desc-more-label">Lire la suite</span>
+                        <span class="desc-more-label"><?= te('Lire la suite') ?></span>
                         <i class="fas fa-chevron-down desc-more-icon"></i>
                       </button>
                     <?php endif; ?>
@@ -436,8 +433,8 @@ if ($awSession && !empty($name ?? '')) {
             <?php if (!empty($company['fiscal_year'])): ?>
               <p class="fund-source">
                 <i class="fas fa-calendar-alt me-1"></i>
-                Chiffres financiers : <strong>exercice <?= (int)$company['fiscal_year'] ?></strong>
-                <span class="muted">· les ratios combinent ces comptes avec le cours du jour</span>
+                <?= te('Chiffres financiers :') ?> <strong><?= te('exercice') ?> <?= (int)$company['fiscal_year'] ?></strong>
+                <span class="muted"><?= te('· les ratios combinent ces comptes avec le cours du jour') ?></span>
               </p>
             <?php endif; ?>
 
@@ -445,11 +442,9 @@ if ($awSession && !empty($name ?? '')) {
               <div class="fy-stale">
                 <i class="fas fa-triangle-exclamation me-2"></i>
                 <div>
-                  <strong>Comptes vieux de <?= (int)date('Y') - (int)$company['fiscal_year'] ?> ans.</strong>
-                  Cette société est toujours cotée, mais n'a rien publié depuis
-                  l'exercice <?= (int)$company['fiscal_year'] ?>.
-                  <span class="muted">Les ratios ci-dessous rapprochent le cours d'aujourd'hui
-                  de comptes périmés — traitez-les comme indicatifs, pas comme une valorisation.</span>
+                  <strong><?= te('Comptes vieux de') ?> <?= (int)date('Y') - (int)$company['fiscal_year'] ?> <?= te('ans.') ?></strong>
+                  <?= te('Cette société est toujours cotée, mais n\'a rien publié depuis l\'exercice') ?> <?= (int)$company['fiscal_year'] ?>.
+                  <span class="muted"><?= te('Les ratios ci-dessous rapprochent le cours d\'aujourd\'hui de comptes périmés — traitez-les comme indicatifs, pas comme une valorisation.') ?></span>
                 </div>
               </div>
             <?php endif; ?>
@@ -458,23 +453,19 @@ if ($awSession && !empty($name ?? '')) {
               <div class="per-est">
                 <div class="per-est-row">
                   <div class="per-est-cell">
-                    <span class="per-est-lbl">PER publié <?= (int)$company['fiscal_year'] ?></span>
+                    <span class="per-est-lbl"><?= te('PER publié') ?> <?= (int)$company['fiscal_year'] ?></span>
                     <span class="per-est-val"><?= $perRep !== null ? number_format($perRep, 1, ',', ' ') : '—' ?></span>
                   </div>
                   <i class="fas fa-arrow-right per-est-arrow"></i>
                   <div class="per-est-cell">
-                    <span class="per-est-lbl">PER sur prévision <?= $fyEst ?></span>
+                    <span class="per-est-lbl"><?= te('PER sur prévision') ?> <?= $fyEst ?></span>
                     <span class="per-est-val is-est"><?= number_format($perEst, 1, ',', ' ') ?></span>
                   </div>
                 </div>
                 <p class="per-est-note">
                   <i class="fas fa-info-circle me-1"></i>
-                  <?= $fyEst ?> est une <strong>prévision</strong>, pas un résultat publié
-                  (<?= number_format($rnpgEst, 0, ',', ' ') ?> MMAD de bénéfice attendu).
-                  <span class="muted">Elle n'entre dans aucun ratio du site — les colonnes PER, PEG, P/R et P/B
-                  restent calculées sur l'exercice <?= (int)$company['fiscal_year'] ?>.
-                  Affichée ici parce qu'une année publiée peut être atypique&nbsp;: un litige, une cession
-                  ou une provision exceptionnelle déforme le PER sans rien dire de l'activité.</span>
+                  <?= $fyEst ?> <?= te('est une') ?> <strong><?= te('prévision') ?></strong><?= te(', pas un résultat publié (') ?><?= number_format($rnpgEst, 0, ',', ' ') ?> <?= te('MMAD de bénéfice attendu).') ?>
+                  <span class="muted"><?= te('Elle n\'entre dans aucun ratio du site — les colonnes PER, PEG, P/R et P/B restent calculées sur l\'exercice') ?> <?= (int)$company['fiscal_year'] ?><?= te('. Affichée ici parce qu\'une année publiée peut être atypique&nbsp;: un litige, une cession ou une provision exceptionnelle déforme le PER sans rien dire de l\'activité.') ?></span>
                 </p>
               </div>
             <?php endif; ?>
@@ -496,8 +487,8 @@ if ($awSession && !empty($name ?? '')) {
                   if ($f['val'] === null) continue;
                   $v = is_numeric($f['val']) ? number_format((float)$f['val'], 2, ',', ' ') : $f['val'];
               ?>
-              <div class="fund-chip" data-tooltip="<?= htmlspecialchars($f['tip']) ?>">
-                <span class="fund-label"><?= $f['key'] ?></span>
+              <div class="fund-chip" data-tooltip="<?= te($f['tip']) ?>">
+                <span class="fund-label"><?= te($f['key']) ?></span>
                 <span class="fund-val"><?= $v ?><?= $f['unit'] ? '<span class="fund-unit"> '.$f['unit'].'</span>' : '' ?></span>
               </div>
               <?php endforeach; ?>
@@ -509,11 +500,11 @@ if ($awSession && !empty($name ?? '')) {
             <?php if (count($sparkData) > 1): ?>
             <div class="sparkline-wrap mb-4">
               <div class="spark-header">
-                <h5><i class="fas fa-chart-line me-2 t-cyan"></i>Évolution du prix (PA)</h5>
+                <h5><i class="fas fa-chart-line me-2 t-cyan"></i><?= te('Évolution du prix (PA)') ?></h5>
                 <div class="spark-hover-val" id="sparkHoverVal"></div>
                 <div class="spark-period-btns">
                   <?php foreach (['5A'=>'5A','1A'=>'1A','6M'=>'6M','3M'=>'3M','1M'=>'1M'] as $k=>$v): ?>
-                    <button class="spark-period-btn<?= $k==='1A'?' active':'' ?>" data-period="<?= $k ?>"><?= $v ?></button>
+                    <button class="spark-period-btn<?= $k==='1A'?' active':'' ?>" data-period="<?= $k ?>"><?= te($v) ?></button>
                   <?php endforeach; ?>
                 </div>
               </div>
@@ -531,20 +522,20 @@ if ($awSession && !empty($name ?? '')) {
             <!-- Financial enrichment (JS-loaded) -->
             <div id="mkt-enrichment" class="mb-4">
               <div id="mkt-loading" style="padding:24px;text-align:center;color:var(--text-faint);font-size:13px">
-                <i class="fas fa-circle-notch fa-spin me-2"></i>Chargement données financières…
+                <i class="fas fa-circle-notch fa-spin me-2"></i><?= te('Chargement données financières…') ?>
               </div>
             </div>
             <?php endif; ?>
 
-            <h2 class="section-label">Dividendes</h2>
+            <h2 class="section-label"><?= te('Dividendes') ?></h2>
 
             <!-- ── Dividendes ─────────────────────────────── -->
             <div class="panel-body" id="panel-dividendes">
               <?php if (!$divRows): ?>
                 <div class="alert alert-info mb-0">
                   <i class="fas fa-info-circle me-2"></i>
-                  Aucun dividende connu pour cette société.
-                  <span class="muted">Elle ne figure pas au calendrier de distribution.</span>
+                  <?= te('Aucun dividende connu pour cette société.') ?>
+                  <span class="muted"><?= te('Elle ne figure pas au calendrier de distribution.') ?></span>
                 </div>
               <?php else: ?>
                 <?php if ($divNext): ?>
@@ -558,7 +549,7 @@ if ($awSession && !empty($name ?? '')) {
                     <div class="div-head">
                       <div>
                         <div class="div-label">
-                          <?= $divWhen === 'past' ? 'Dernier dividende versé' : 'Prochain dividende' ?>
+                          <?= te($divWhen === 'past' ? 'Dernier dividende versé' : 'Prochain dividende') ?>
                           <?php if ($divNext['type'] && stripos($divNext['type'], 'exceptionnel') !== false): ?>
                             <span class="div-tag-exc"><?= htmlspecialchars($divNext['type']) ?></span>
                           <?php endif; ?>
@@ -571,14 +562,14 @@ if ($awSession && !empty($name ?? '')) {
                       <?php if ($yield !== null): ?>
                         <div class="div-yield">
                           <div class="div-yield-val"><?= number_format($yield, 2, ',', ' ') ?>&nbsp;%</div>
-                          <div class="div-yield-lbl">rendement</div>
+                          <div class="div-yield-lbl"><?= te('rendement') ?></div>
                         </div>
                       <?php endif; ?>
                     </div>
 
                     <div class="div-dates">
                       <div class="div-date-cell">
-                        <span class="div-date-lbl">Détachement</span>
+                        <span class="div-date-lbl"><?= te('Détachement') ?></span>
                         <?php if (!empty($divNext['ex_date'])): ?>
                           <span class="div-date-val"><?= fmt_date($divNext['ex_date']) ?></span>
                         <?php elseif ($divPredict): ?>
@@ -588,15 +579,15 @@ if ($awSession && !empty($name ?? '')) {
                         <?php endif; ?>
                       </div>
                       <div class="div-date-cell">
-                        <span class="div-date-lbl">Paiement</span>
+                        <span class="div-date-lbl"><?= te('Paiement') ?></span>
                         <span class="div-date-val"><?= div_fmt_date($divNext) ?></span>
                       </div>
                       <div class="div-date-cell">
-                        <span class="div-date-lbl">Statut</span>
+                        <span class="div-date-lbl"><?= te('Statut') ?></span>
                         <?php if ($conf): ?>
-                          <span class="div-badge confirmed"><i class="fas fa-check me-1"></i>Confirmé</span>
+                          <span class="div-badge confirmed"><i class="fas fa-check me-1"></i><?= te('Confirmé') ?></span>
                         <?php else: ?>
-                          <span class="div-badge estimated"><i class="fas fa-clock me-1"></i>Prévu</span>
+                          <span class="div-badge estimated"><i class="fas fa-clock me-1"></i><?= te('Prévu') ?></span>
                         <?php endif; ?>
                       </div>
                     </div>
@@ -606,31 +597,26 @@ if ($awSession && !empty($name ?? '')) {
                         <div class="div-forecast">
                           <div class="div-forecast-head">
                             <i class="fas fa-wand-magic-sparkles me-2"></i>
-                            Détachement estimé :
+                            <?= te('Détachement estimé :') ?>
                             <strong><?= div_fmt_window($divPredict) ?></strong>
                             <span class="div-badge <?= $divPredict['tight'] ? 'confirmed' : 'estimated' ?>">
                               <?= $divPredict['tight'] ? 'très régulier' : 'régulier' ?>
                             </span>
                           </div>
                           <p class="div-forecast-body">
-                            Calculé sur <strong><?= $divPredict['years'] ?> années</strong> de versements,
-                            dont les dates n'ont varié que de <strong><?= $divPredict['spread'] ?> jours</strong>.
-                            Paiement attendu vers le <strong><?= fmt_date($divPredict['pay']) ?></strong>
-                            (environ 10 jours après le détachement).
-                            <span class="muted">Estimation, pas un engagement : testée sur l'an dernier,
-                            elle tombe dans la fenêtre annoncée 8 fois sur 10. Une société peut toujours
-                            déplacer son assemblée générale.</span>
+                            <?= te('Calculé sur') ?> <strong><?= $divPredict['years'] ?> <?= te('années') ?></strong> <?= te('de versements, dont les dates n\'ont varié que de') ?> <strong><?= $divPredict['spread'] ?> <?= te('jours') ?></strong><?= te('. Paiement attendu vers le') ?> <strong><?= fmt_date($divPredict['pay']) ?></strong>
+                            <?= te('(environ 10 jours après le détachement).') ?>
+                            <span class="muted"><?= te('Estimation, pas un engagement : testée sur l\'an dernier, elle tombe dans la fenêtre annoncée 8 fois sur 10. Une société peut toujours déplacer son assemblée générale.') ?></span>
                           </p>
                         </div>
                       <?php else: ?>
                         <p class="div-note">
                           <i class="fas fa-info-circle me-1"></i>
-                          Date non encore votée en assemblée générale — l'estimation vient de la source.
+                          <?= te('Date non encore votée en assemblée générale — l\'estimation vient de la source.') ?>
                           <?php if ($divUsualMonth): ?>
-                            Cette société verse habituellement en <strong><?= htmlspecialchars($divUsualMonth) ?></strong>,
-                            mais ses dates varient trop d'une année à l'autre pour aller plus loin.
+                            <?= te('Cette société verse habituellement en') ?> <strong><?= te($divUsualMonth) ?></strong><?= te(', mais ses dates varient trop d\'une année à l\'autre pour aller plus loin.') ?>
                           <?php else: ?>
-                            Son historique est trop irrégulier pour estimer une date.
+                            <?= te('Son historique est trop irrégulier pour estimer une date.') ?>
                           <?php endif; ?>
                         </p>
                       <?php endif; ?>
@@ -638,19 +624,19 @@ if ($awSession && !empty($name ?? '')) {
                     <?php if ($isQ): ?>
                       <p class="div-note">
                         <i class="fas fa-repeat me-1"></i>
-                        Versement <strong>trimestriel</strong> — le montant indiqué est le total annuel.
+                        <?= te('Versement') ?> <strong><?= te('trimestriel') ?></strong> <?= te('— le montant indiqué est le total annuel.') ?>
                       </p>
                     <?php endif; ?>
                   </div>
                 <?php endif; ?>
 
                 <?php if ($divHistory): ?>
-                  <h6 class="div-hist-title">Historique des versements</h6>
+                  <h6 class="div-hist-title"><?= te('Historique des versements') ?></h6>
                   <div class="card-glass overflow-x-auto">
                     <table class="tbl">
                       <thead><tr>
-                        <th>ANNÉE</th><th class="num">MONTANT</th>
-                        <th class="num">VARIATION</th><th>DÉTACHEMENT</th><th>PAIEMENT</th>
+                        <th><?= te('ANNÉE') ?></th><th class="num"><?= te('MONTANT') ?></th>
+                        <th class="num"><?= te('VARIATION') ?></th><th><?= te('DÉTACHEMENT') ?></th><th><?= te('PAIEMENT') ?></th>
                       </tr></thead>
                       <tbody>
                       <?php
@@ -689,8 +675,8 @@ if ($awSession && !empty($name ?? '')) {
 
                 <p class="fund-source mt-3">
                   <i class="fas fa-calendar-alt me-1"></i>
-                  Calendrier de distribution
-                  <span class="muted">· le dividende versé en <?= date('Y') ?> provient de l'exercice <?= date('Y') - 1 ?></span>
+                  <?= te('Calendrier de distribution') ?>
+                  <span class="muted"><?= te('· le dividende versé en') ?> <?= date('Y') ?> <?= te('provient de l\'exercice') ?> <?= date('Y') - 1 ?></span>
                 </p>
               <?php endif; ?>
             </div>
@@ -699,8 +685,8 @@ if ($awSession && !empty($name ?? '')) {
           <?php else: ?>
             <div class="alert alert-info">
               <i class="fas fa-info-circle me-2"></i>
-              Aucun snapshot pour cette société. Utilisez
-              <a href="Update.php" class="t-cyan">Update Stock</a> pour en créer un.
+              <?= te('Aucun snapshot pour cette société. Utilisez') ?>
+              <a href="Update.php" class="t-cyan"><?= te('Update Stock') ?></a> <?= te('pour en créer un.') ?>
             </div>
           <?php endif; ?>
 
@@ -715,7 +701,7 @@ if ($awSession && !empty($name ?? '')) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="assets/js/app.js"></script>
+<script src="assets/js/app.js?v=2"></script>
 
 <?php if ($symbol ?? null): ?>
 <script>
@@ -739,7 +725,7 @@ if ($awSession && !empty($name ?? '')) {
     const allYears = [...new Set([...Object.keys(caData), ...Object.keys(rnpgData), ...Object.keys(ebeData)])].sort();
     if (allYears.length > 0) {
       html += `<div class="mkt-section">
-        <div class="mkt-section-title"><i class="fas fa-chart-bar me-2 t-violet"></i>Résultats annuels (MMAD)</div>
+        <div class="mkt-section-title"><i class="fas fa-chart-bar me-2 t-violet"></i>${window.I18n.t('Résultats annuels (MMAD)')}</div>
         <div class="mkt-chart-wrap"><canvas id="finChart"></canvas></div>
       </div>`;
     }
@@ -752,7 +738,7 @@ if ($awSession && !empty($name ?? '')) {
       const qKeys = quarterKeys;
       if (qKeys.length > 0) {
         html += `<div class="mkt-section">
-          <div class="mkt-section-title"><i class="fas fa-calendar-alt me-2 t-amber"></i>Chiffre d'affaires trimestriel (MMAD)</div>
+          <div class="mkt-section-title"><i class="fas fa-calendar-alt me-2 t-amber"></i>${window.I18n.t("Chiffre d'affaires trimestriel (MMAD)")}</div>
           <div class="mkt-chart-wrap"><canvas id="trimChart"></canvas></div>
         </div>`;
       }
@@ -761,7 +747,7 @@ if ($awSession && !empty($name ?? '')) {
     // Shareholders
     if (d.shareholders && d.shareholders.length > 0) {
       html += `<div class="mkt-section">
-        <div class="mkt-section-title"><i class="fas fa-users me-2 t-emerald"></i>Actionnariat</div>
+        <div class="mkt-section-title"><i class="fas fa-users me-2 t-emerald"></i>${window.I18n.t('Actionnariat')}</div>
         <div class="mkt-two-col">
           <div class="holders-chart-wrap"><canvas id="holdersChart"></canvas></div>
           <div class="holders-list" id="holders-list"></div>
@@ -769,7 +755,7 @@ if ($awSession && !empty($name ?? '')) {
       </div>`;
     }
 
-    container.innerHTML = html || '<div style="color:var(--text-faint);font-size:13px;padding:12px">Aucune donnée financière disponible pour cette société.</div>';
+    container.innerHTML = html || '<p>' + window.I18n.t('Aucune donnée financière disponible pour cette société.') + '</p>';
 
     // Shared crosshair plugin for bar/line charts
     const barCrosshair = {
@@ -868,7 +854,7 @@ if ($awSession && !empty($name ?? '')) {
 
   } catch (e) {
     document.getElementById('mkt-enrichment').innerHTML =
-      `<div style="color:var(--text-faint);font-size:13px;padding:12px">Données financières indisponibles.</div>`;
+      '<p>' + window.I18n.t('Données financières indisponibles.') + '</p>';
   }
 })();
 </script>
@@ -1119,9 +1105,9 @@ if (directoryCards.length) {
       card.hidden = !matches;
       if (matches) visible++;
     }
-    directoryCount.textContent = visible + (visible === 1 ? ' société' : ' sociétés');
+    directoryCount.textContent = window.I18n.t('Nombre de sociétés : {count}', {count: visible});
     directoryEmpty.hidden = visible !== 0;
-    directoryEmpty.textContent = 'Aucune société ne correspond à ces filtres.';
+    directoryEmpty.textContent = window.I18n.t('Aucune société ne correspond à ces filtres.');
 
     const params = new URLSearchParams();
     if (selectedSector) params.set('sector', selectedSector);
@@ -1185,7 +1171,7 @@ if (directoryCards.length) {
   }
   document.getElementById('resetDirectoryFilters').addEventListener('click', () => {
     selectedSector = '';
-    triggerText.textContent = 'Tous les secteurs';
+    triggerText.textContent = window.I18n.t('Tous les secteurs');
     sectorOptions.forEach(option => option.setAttribute('aria-pressed', String(option.dataset.code === '')));
     minPrice = 0; maxPrice = priceCeiling;
     directorySearch.value = '';

@@ -1,0 +1,44 @@
+.language-switch { margin: 0; }
+.workspace .brand { flex: 0 0 auto; }
+.language-switch select { max-width: 145px; min-height: 40px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-1); color: var(--text); font: inherit; font-size: 12px; }
+[dir="rtl"] body.workspace { font-family: Tahoma, Arial, sans-serif; line-height: 1.65; }
+[dir="rtl"] .workspace :is(h1,h2,h3,h4,h5,.brand-name,.page-title,.fund-label) { font-family: inherit; letter-spacing: normal; }
+[dir="rtl"] .workspace :is(.stat-chip__label,.section-label,.mkt-section-title,.eyebrow,.tbl th) { letter-spacing: normal; text-transform: none; }
+[dir="rtl"] .workspace .workspace-actions { margin-left: 0; margin-inline-start: auto; }
+[dir="rtl"] .workspace :is(.search-hero,.div-hero,.screener-hero,.workspace-chart-legend button) { text-align: start; }
+[dir="rtl"] .workspace :is(.me-1,.me-2,.me-3) { margin-right: 0 !important; }
+[dir="rtl"] .workspace .me-1 { margin-inline-end: .25rem !important; }
+[dir="rtl"] .workspace .me-2 { margin-inline-end: .5rem !important; }
+[dir="rtl"] .workspace .me-3 { margin-inline-end: 1rem !important; }
+[dir="rtl"] .workspace .ms-1 { margin-left: 0 !important; margin-inline-start: .25rem !important; }
+[dir="rtl"] .workspace .ms-2 { margin-left: 0 !important; margin-inline-start: .5rem !important; }
+[dir="rtl"] .workspace .text-start { text-align: start !important; }
+[dir="rtl"] .workspace .text-end { text-align: end !important; }
+/* Keep time series, amount signs, tickers and portfolio column order predictable. */
+[dir="rtl"] .workspace :is(table,.chart-canvas,.mkt-chart-wrap,.holders-chart-wrap,svg,.mono,.date,.num,.stat-chip__value,.m-val,input[type="number"],input[type="email"],input[type="password"],.brand,.user-name) { direction: ltr; unicode-bidi: isolate; }
+[dir="rtl"] .workspace :is(th,td,.holder-name,.directory-card__top strong) { unicode-bidi: plaintext; }
+[dir="rtl"] .workspace :is(.overflow-x-auto,.screener-table-wrap,.data-table-wrap) { direction: ltr; }
+[dir="rtl"] .workspace table th:not(.num), [dir="rtl"] .workspace table td:not(.num):not(.date) { text-align: start; }
+/* The two-slide track remains LTR; restore RTL inside each slide. */
+[dir="rtl"] .workspace .charts-track { direction: ltr; }
+[dir="rtl"] .workspace .charts-page { direction: rtl; }
+[dir="rtl"] .workspace .chart-heading { padding-right: 0; padding-inline-end: 32px; }
+[dir="rtl"] .workspace .chart-switch { right: auto; left: 12px; }
+[dir="rtl"] .workspace .chart-switch i, [dir="rtl"] .workspace .directory-back i { transform: scaleX(-1); }
+[dir="rtl"] .workspace .form-floating > label { right: 0; left: auto; transform-origin: 100% 0; }
+[dir="rtl"] .workspace .form-floating > .form-control:focus ~ label,
+[dir="rtl"] .workspace .form-floating > .form-control:not(:placeholder-shown) ~ label { transform: scale(.85) translateY(-.5rem) translateX(-.15rem); }
+[dir="rtl"] .workspace .sector-picker__menu { text-align: start; }
+[dir="rtl"] .workspace .sector-item__heading span { white-space: normal; }
+[dir="rtl"] .workspace .holder-pct { direction: ltr; unicode-bidi: isolate; }
+[dir="rtl"] .workspace .user-pill form button { font-family: inherit; }
+@media (max-width: 1200px) {
+  .workspace .workspace-header-inner .nav-group { order: 3; flex: 1 0 100%; justify-content: flex-start; overflow-x: auto; }
+  .workspace-header-inner { flex-wrap: wrap; padding-top: 12px; }
+}
+@media (max-width: 600px) {
+  .workspace .workspace-actions { flex-wrap: wrap; gap: 6px; }
+  .workspace .language-switch select { max-width: 112px; font-size: 11px; }
+  .workspace-header-inner { gap: 10px; }
+  .workspace .workspace-actions { flex: 1 0 100%; justify-content: space-between; }
+}

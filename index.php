@@ -1,6 +1,7 @@
 <?php
 ob_start();
 session_start();
+require_once __DIR__ . '/core/i18n.php';
 require_once 'config/config.php';
 require_once 'config/sources.php';
 require_once 'core/Appwrite.php';
@@ -328,16 +329,16 @@ $nowParis  = new DateTime('now', new DateTimeZone('Africa/Casablanca'));
 $timeLabel = $nowParis->format('H:i');
 $_days  = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 $_months = ['','janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-$dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') . ' ' . $_months[(int)$nowParis->format('n')] . ' ' . $nowParis->format('Y');
+$dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j') . ' ' . t($_months[(int)$nowParis->format('n')]) . ' ' . $nowParis->format('Y');
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="<?= ui_locale() ?>" dir="<?= ui_direction() ?>">
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="<?= csrf_token() ?>">
-  <title>myInterpreter | Tableau de bord</title>
+  <title><?= te('myInterpreter | Tableau de bord') ?></title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=5" rel="stylesheet">
@@ -412,65 +413,65 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <span class="modal-title"><i class="fas fa-lock me-2 t-cyan"></i>Connexion</span>
+        <span class="modal-title"><i class="fas fa-lock me-2 t-cyan"></i><?= te('Connexion') ?></span>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-4">
         <?php if ($loginError): ?>
-          <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i><?= htmlspecialchars($loginError) ?></div>
+          <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i><?= te($loginError) ?></div>
         <?php endif; ?>
         <div class="d-flex mb-4" style="gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
           <button type="button" id="tabLogin"  onclick="switchAuthTab('login')"
             class="btn btn-sm flex-fill" style="border-radius:0;border:none;padding:8px">
-            <i class="fas fa-sign-in-alt me-1"></i>Connexion
+            <i class="fas fa-sign-in-alt me-1"></i><?= te('Connexion') ?>
           </button>
           <button type="button" id="tabSignup" onclick="switchAuthTab('signup')"
             class="btn btn-sm flex-fill" style="border-radius:0;border:none;border-left:1px solid var(--border);padding:8px">
-            <i class="fas fa-user-plus me-1"></i>Inscription
+            <i class="fas fa-user-plus me-1"></i><?= te('Inscription') ?>
           </button>
         </div>
         <form id="formLogin" method="POST" action="" data-loading>
           <?= csrf_field() ?>
           <input type="hidden" name="login_form" value="1">
           <div class="mb-3">
-            <label class="form-label small muted">Email</label>
+            <label class="form-label small muted"><?= te('Email') ?></label>
             <input type="email" name="email" class="form-control" placeholder="email@example.com" required autofocus>
           </div>
           <div class="mb-3">
-            <label class="form-label small muted">Mot de passe</label>
+            <label class="form-label small muted"><?= te('Mot de passe') ?></label>
             <input type="password" name="password" class="form-control" placeholder="••••••••" required>
           </div>
           <div class="mb-4 d-flex align-items-center gap-2">
             <input type="checkbox" name="stay" id="stayLogin" value="1" checked
               style="width:16px;height:16px;accent-color:var(--cyan);cursor:pointer">
-            <label for="stayLogin" class="mb-0 small muted" style="cursor:pointer">Rester connecté</label>
+            <label for="stayLogin" class="mb-0 small muted" style="cursor:pointer"><?= te('Rester connecté') ?></label>
           </div>
           <button type="submit" name="login_form" class="btn btn-cyan w-100 btn-lg" data-loading-text="Vérification...">
-            <i class="fas fa-sign-in-alt"></i> Se connecter
+            <i class="fas fa-sign-in-alt"></i> <?= te('Se connecter') ?>
           </button>
         </form>
         <form id="formSignup" method="POST" action="" data-loading style="display:none">
           <?= csrf_field() ?>
           <input type="hidden" name="signup_form" value="1">
           <div class="mb-3">
-            <label class="form-label small muted">Nom (optionnel)</label>
-            <input type="text" name="name" class="form-control" placeholder="Votre nom">
+            <label class="form-label small muted"><?= te('Nom (optionnel)') ?></label>
+            <input type="text" name="name" class="form-control" placeholder="<?= te('Votre nom') ?>">
           </div>
           <div class="mb-3">
-            <label class="form-label small muted">Email</label>
+            <label class="form-label small muted"><?= te('Email') ?></label>
             <input type="email" name="email" class="form-control" placeholder="email@example.com" required>
           </div>
           <div class="mb-3">
-            <label class="form-label small muted">Mot de passe</label>
+            <label class="form-label small muted"><?= te('Mot de passe') ?></label>
             <input type="password" name="password" class="form-control" placeholder="••••••••" minlength="8" required>
           </div>
           <div class="mb-4 d-flex align-items-center gap-2">
             <input type="checkbox" name="stay" id="staySignup" value="1" checked
               style="width:16px;height:16px;accent-color:var(--cyan);cursor:pointer">
-            <label for="staySignup" class="mb-0 small muted" style="cursor:pointer">Rester connecté</label>
+            <label for="staySignup" class="mb-0 small muted" style="cursor:pointer"><?= te('Rester connecté') ?></label>
           </div>
           <button type="submit" name="signup_form" class="btn btn-cyan w-100 btn-lg" data-loading-text="Création...">
-            <i class="fas fa-user-plus"></i> Créer un compte
+            <i class="fas fa-user-plus"></i> <?= te('Créer un compte') ?>
           </button>
         </form>
       </div>
@@ -492,7 +493,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
     <?php if (!$isLoggedIn): ?>
     <!-- ── Not logged in: login card ── -->
     <?php if (isset($_SESSION['noLogin'])): unset($_SESSION['noLogin']); ?>
-      <div class="alert alert-warn" style="margin:16px 0 0"><i class="fas fa-lock me-2"></i>Connectez-vous pour accéder à cette page.</div>
+      <div class="alert alert-warn" style="margin:16px 0 0"><i class="fas fa-lock me-2"></i><?= te('Connectez-vous pour accéder à cette page.') ?></div>
     <?php endif; ?>
     <div class="login-wrap">
       <div class="dash-card-inner animate-up">
@@ -502,23 +503,23 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
         </div>
         <div class="d-flex justify-content-center mb-4">
           <button type="button" class="btn btn-cyan" data-bs-toggle="modal" data-bs-target="#loginModal">
-            <i class="fas fa-sign-in-alt"></i> Se connecter
+            <i class="fas fa-sign-in-alt"></i> <?= te('Se connecter') ?>
           </button>
         </div>
         <div class="nav-cards">
           <a href="infoAction.php" class="nav-card c2">
             <div class="nav-icon emerald"><i class="fas fa-search"></i></div>
             <div class="nav-text">
-              <strong>Consulter Action</strong>
-              <span>Historique et ratios d'une société</span>
+              <strong><?= te('Consulter Action') ?></strong>
+              <span><?= te('Historique et ratios d\'une société') ?></span>
             </div>
             <i class="fas fa-chevron-right nav-arrow"></i>
           </a>
           <a href="screener.php" class="nav-card c4">
             <div class="nav-icon amber"><i class="fas fa-filter"></i></div>
             <div class="nav-text">
-              <strong>Stock Screener</strong>
-              <span>Filtrer par PER, score et ratios</span>
+              <strong><?= te('Stock Screener') ?></strong>
+              <span><?= te('Filtrer par PER, score et ratios') ?></span>
             </div>
             <i class="fas fa-chevron-right nav-arrow"></i>
           </a>
@@ -533,17 +534,17 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
     <div class="page-head">
       <div>
         <div class="eyebrow"><?= htmlspecialchars(ucfirst($dateLabel)) ?> · <?= $timeLabel ?></div>
-        <h1 class="page-title">Tableau de bord</h1>
+        <h1 class="page-title"><?= te('Tableau de bord') ?></h1>
       </div>
       <div class="pill-bar">
         <a href="infoAction.php" class="search-pill" style="text-decoration:none;cursor:pointer">
           <span>⌕</span>
-          <span>Chercher une société…</span>
+          <span><?= te('Chercher une société…') ?></span>
         </a>
         <?php if ($isMarketOpen): ?>
-          <div class="live-pill"><span class="live-dot"></span><?= htmlspecialchars($sessionLabel ?: 'Séance ouverte') ?></div>
+          <div class="live-pill"><span class="live-dot"></span><?= te(ui_locale() === 'fr' ? ($sessionLabel ?: 'Séance ouverte') : 'Séance ouverte') ?></div>
         <?php else: ?>
-          <div class="closed-pill"><span style="width:7px;height:7px;border-radius:50%;background:var(--neg);display:inline-block"></span><?= htmlspecialchars($sessionLabel ?: 'Séance fermée') ?></div>
+          <div class="closed-pill"><span style="width:7px;height:7px;border-radius:50%;background:var(--neg);display:inline-block"></span><?= te(ui_locale() === 'fr' ? ($sessionLabel ?: 'Séance fermée') : 'Séance fermée') ?></div>
         <?php endif; ?>
       </div>
     </div>
@@ -552,25 +553,25 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
     <section class="metrics">
       <div class="metric">
         <div class="glow cyan"></div>
-        <div class="m-label">Sociétés suivies</div>
+        <div class="m-label"><?= te('Sociétés suivies') ?></div>
         <div class="m-val"><?= (int)$companyCount ?></div>
-        <div class="m-delta"><?= (int)$ratedCount ?> avec ratios</div>
+        <div class="m-delta"><?= (int)$ratedCount ?> <?= te('avec ratios') ?></div>
       </div>
       <div class="metric">
         <div class="glow purple"></div>
-        <div class="m-label">Historique de données</div>
-        <div class="m-val"><?= (int)round($snapshotDays / 365, 1) ?> <span class="unit">ans</span></div>
-        <div class="m-delta"><?= number_format($totalDataRows, 0, ',', ' ') ?> entrées · <?= $oldestDate ? substr($oldestDate, 0, 7) : '—' ?> → <?= $newestDate ? substr($newestDate, 0, 7) : '—' ?></div>
+        <div class="m-label"><?= te('Historique de données') ?></div>
+        <div class="m-val"><?= (int)round($snapshotDays / 365, 1) ?> <span class="unit"><?= te('ans') ?></span></div>
+        <div class="m-delta"><?= number_format($totalDataRows, 0, ',', ' ') ?> <?= te('entrées ·') ?> <?= $oldestDate ? substr($oldestDate, 0, 7) : '—' ?> → <?= $newestDate ? substr($newestDate, 0, 7) : '—' ?></div>
       </div>
       <div class="metric">
         <div class="glow pink"></div>
-        <div class="m-label">PER moyen</div>
+        <div class="m-label"><?= te('PER moyen') ?></div>
         <div class="m-val"><?= $avgPER !== null ? number_format($avgPER, 2, ',', ' ') : '—' ?></div>
-        <div class="m-delta">sur <?= (int)$ratedCount ?> sociétés</div>
+        <div class="m-delta"><?= te('sur') ?> <?= (int)$ratedCount ?> <?= te('sociétés') ?></div>
       </div>
       <div class="metric">
         <div class="glow green"></div>
-        <div class="m-label">Score 4/4</div>
+        <div class="m-label"><?= te('Score 4/4') ?></div>
         <div class="m-val<?= $allGreen > 0 ? ' pos' : '' ?>"><?= (int)$allGreen ?></div>
         <div class="m-delta<?= $allGreen > 0 ? ' pos' : '' ?>">● <?= $allGreen > 0 ? 'tous verts' : 'aucun' ?></div>
       </div>
@@ -593,16 +594,16 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
                   </span>
                 <?php endif; ?>
               <?php else: ?>
-                <span class="masi-num" style="font-size:14px;color:var(--text-faint)">Données insuffisantes</span>
+                <span class="masi-num" style="font-size:14px;color:var(--text-faint)"><?= te('Données insuffisantes') ?></span>
               <?php endif; ?>
             </div>
           </div>
           <div class="segmented" id="masi-periods">
-            <span class="seg" data-period="5Y">5A</span>
-            <span class="seg" data-period="1Y">1A</span>
-            <span class="seg" data-period="6M">6M</span>
-            <span class="seg" data-period="3M">3M</span>
-            <span class="seg is-active" data-period="1M">1M</span>
+            <span class="seg" data-period="5Y"><?= te('5A') ?></span>
+            <span class="seg" data-period="1Y"><?= te('1A') ?></span>
+            <span class="seg" data-period="6M"><?= te('6M') ?></span>
+            <span class="seg" data-period="3M"><?= te('3M') ?></span>
+            <span class="seg is-active" data-period="1M"><?= te('1M') ?></span>
           </div>
         </div>
         <div class="card-body" style="padding:0">
@@ -646,7 +647,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
           </div>
           <?php else: ?>
           <div style="height:210px;display:flex;align-items:center;justify-content:center;color:var(--text-faint);font-size:13px">
-            Aucune donnée disponible
+            <?= te('Aucune donnée disponible') ?>
           </div>
           <?php endif; ?>
         </div>
@@ -656,8 +657,8 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
       <div class="glass">
         <div class="card-head">
           <div>
-            <div class="card-title">Actions rapides</div>
-            <div class="card-sub">Vos outils du quotidien</div>
+            <div class="card-title"><?= te('Actions rapides') ?></div>
+            <div class="card-sub"><?= te('Vos outils du quotidien') ?></div>
           </div>
         </div>
         <div class="action-grid">
@@ -668,8 +669,8 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
               <span class="action-arrow">→</span>
             </div>
             <div>
-              <div class="action-label">Société / MAJ</div>
-              <div class="action-sub">Ajouter ou MAJ</div>
+              <div class="action-label"><?= te('Société / MAJ') ?></div>
+              <div class="action-sub"><?= te('Ajouter ou MAJ') ?></div>
             </div>
           </a>
           <?php else: ?>
@@ -679,8 +680,8 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
               <span class="action-arrow">→</span>
             </div>
             <div>
-              <div class="action-label">Screener</div>
-              <div class="action-sub">Filtrer · <?= (int)$totalCompanies ?> résultats</div>
+              <div class="action-label"><?= te('Screener') ?></div>
+              <div class="action-sub"><?= te('Filtrer ·') ?> <?= (int)$totalCompanies ?> <?= te('résultats') ?></div>
             </div>
           </a>
           <?php endif; ?>
@@ -690,8 +691,8 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
               <span class="action-arrow">→</span>
             </div>
             <div>
-              <div class="action-label">Consulter</div>
-              <div class="action-sub">Historique &amp; ratios</div>
+              <div class="action-label"><?= te('Consulter') ?></div>
+              <div class="action-sub"><?= te('Historique &amp; ratios') ?></div>
             </div>
           </a>
           <a class="action-tile" href="portfolio.php">
@@ -700,8 +701,8 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
               <span class="action-arrow">→</span>
             </div>
             <div>
-              <div class="action-label">Portefeuille</div>
-              <div class="action-sub">Achats · P&amp;L</div>
+              <div class="action-label"><?= te('Portefeuille') ?></div>
+              <div class="action-sub"><?= te('Achats · P&amp;L') ?></div>
             </div>
           </a>
           <a class="action-tile" href="screener.php">
@@ -710,8 +711,8 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
               <span class="action-arrow">→</span>
             </div>
             <div>
-              <div class="action-label">Screener</div>
-              <div class="action-sub">Filtrer · <?= (int)$totalCompanies ?> résultats</div>
+              <div class="action-label"><?= te('Screener') ?></div>
+              <div class="action-sub"><?= te('Filtrer ·') ?> <?= (int)$totalCompanies ?> <?= te('résultats') ?></div>
             </div>
           </a>
         </div>
@@ -722,32 +723,32 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
     <section class="glass" style="margin-bottom:24px">
       <div class="card-head">
         <div>
-          <div class="card-title">Mouvements de la séance</div>
-          <div class="card-sub" id="table-sub">Top hausses · <?= htmlspecialchars($dateLabel) ?> · <?= $timeLabel ?></div>
+          <div class="card-title"><?= te('Mouvements de la séance') ?></div>
+          <div class="card-sub" id="table-sub"><?= te('Top hausses ·') ?> <?= htmlspecialchars($dateLabel) ?> · <?= $timeLabel ?></div>
         </div>
         <div class="segmented">
-          <button class="seg is-active" onclick="showTab('gainers', this, 'Top hausses')">Hausses</button>
-          <button class="seg" onclick="showTab('losers', this, 'Top baisses')">Baisses</button>
-          <button class="seg" onclick="showTab('scored', this, 'Score 4/4')">Score 4/4</button>
+          <button class="seg is-active" onclick="showTab('gainers', this, 'Top hausses')"><?= te('Hausses') ?></button>
+          <button class="seg" onclick="showTab('losers', this, 'Top baisses')"><?= te('Baisses') ?></button>
+          <button class="seg" onclick="showTab('scored', this, 'Score 4/4')"><?= te('Score 4/4') ?></button>
         </div>
       </div>
       <div class="data-table-wrap">
         <table class="data-table">
           <thead>
             <tr>
-              <th>Société</th>
-              <th class="num">Prix (MAD)</th>
-              <th class="num">Δ jour</th>
+              <th><?= te('Société') ?></th>
+              <th class="num"><?= te('Prix (MAD)') ?></th>
+              <th class="num"><?= te('Δ jour') ?></th>
               <th class="num">PER</th>
               <th class="num">PEG</th>
               <th class="num">P/R</th>
               <th class="num">P/B</th>
-              <th class="num" style="padding-right:24px">Score</th>
+              <th class="num" style="padding-right:24px"><?= te('Score') ?></th>
             </tr>
           </thead>
           <tbody id="tbody-gainers">
             <?php if (empty($topGainers)): ?>
-              <tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:24px">Aucune donnée</td></tr>
+              <tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:24px"><?= te('Aucune donnée') ?></td></tr>
             <?php else: foreach ($topGainers as $r): ?>
             <tr>
               <td class="name"><span class="ticker"><?= htmlspecialchars($r['abbr']) ?></span><?= htmlspecialchars($r['name']) ?></td>
@@ -763,7 +764,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
           </tbody>
           <tbody id="tbody-losers" style="display:none">
             <?php if (empty($topLosers)): ?>
-              <tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:24px">Aucune donnée</td></tr>
+              <tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:24px"><?= te('Aucune donnée') ?></td></tr>
             <?php else: foreach ($topLosers as $r): ?>
             <tr>
               <td class="name"><span class="ticker"><?= htmlspecialchars($r['abbr']) ?></span><?= htmlspecialchars($r['name']) ?></td>
@@ -779,7 +780,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
           </tbody>
           <tbody id="tbody-scored" style="display:none">
             <?php if (empty($topScored)): ?>
-              <tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:24px">Aucun score 4/4</td></tr>
+              <tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:24px"><?= te('Aucun score 4/4') ?></td></tr>
             <?php else: foreach ($topScored as $r): ?>
             <tr>
               <td class="name"><span class="ticker"><?= htmlspecialchars($r['abbr']) ?></span><?= htmlspecialchars($r['name']) ?></td>
@@ -804,7 +805,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
 </div>
 
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
-<script src="assets/js/app.js"></script>
+<script src="assets/js/app.js?v=2"></script>
 <script>
 // MASI sparkline with period selector + dual range slider
 (function () {
@@ -945,7 +946,7 @@ function showTab(tab, btn, label) {
   });
   document.querySelectorAll('.segmented .seg').forEach(function (s) { s.classList.remove('is-active'); });
   btn.classList.add('is-active');
-  document.getElementById('table-sub').textContent = label + ' · ' + btn.closest('section').querySelector('.card-sub').textContent.split(' · ').slice(1).join(' · ');
+  document.getElementById('table-sub').textContent = window.I18n.t(label) + ' · ' + btn.closest('section').querySelector('.card-sub').textContent.split(' · ').slice(1).join(' · ');
 }
 
 // Auth modal

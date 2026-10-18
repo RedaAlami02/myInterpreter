@@ -5,17 +5,27 @@ import { tmpdir } from 'node:os';
 import { join, resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:http';
+import { Script } from 'node:vm';
 
 const root = new URL('../', import.meta.url);
-const fixtures = Object.fromEntries(['portfolio', 'index', 'login'].map(name => [name, execFileSync('php', ['tests/render_workspace_fixture.php', name], { cwd: fileURLToPath(root), encoding: 'utf8' })]));
+const locale = process.env.UI_LOCALE || 'fr';
+if(!['fr','ar','ary'].includes(locale)) throw new Error('Invalid fixture locale');
+const fixtures = Object.fromEntries(['portfolio', 'index', 'login'].map(name => [name, execFileSync('php', ['tests/render_workspace_fixture.php', name, locale], { cwd: fileURLToPath(root), encoding: 'utf8' })]));
+for(const [name, html] of Object.entries(fixtures)) {
+  for(const match of html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {
+    if(!match[1].includes('application/json')) new Script(match[2], {filename:name});
+  }
+}
 // Execute the actual asynchronous company-chart code against invented financial data.
 const companySource = await readFile(new URL('infoAction.php', root), 'utf8');
 const enrichment = companySource.slice(companySource.indexOf('(async function()'), companySource.indexOf('})();', companySource.indexOf('(async function()')) + 5)
   .replace('<?= json_encode($symbol) ?>', '"DEMO"');
 const header = fixtures.portfolio.match(/<header class="sidebar">[\s\S]*?<\/header>/)[0];
-fixtures.company = `<!doctype html><html lang="fr"><head><meta name="viewport" content="width=device-width,initial-scale=1">
+fixtures.company = `<!doctype html><html lang="${locale}" dir="${locale==='fr'?'ltr':'rtl'}"><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="assets/css/global.css"><link rel="stylesheet" href="assets/css/infoAction.css">
-<link rel="stylesheet" href="assets/css/workspace.css"><script src="assets/js/theme.js"></script><script src="assets/js/workspace-charts.js"></script>
+<link rel="stylesheet" href="assets/css/workspace.css"><link rel="stylesheet" href="assets/css/rtl.css">
+${fixtures.portfolio.match(/<script id="ui-locale"[\s\S]*?<\/script>/)[0]}<script src="assets/js/i18n.js"></script>
+<script src="assets/js/theme.js"></script><script src="assets/js/workspace-charts.js"></script>
 </head><body class="workspace">${header}<main class="main"><div id="mkt-enrichment"></div></main>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script>${enrichment}</script></body></html>`;
 const profile = await mkdtemp(join(tmpdir(), 'loading-ui-'));
@@ -91,6 +101,9 @@ try {
   console.log(await evaluate(`(() => {
     const check = (v,m) => {if(!v) throw new Error(m)};
     check(document.documentElement.dataset.theme === 'light', 'System light default');
+    check(document.documentElement.lang === '${locale}', 'Root language');
+    check(document.documentElement.dir === '${locale==='fr'?'ltr':'rtl'}', 'Root direction');
+    check(document.querySelector('[data-language-select]').value === '${locale}', 'Language selector');
     check(document.querySelector('.brand-logo').naturalWidth > 0, 'Existing logo loads');
     check(document.querySelectorAll('#holdingsTbl tbody tr').length === 6, 'Holdings render');
     check(window.Chart && Object.keys(Chart.instances).length >= 3, 'Chart libraries load');
@@ -130,7 +143,7 @@ try {
     for(const button of buttons) {
       button.focus();
       check(getComputedStyle(button.querySelector('[role=tooltip]')).display !== 'none','Definition on keyboard focus');
-      check(button.querySelector('[role=tooltip]').textContent.length > 60,'Plain-language definition');
+      check(button.querySelector('[role=tooltip]').textContent.length > 35,'Plain-language definition');
     }
     buttons[0].click();
     check(!finance.isDatasetVisible(0), 'Financial legend still toggles series');
@@ -219,7 +232,7 @@ try {
         if(layout.width > layout.viewport || !layout.toggle) throw new Error(`Overflow or clipped theme toggle: ${name}/${theme}/${size} ${JSON.stringify(layout)}`);
         if(size === 'desktop' || size === 'mobile' || size === 'qhd'){
           const {data} = await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width,height:Math.min(layout.height,4000),scale:1}});
-          await writeFile(new URL(`design-review/screenshots/prototypes/workspace-live-${name}-${theme}-${size}.png`,root),Buffer.from(data,'base64'));
+          await writeFile(new URL(`design-review/screenshots/prototypes/workspace-live-${name}-${theme}-${size}${locale==='fr'?'':'-'+locale}.png`,root),Buffer.from(data,'base64'));
         }
         console.log(`PASS ${name}/${theme}/${size}`);
       }
@@ -230,7 +243,7 @@ try {
     const origin = new URL(process.env.WORKSPACE_PUBLIC_ORIGIN);
     if (!['127.0.0.1', 'localhost'].includes(origin.hostname)) throw new Error('Public checks must use a local server');
     for (const name of ['screener', 'infoAction', 'dividendes']) {
-      await call('Page.navigate', {url: new URL(name + '.php', origin).href});
+      await call('Page.navigate', {url: new URL(name + '.php?lang=' + locale, origin).href});
       for(let i=0;i<300;i++) {
         if(await evaluate('document.readyState === "complete" && !!document.querySelector("[data-theme-toggle]")')) break;
         await delay(100);

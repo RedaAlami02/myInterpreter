@@ -9,6 +9,7 @@
  * "prévu" and styled differently — they must never read as commitments.
  */
 session_start();
+require_once __DIR__ . '/core/i18n.php';
 require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/dividends.php';
@@ -98,12 +99,12 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
     <div class="card-glass overflow-x-auto mb-4">
       <table class="tbl">
         <thead><tr>
-          <th>Société</th>
-          <th class="num">MAD/action</th>
-          <th class="num">Rendement</th>
-          <th>Détachement</th>
-          <th>Paiement</th>
-          <th>Statut</th>
+          <th><?= te('Société') ?></th>
+          <th class="num"><?= te('MAD/action') ?></th>
+          <th class="num"><?= te('Rendement') ?></th>
+          <th><?= te('Détachement') ?></th>
+          <th><?= te('Paiement') ?></th>
+          <th><?= te('Statut') ?></th>
         </tr></thead>
         <tbody>
         <?php foreach ($list as $r):
@@ -115,7 +116,7 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
           <tr<?= $dim ? ' class="div-done"' : '' ?>>
             <td>
               <a href="infoAction.php?name=<?= urlencode($name) ?>" class="t-cyan"><?= htmlspecialchars($name) ?></a>
-              <?php if ($isQ): ?><span class="div-badge quarterly">trim.</span><?php endif; ?>
+              <?php if ($isQ): ?><span class="div-badge quarterly"><?= te('trim.') ?></span><?php endif; ?>
               <?php if (!empty($r['type']) && stripos($r['type'], 'exceptionnel') !== false): ?>
                 <span class="div-badge exceptional"><?= htmlspecialchars($r['type']) ?></span>
               <?php endif; ?>
@@ -133,11 +134,11 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
             <td class="date"><?= div_fmt_date($r) ?></td>
             <td>
               <?php if (div_confirmed($r)): ?>
-                <span class="div-badge confirmed"><i class="fas fa-check me-1"></i>confirmé</span>
+                <span class="div-badge confirmed"><i class="fas fa-check me-1"></i><?= te('confirmé') ?></span>
               <?php elseif (isset($predictions[$name])): ?>
-                <span class="div-badge forecast"><i class="fas fa-wand-magic-sparkles me-1"></i>estimé</span>
+                <span class="div-badge forecast"><i class="fas fa-wand-magic-sparkles me-1"></i><?= te('estimé') ?></span>
               <?php else: ?>
-                <span class="div-badge estimated"><i class="fas fa-clock me-1"></i>prévu</span>
+                <span class="div-badge estimated"><i class="fas fa-clock me-1"></i><?= te('prévu') ?></span>
               <?php endif; ?>
             </td>
           </tr>
@@ -148,12 +149,12 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
 <?php }
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="<?= ui_locale() ?>" dir="<?= ui_direction() ?>">
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>myInterpreter | Calendrier des dividendes</title>
+  <title><?= te('myInterpreter | Calendrier des dividendes') ?></title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=5" rel="stylesheet">
@@ -168,70 +169,67 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
     <div class="div-page">
 
       <div class="div-hero">
-        <h1><i class="fas fa-coins t-emerald me-2"></i>Calendrier des dividendes</h1>
-        <p>Qui verse, quand, et combien — pour l'année de paiement <?= $year ?>.</p>
+        <h1><i class="fas fa-coins t-emerald me-2"></i><?= te('Calendrier des dividendes') ?></h1>
+        <p><?= te('Qui verse, quand, et combien — pour l\'année de paiement') ?> <?= $year ?>.</p>
       </div>
 
       <!-- ── Le cycle marocain du dividende ──────────────── -->
       <div class="div-cycle">
         <div class="div-cycle-title">
           <i class="fas fa-calendar-check me-2 t-emerald"></i>
-          Quand attendre un dividende au Maroc
+          <?= te('Quand attendre un dividende au Maroc') ?>
         </div>
         <div class="div-cycle-steps">
           <div class="div-step">
-            <span class="div-step-when">31 déc.</span>
-            <span class="div-step-what">Clôture de l'exercice</span>
+            <span class="div-step-when"><?= te('31 déc.') ?></span>
+            <span class="div-step-what"><?= te('Clôture de l\'exercice') ?></span>
           </div>
           <div class="div-step">
-            <span class="div-step-when">mars – avril</span>
-            <span class="div-step-what">Le conseil d'administration propose le dividende</span>
+            <span class="div-step-when"><?= te('mars – avril') ?></span>
+            <span class="div-step-what"><?= te('Le conseil d\'administration propose le dividende') ?></span>
           </div>
           <div class="div-step">
-            <span class="div-step-when">avril – mai</span>
-            <span class="div-step-what">L'assemblée générale (AGO) le vote</span>
+            <span class="div-step-when"><?= te('avril – mai') ?></span>
+            <span class="div-step-what"><?= te('L\'assemblée générale (AGO) le vote') ?></span>
           </div>
           <div class="div-step is-pay">
-            <span class="div-step-when">mai – septembre</span>
-            <span class="div-step-what">Détachement puis paiement</span>
+            <span class="div-step-when"><?= te('mai – septembre') ?></span>
+            <span class="div-step-what"><?= te('Détachement puis paiement') ?></span>
           </div>
         </div>
         <p class="div-cycle-note">
           <?php if ($monthTotal): ?>
-            Sur les <strong><?= $monthTotal ?> versements</strong> enregistrés depuis 2022,
-            <strong><?= $seasonPct ?>&nbsp;%</strong> tombent entre mai et septembre,
-            avec un pic très net en <strong><?= $MONTHS_FR[$peakMonth] ?? '' ?></strong>.
+            <?= te('Sur les') ?> <strong><?= $monthTotal ?> <?= te('versements') ?></strong> <?= te('enregistrés depuis 2022,') ?>
+            <strong><?= $seasonPct ?>&nbsp;%</strong> <?= te('tombent entre mai et septembre, avec un pic très net en') ?> <strong><?= te($MONTHS_FR[$peakMonth] ?? '') ?></strong>.
           <?php endif; ?>
-          <span class="muted">Le dividende versé en <?= $year ?> provient donc de l'exercice <?= $year - 1 ?>.
-          Les dates exactes changent chaque année — elles dépendent de la date de l'AGO —
-          d'où les estimations ci-dessous pour les sociétés dont le rythme est régulier.</span>
+          <span class="muted"><?= te('Le dividende versé en') ?> <?= $year ?> <?= te('provient donc de l\'exercice') ?> <?= $year - 1 ?><?= te('. Les dates exactes changent chaque année — elles dépendent de la date de l\'AGO — d\'où les estimations ci-dessous pour les sociétés dont le rythme est régulier.') ?></span>
         </p>
       </div>
 
       <?php if ($dbError): ?>
         <div class="alert alert-danger">
-          <strong><i class="fas fa-bug me-2"></i>Erreur :</strong>
+          <strong><i class="fas fa-bug me-2"></i><?= te('Erreur :') ?></strong>
           <?= htmlspecialchars($dbError) ?>
         </div>
       <?php elseif (!$rows): ?>
         <div class="alert alert-info">
           <i class="fas fa-info-circle me-2"></i>
-          Aucun dividende enregistré pour <?= $year ?>.
+          <?= te('Aucun dividende enregistré pour') ?> <?= $year ?>.
         </div>
       <?php else: ?>
 
         <div class="div-summary">
           <div class="div-stat">
             <span class="div-stat-val"><?= count($rows) ?></span>
-            <span class="div-stat-lbl">sociétés distributrices</span>
+            <span class="div-stat-lbl"><?= te('sociétés distributrices') ?></span>
           </div>
           <div class="div-stat">
             <span class="div-stat-val t-cyan"><?= count($upcoming) ?></span>
-            <span class="div-stat-lbl">versements à venir</span>
+            <span class="div-stat-lbl"><?= te('versements à venir') ?></span>
           </div>
           <div class="div-stat">
             <span class="div-stat-val t-emerald"><?= $confirmedCount ?></span>
-            <span class="div-stat-lbl">dates confirmées</span>
+            <span class="div-stat-lbl"><?= te('dates confirmées') ?></span>
           </div>
           <div class="div-years">
             <?php for ($y = $thisYr + 1; $y >= $thisYr - 4; $y--): ?>
@@ -243,7 +241,7 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
 
         <?php if ($upcoming): ?>
           <h5 class="div-sec-title">
-            <i class="fas fa-arrow-right me-2 t-cyan"></i>À venir
+            <i class="fas fa-arrow-right me-2 t-cyan"></i><?= te('À venir') ?>
             <span class="muted"><?= count($upcoming) ?></span>
           </h5>
           <?php div_rows_table($upcoming, $priceMap, false, $predictions); ?>
@@ -251,7 +249,7 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
 
         <?php if ($undated): ?>
           <h5 class="div-sec-title">
-            <i class="fas fa-question-circle me-2 t-amber"></i>Date non communiquée
+            <i class="fas fa-question-circle me-2 t-amber"></i><?= te('Date non communiquée') ?>
             <span class="muted"><?= count($undated) ?></span>
           </h5>
           <?php div_rows_table($undated, $priceMap, false, $predictions); ?>
@@ -259,7 +257,7 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
 
         <?php if ($past): ?>
           <h5 class="div-sec-title">
-            <i class="fas fa-check me-2"></i>Déjà versés
+            <i class="fas fa-check me-2"></i><?= te('Déjà versés') ?>
             <span class="muted"><?= count($past) ?></span>
           </h5>
           <?php div_rows_table($past, $priceMap, true, $predictions); ?>
@@ -267,14 +265,14 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
 
         <p class="fund-source">
           <i class="fas fa-calendar-alt me-1"></i>
-          <span class="muted">Un dividende versé en <?= $year ?> provient de l'exercice <?= $year - 1 ?>
-          · les rendements sont calculés sur le cours du jour · montants bruts</span>
+          <span class="muted"><?= te('Un dividende versé en') ?> <?= $year ?> <?= te('provient de l\'exercice') ?> <?= $year - 1 ?>
+          <?= te('· les rendements sont calculés sur le cours du jour · montants bruts') ?></span>
         </p>
 
       <?php endif; ?>
     </div>
   </main>
 </div>
-<script src="assets/js/app.js"></script>
+<script src="assets/js/app.js?v=2"></script>
 </body>
 </html>

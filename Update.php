@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/core/i18n.php';
 require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/auth.php';
@@ -10,13 +11,13 @@ unset($_SESSION['old_post']);
 $saved = isset($_GET['saved']);
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="<?= ui_locale() ?>" dir="<?= ui_direction() ?>">
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="<?= csrf_token() ?>">
-  <title>myInterpreter | Update Stock</title>
+  <title><?= te('myInterpreter | Update Stock') ?></title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=5" rel="stylesheet">
@@ -34,24 +35,24 @@ $saved = isset($_GET['saved']);
     <?php if (!empty($_SESSION['erreurs'])): ?>
       <div class="alert alert-danger mb-4">
         <i class="fas fa-exclamation-triangle me-2"></i>
-        <?= implode('<br>', $_SESSION['erreurs']) ?>
+        <?= implode('<br>', array_map(fn($message) => te(strip_tags($message)), $_SESSION['erreurs'])) ?>
       </div>
       <?php unset($_SESSION['erreurs']); ?>
     <?php endif; ?>
 
     <?php if ($saved): ?>
-      <div class="alert alert-success mb-4"><i class="fas fa-check-circle me-2"></i>Données sauvegardées avec succès !</div>
+      <div class="alert alert-success mb-4"><i class="fas fa-check-circle me-2"></i><?= te('Données sauvegardées avec succès !') ?></div>
     <?php endif; ?>
 
     <!-- Header -->
     <div class="mb-4" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
       <div>
-        <h2 class="mb-1" style="font-family:var(--font-display);font-weight:700;font-size:1.5rem;">Analyser une société</h2>
-        <p class="muted" style="font-size:0.85rem;">Renseignez les champs rouges pour calculer. Ajoutez les verts pour sauvegarder.</p>
+        <h2 class="mb-1" style="font-family:var(--font-display);font-weight:700;font-size:1.5rem;"><?= te('Analyser une société') ?></h2>
+        <p class="muted" style="font-size:0.85rem;"><?= te('Renseignez les champs rouges pour calculer. Ajoutez les verts pour sauvegarder.') ?></p>
       </div>
       <a href="handlers/sync_companies.php" class="btn btn-ghost btn-sm" target="_blank"
-         style="align-self:center" title="Enrichir toutes les sociétés des données financières">
-        <i class="fas fa-cloud-download-alt"></i> Sync toutes les sociétés
+         style="align-self:center" title="<?= te('Enrichir toutes les sociétés des données financières') ?>">
+        <i class="fas fa-cloud-download-alt"></i> <?= te('Sync toutes les sociétés') ?>
       </a>
     </div>
 
@@ -61,9 +62,9 @@ $saved = isset($_GET['saved']);
       <!-- Company name -->
       <div class="field-group mb-4">
         <div class="field-group-title cyan" style="display:flex;align-items:center;justify-content:space-between">
-          <span><i class="fas fa-building"></i> Société <span class="required-dot">requise</span></span>
+          <span><i class="fas fa-building"></i> <?= te('Société') ?> <span class="required-dot"><?= te('requise') ?></span></span>
           <button type="button" id="btnAutoFill" class="btn btn-ghost btn-sm" onclick="autoFill()" disabled>
-            <i class="fas fa-magic"></i> Auto-remplir données financières
+            <i class="fas fa-magic"></i> <?= te('Auto-remplir données financières') ?>
           </button>
         </div>
         <?php
@@ -83,7 +84,7 @@ $saved = isset($_GET['saved']);
                  required autocomplete="off"
                  value="<?= htmlspecialchars($old['NAME'] ?? '') ?>"
                  oninput="onNameChange(this.value)">
-          <label for="floatName" style="color:var(--rose)"><i class="fas fa-building me-2"></i>Nom de l'entreprise</label>
+          <label for="floatName" style="color:var(--rose)"><i class="fas fa-building me-2"></i><?= te('Nom de l\'entreprise') ?></label>
           <datalist id="companyList">
             <?php foreach ($companies as $n): ?>
               <option value="<?= htmlspecialchars($n) ?>">
@@ -95,14 +96,14 @@ $saved = isset($_GET['saved']);
 
       <!-- PER section: PA + BPA -->
       <div class="field-group">
-        <div class="field-group-title cyan"><i class="fas fa-chart-pie"></i> P.E.R — Price Earning Ratio</div>
+        <div class="field-group-title cyan"><i class="fas fa-chart-pie"></i> <?= te('P.E.R — Price Earning Ratio') ?></div>
         <div class="row g-3">
           <div class="col-md-6">
             <div class="form-floating">
               <input type="number" name="PA" id="floatPA" class="form-control"
                      placeholder=" " step="any"
                      value="<?= htmlspecialchars($old['PA'] ?? '') ?>">
-              <label for="floatPA" style="color:var(--rose)">Prix de l'action (PA) <span class="required-dot"></span></label>
+              <label for="floatPA" style="color:var(--rose)"><?= te('Prix de l\'action (PA)') ?> <span class="required-dot"></span></label>
             </div>
           </div>
           <div class="col-md-6">
@@ -110,7 +111,7 @@ $saved = isset($_GET['saved']);
               <input type="number" name="BPA" id="floatBPA" class="form-control"
                      placeholder=" " step="any"
                      value="<?= htmlspecialchars($old['BPA'] ?? '') ?>">
-              <label for="floatBPA" class="t-emerald">Bénéfice par action (BPA)</label>
+              <label for="floatBPA" class="t-emerald"><?= te('Bénéfice par action (BPA)') ?></label>
             </div>
           </div>
         </div>
@@ -118,14 +119,14 @@ $saved = isset($_GET['saved']);
 
       <!-- PEG section: TC5 + DPA -->
       <div class="field-group">
-        <div class="field-group-title violet"><i class="fas fa-arrow-trend-up"></i> P.E.G — Price/Earnings to Growth</div>
+        <div class="field-group-title violet"><i class="fas fa-arrow-trend-up"></i> <?= te('P.E.G — Price/Earnings to Growth') ?></div>
         <div class="row g-3">
           <div class="col-md-6">
             <div class="form-floating">
               <input type="number" name="TC5" id="floatTC5" class="form-control"
                      placeholder=" " step="any"
                      value="<?= htmlspecialchars($old['TC5'] ?? '') ?>">
-              <label for="floatTC5" class="t-violet">Taux de croissance annuel (TC5 %)</label>
+              <label for="floatTC5" class="t-violet"><?= te('Taux de croissance annuel (TC5 %)') ?></label>
             </div>
           </div>
           <div class="col-md-6">
@@ -133,7 +134,7 @@ $saved = isset($_GET['saved']);
               <input type="number" name="DPA" id="floatDPA" class="form-control"
                      placeholder=" " step="any"
                      value="<?= htmlspecialchars($old['DPA'] ?? '') ?>">
-              <label for="floatDPA" class="t-violet">Dividende par action (DPA)</label>
+              <label for="floatDPA" class="t-violet"><?= te('Dividende par action (DPA)') ?></label>
             </div>
           </div>
         </div>
@@ -141,25 +142,25 @@ $saved = isset($_GET['saved']);
 
       <!-- PR section: ROE -->
       <div class="field-group">
-        <div class="field-group-title emerald"><i class="fas fa-coins"></i> P/R — Price / ROE</div>
+        <div class="field-group-title emerald"><i class="fas fa-coins"></i> <?= te('P/R — Price / ROE') ?></div>
         <div class="form-floating">
           <input type="number" name="ROE" id="floatROE" class="form-control"
                  placeholder=" " step="any"
                  value="<?= htmlspecialchars($old['ROE'] ?? '') ?>">
-          <label for="floatROE" class="t-emerald">Rentabilité des capitaux propres (ROE %)</label>
+          <label for="floatROE" class="t-emerald"><?= te('Rentabilité des capitaux propres (ROE %)') ?></label>
         </div>
       </div>
 
       <!-- PB section: NA + CP -->
       <div class="field-group">
-        <div class="field-group-title amber"><i class="fas fa-landmark"></i> P/B — Price to Book Value</div>
+        <div class="field-group-title amber"><i class="fas fa-landmark"></i> <?= te('P/B — Price to Book Value') ?></div>
         <div class="row g-3">
           <div class="col-md-6">
             <div class="form-floating">
               <input type="number" name="NA" id="floatNA" class="form-control"
                      placeholder=" " step="any"
                      value="<?= htmlspecialchars($old['NA'] ?? '') ?>">
-              <label for="floatNA" class="t-amber">Nombre d'actions (NA)</label>
+              <label for="floatNA" class="t-amber"><?= te('Nombre d\'actions (NA)') ?></label>
             </div>
           </div>
           <div class="col-md-6">
@@ -167,7 +168,7 @@ $saved = isset($_GET['saved']);
               <input type="number" name="CP" id="floatCP" class="form-control"
                      placeholder=" " step="any"
                      value="<?= htmlspecialchars($old['CP'] ?? '') ?>">
-              <label for="floatCP" class="t-amber">Capitaux propres (CP)</label>
+              <label for="floatCP" class="t-amber"><?= te('Capitaux propres (CP)') ?></label>
             </div>
           </div>
         </div>
@@ -175,13 +176,13 @@ $saved = isset($_GET['saved']);
 
       <div class="action-bar">
         <button type="submit" name="action" value="big_update" class="btn btn-violet">
-          <i class="fas fa-sync-alt"></i> Full Update
+          <i class="fas fa-sync-alt"></i> <?= te('Full Update') ?>
         </button>
         <button type="submit" name="action" value="save_changes" class="btn btn-cyan" data-loading-text="Calcul...">
-          <i class="fas fa-calculator"></i> Calculer
+          <i class="fas fa-calculator"></i> <?= te('Calculer') ?>
         </button>
         <button type="submit" name="action" value="save_immediately" class="btn btn-emerald">
-          <i class="fas fa-save"></i> Sauvegarder
+          <i class="fas fa-save"></i> <?= te('Sauvegarder') ?>
         </button>
       </div>
     </form>
@@ -190,7 +191,7 @@ $saved = isset($_GET['saved']);
 </div>
 
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
-<script src="assets/js/app.js"></script>
+<script src="assets/js/app.js?v=2"></script>
 <script>
 const nameToSym = <?= json_encode($nameToSym, JSON_UNESCAPED_UNICODE) ?>;
 
@@ -214,7 +215,7 @@ async function autoFill() {
     if (!sym) return;
 
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Chargement…';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + window.I18n.t('Chargement…');
 
     try {
         const r = await fetch('handlers/market_proxy.php?symbol=' + encodeURIComponent(sym));
@@ -248,7 +249,7 @@ async function autoFill() {
         prev.innerHTML = lines.join(' &nbsp;·&nbsp; ');
         prev.style.display = 'block';
 
-        btn.innerHTML = '<i class="fas fa-check t-emerald"></i> Données financières récupérées';
+        btn.innerHTML = '<i class="fas fa-check t-emerald"></i> ' + window.I18n.t('Données financières récupérées');
         window.showToast('Données financières récupérées (' + (d.ext_name || sym) + ')', 'success');
 
         // Save enrichment data (description, sector, beta, etc.) to Appwrite silently
@@ -264,7 +265,7 @@ async function autoFill() {
               .catch(() => {});
         }
     } catch (e) {
-        btn.innerHTML = '<i class="fas fa-magic"></i> Auto-remplir données financières';
+        btn.innerHTML = '<i class="fas fa-magic"></i> ' + window.I18n.t('Auto-remplir données financières');
         btn.disabled  = false;
         window.showToast('Erreur : ' + e.message, 'error');
     }

@@ -102,5 +102,15 @@ control has no automatic replacement.
   and extend both-theme checks to 2560×1440. Checks include rendered bar spread,
   circle geometry, matching canvas/container width and logo loading.
 
-English/Arabic research is in `docs/LOCALIZATION_PLAN.md`; translations are not
-implemented in this refinement. The daily P&L job remains undeployed.
+Initial language research is in `docs/LOCALIZATION_PLAN.md`.
+
+## Arabic and Darija follow-up
+
+French, Arabic and Moroccan Darija now share local translation catalogs, a
+remembered header selector and RTL-aware layouts. Both themes and financial
+values are preserved. See `docs/LOCALIZATION.md` for architecture, verification
+and remaining native-copy review. English is not implemented. Browser checks
+passed all three locales at seven widths in both themes; Arabic/Darija also
+passed read-only public-route checks. Authenticated tests use invented data.
+The allocation viewport follows the active slide height, avoiding blank space
+from a taller hidden sector panel. The daily P&L job remains undeployed.

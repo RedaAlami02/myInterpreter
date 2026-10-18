@@ -1,10 +1,11 @@
 /* HTML chart legends: keyboard/touch controls and explanations without canvas crowding. */
 (function () {
   'use strict';
+  const tr = (text, values) => window.I18n ? window.I18n.t(text, values) : text;
   const explanations = {
-    RNPG: 'Résultat net part du groupe : le bénéfice (ou la perte) qui revient aux actionnaires du groupe, après les charges et les impôts.',
-    CA: 'Chiffre d’affaires : le total des ventes de l’entreprise, avant de déduire ses dépenses. Ce n’est pas son bénéfice.',
-    EBE: 'Excédent brut d’exploitation : ce que l’activité dégage après ses dépenses courantes, avant notamment les amortissements, les intérêts et les impôts.'
+    RNPG: tr('Résultat net part du groupe : le bénéfice (ou la perte) qui revient aux actionnaires du groupe, après les charges et les impôts.'),
+    CA: tr('Chiffre d’affaires : le total des ventes de l’entreprise, avant de déduire ses dépenses. Ce n’est pas son bénéfice.'),
+    EBE: tr('Excédent brut d’exploitation : ce que l’activité dégage après ses dépenses courantes, avant notamment les amortissements, les intérêts et les impôts.')
   };
   function legendPlugin(id, financial) {
     return {
@@ -15,7 +16,7 @@
           legend = document.createElement('div');
           legend.className = 'workspace-chart-legend';
           legend.setAttribute('role', 'group');
-          legend.setAttribute('aria-label', financial ? 'Indicateurs financiers' : 'Répartition du portefeuille');
+          legend.setAttribute('aria-label', financial ? tr('Indicateurs financiers') : tr('Répartition du portefeuille'));
           chart.canvas.parentElement.after(legend);
           chart.$workspaceLegend = legend;
         }

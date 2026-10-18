@@ -1,8 +1,9 @@
 # French, English and Arabic — structure proposal
 
-Status: research/proposal only. No language switcher or translated production
-interface has been introduced. French remains the existing language. Arabic
-register needs confirmation (recommend Modern Standard Arabic, not Darija).
+Status: initial proposal below retained for background. The user subsequently
+approved both Modern Standard Arabic and Moroccan Darija. French, Arabic and
+Darija are now implemented; English remains future work. See
+[LOCALIZATION.md](LOCALIZATION.md) for the actual architecture and limitations.
 
 ## Feasibility and scope
 

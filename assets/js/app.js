@@ -1,3 +1,4 @@
+const appText = (text, values) => window.I18n ? window.I18n.t(text, values) : text;
 /* ── Auto-inject CSRF token into all fetch() calls ──────── */
 (function () {
   const meta = document.querySelector('meta[name="csrf-token"]');
@@ -114,13 +115,13 @@ document.addEventListener('DOMContentLoaded', () => {
     timers.forEach(clearTimeout);
     timers = [
       setTimeout(() => { indicator.hidden = false; status.textContent = label; }, 180),
-      setTimeout(() => { status.textContent = 'Cela prend plus de temps que prévu…'; }, 8000),
+      setTimeout(() => { status.textContent = appText('Cela prend plus de temps que prévu…'); }, 8000),
       setTimeout(() => {
         const hadForm = pendingForms.size > 0;
         reset();
         status.textContent = hadForm
-          ? 'Réponse tardive. Vérifiez le résultat avant de réessayer.'
-          : 'Chargement prolongé. Vous pouvez choisir une autre page.';
+          ? appText('Réponse tardive. Vérifiez le résultat avant de réessayer.')
+          : appText('Chargement prolongé. Vous pouvez choisir une autre page.');
       }, 20000),
     ];
   }
@@ -137,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const url = new URL(a.href, location.href);
     if (!['http:', 'https:'].includes(url.protocol) || url.origin !== location.origin) return;
     if (url.pathname === location.pathname && url.search === location.search && url.hash) return;
-    queueMicrotask(() => { if (!e.defaultPrevented) show('Chargement de la page…'); });
+    queueMicrotask(() => { if (!e.defaultPrevented) show(appText('Chargement de la page…')); });
   });
 
   document.addEventListener('submit', e => {
@@ -158,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Keep the actual submitter enabled so its name/value reaches PHP.
         button.classList.add('btn-loading');
         button.setAttribute('aria-disabled', 'true');
-        button.textContent = button.dataset.loadingText || 'Chargement…';
+        button.textContent = button.dataset.loadingText || appText('Chargement…');
       }
       pendingForms.set(form, state);
       form.setAttribute('aria-busy', 'true');
@@ -175,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
   placeholder.className = 'content-loading';
   placeholder.setAttribute('role', 'status');
   placeholder.setAttribute('aria-live', 'polite');
-  placeholder.innerHTML = '<span class="content-loading__label">Chargement des données financières…</span>'
+  placeholder.innerHTML = '<span class="content-loading__label">' + appText('Chargement des données financières…') + '</span>'
     + '<div class="content-loading__preview" aria-hidden="true">'
     + '<span class="skeleton skeleton--heading"></span><span class="skeleton"></span>'
     + '<span class="skeleton skeleton--short"></span>'

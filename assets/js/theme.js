@@ -1,6 +1,7 @@
 /* Workspace theme: preferences only; no account or application data is stored. */
 (function () {
   'use strict';
+  const tr = (text, values) => window.I18n ? window.I18n.t(text, values) : text;
   const root = document.documentElement;
   const key = 'myinterpreter-theme';
   const system = window.matchMedia('(prefers-color-scheme: dark)');
@@ -15,10 +16,10 @@
     root.dataset.theme = theme;
     root.style.colorScheme = theme;
     document.querySelectorAll('[data-theme-toggle]').forEach(button => {
-      button.setAttribute('aria-label', theme === 'dark' ? 'Activer le mode clair' : 'Activer le mode sombre');
+      button.setAttribute('aria-label', theme === 'dark' ? tr('Activer le mode clair') : tr('Activer le mode sombre'));
       button.setAttribute('aria-pressed', String(theme === 'dark'));
       const label = button.querySelector('[data-theme-label]');
-      if (label) label.textContent = theme === 'dark' ? 'Clair' : 'Sombre';
+      if (label) label.textContent = theme === 'dark' ? tr('Clair') : tr('Sombre');
     });
     document.dispatchEvent(new CustomEvent('workspace:theme', { detail: { theme } }));
   }
