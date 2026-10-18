@@ -1,0 +1,15 @@
+{
+  "$id": "daily_pnl",
+  "name": "daily_pnl",
+  "runtime": "python-3.9",
+  "execute": [],
+  "events": [],
+  "scopes": ["documents.read", "documents.write"],
+  "schedule": "15,45 16-17 * * 1-5",
+  "timeout": 900,
+  "enabled": true,
+  "logging": true,
+  "entrypoint": "src/main.py",
+  "commands": "pip install -r requirements.txt",
+  "path": "functions/daily_pnl"
+}
