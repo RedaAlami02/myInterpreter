@@ -21,8 +21,12 @@ $rows    = [];
 $priceMap = [];
 
 try {
-    $rows = div_for_year($year);
-    foreach (aw_list_docs('latest_prices', [q_limit(200)]) as $d) {
+    $calendarData = aw_multi_list_docs([
+        'year' => ['dividends', [q_equal('year', $year), q_limit(200)], null],
+        'prices' => ['latest_prices', [q_limit(200)], null],
+    ]);
+    $rows = $calendarData['year'];
+    foreach ($calendarData['prices'] as $d) {
         $n = $d['c_name'] ?? '';
         if ($n !== '') $priceMap[$n] = (float)($d['pa'] ?? 0);
     }
@@ -65,11 +69,26 @@ $MONTHS_FR = [1 => 'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juill
 
 // Estimated ex-dates for the issuers whose date is not yet announced.
 $predictions = [];
+$historyRequests = [];
 foreach ($rows as $r) {
     $n = $r['c_name'] ?? '';
-    if ($n === '' || div_confirmed($r) || isset($predictions[$n])) continue;
-    $p = div_predict(div_for_company($n), $year);
-    if ($p) $predictions[$n] = $p;
+    if ($n === '' || div_confirmed($r)) continue;
+    $historyRequests[$n] = ['dividends', [q_equal('c_name', $n), q_order_desc('year'), q_limit(50)], null];
+}
+// Preserve each issuer's full prediction input, but avoid a serial network
+// round trip per issuer (including repeated requests when no prediction exists).
+foreach (array_chunk($historyRequests, 6, true) as $batch) {
+    try {
+        $histories = aw_multi_list_docs($batch);
+    } catch (Throwable $e) {
+        // Keep the existing per-company graceful degradation on network failure.
+        $histories = [];
+        foreach ($batch as $n => $_request) $histories[$n] = div_for_company($n);
+    }
+    foreach ($histories as $n => $history) {
+        $p = div_predict($history, $year);
+        if ($p) $predictions[$n] = $p;
+    }
 }
 
 /** One table body, shared by the three sections. */

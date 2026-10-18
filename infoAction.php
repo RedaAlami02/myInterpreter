@@ -29,7 +29,11 @@ $symbolTo     = [];   // ticker symbol => stored company name
 
 // ─── Initial company list ─────────────────────────────────
 try {
-    $companyDocs  = aw_list_docs('company', [q_order_asc('name'), q_limit(500)]);
+    $directoryData = aw_multi_list_docs([
+        'companies' => ['company', [q_order_asc('name'), q_limit(500)], null],
+        'symbols' => ['format', [q_limit(500)], null],
+    ]);
+    $companyDocs = $directoryData['companies'];
     $allCompanies = array_values(array_unique(array_filter(array_column($companyDocs, 'name'))));
 
     // Readable label per company, for the search dropdown only — never a key.
@@ -40,7 +44,7 @@ try {
     }
 
     // Symbols power ticker lookup ("ATW") and the datalist hints.
-    foreach (aw_list_docs('format', [q_limit(500)]) as $f) {
+    foreach ($directoryData['symbols'] as $f) {
         if (!empty($f['symbol']) && !empty($f['name'])) $symbolTo[$f['symbol']] = $f['name'];
     }
 } catch (Throwable $e) {
@@ -65,10 +69,9 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
     $suggestions = $resolved['suggestions'];
 
     try {
-        $companyRes = $resolved['name'] === null ? [] : aw_list_docs('company', [
-            q_equal('name', $name),
-            q_limit(1),
-        ]);
+        $companyRes = $resolved['name'] === null ? [] : array_values(array_filter(
+            $companyDocs, fn($doc) => ($doc['name'] ?? '') === $name
+        ));
         $company = !empty($companyRes) ? $companyRes[0] : null;
 
         if ($company) {
@@ -106,8 +109,7 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
             }
             // Fallback: format collection
             if (!$symbol) {
-                $fmtRes = aw_list_docs('format', [q_equal('name', $name), q_limit(1)]);
-                if (!empty($fmtRes)) $symbol = $fmtRes[0]['symbol'] ?? null;
+                $symbol = array_flip($symbolTo)[$name] ?? null;
             }
 
             // ─── Dividends ───────────────────────────────────

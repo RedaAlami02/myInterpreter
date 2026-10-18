@@ -139,20 +139,17 @@ $earningsDocs = [];
 $loadError    = null;
 
 try {
-    $holdingsDocs = aw_list_docs('portefeuille', [
-        q_equal('user_id', $uid),
-        q_limit(200),
-    ], $session);
-
-    // Get last sync timestamp from a single recent record
-    $recentDoc = aw_list_docs('data', [q_order_desc('date'), q_limit(1)]);
+    // Independent reads overlap; private queries retain their user and session.
+    $portfolioData = aw_multi_list_docs([
+        'holdings' => ['portefeuille', [q_equal('user_id', $uid), q_limit(200)], $session],
+        'recent' => ['data', [q_order_desc('date'), q_limit(1)], null],
+        'earnings' => ['benefits', [q_equal('user_id', $uid), q_order_desc('date'), q_limit(500)], $session],
+    ]);
+    $holdingsDocs = $portfolioData['holdings'];
+    $recentDoc = $portfolioData['recent'];
     $lastSync  = $recentDoc[0]['date'] ?? null;
 
-    $earningsDocs = aw_list_docs('benefits', [
-        q_equal('user_id', $uid),
-        q_order_desc('date'),
-        q_limit(500),
-    ], $session);
+    $earningsDocs = $portfolioData['earnings'];
     $lastSnapDate = $earningsDocs[0]['date'] ?? null;
 } catch (Throwable $e) {
     error_log('[myInterpreter] portfolio.php data load error: ' . $e->getMessage());

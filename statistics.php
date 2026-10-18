@@ -83,16 +83,12 @@ function stats(): void
     $session = aw_session();
 
     // Fetch all achats and ventes for this user
-    $achatDocs = aw_list_docs('achats', [
-        q_equal('user_id', $uid),
-        q_order_asc('date'),
-        q_limit(500),
-    ], $session);
-    $venteDocs = aw_list_docs('ventes', [
-        q_equal('user_id', $uid),
-        q_order_asc('date'),
-        q_limit(500),
-    ], $session);
+    $transactions = aw_multi_list_docs([
+        'buys' => ['achats', [q_equal('user_id', $uid), q_order_asc('date'), q_limit(500)], $session],
+        'sells' => ['ventes', [q_equal('user_id', $uid), q_order_asc('date'), q_limit(500)], $session],
+    ]);
+    $achatDocs = $transactions['buys'];
+    $venteDocs = $transactions['sells'];
 
     // Get distinct stocks that have been sold
     $soldStocks = [];

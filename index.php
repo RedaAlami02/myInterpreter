@@ -129,7 +129,11 @@ $isMarketOpen   = false;
 
 if ($isLoggedIn) {
     try {
-        $docs = aw_list_docs('data', [q_order_desc('date'), q_limit(500)]);
+        $dashboardData = aw_multi_list_docs([
+            'recent' => ['data', [q_order_desc('date'), q_limit(500)], null],
+            'oldest' => ['data', [q_order_asc('date'), q_limit(1)], null],
+        ]);
+        $docs = $dashboardData['recent'];
 
         $latest = []; $prev = []; $byDate = [];
         foreach ($docs as $d) {
@@ -146,9 +150,9 @@ if ($isLoggedIn) {
 
         // Total rows and date span from the data collection
         $totalDataRows = aw_count_docs('data');
-        $oldestDoc = aw_list_docs('data', [q_order_asc('date'), q_limit(1)]);
+        $oldestDoc = $dashboardData['oldest'];
         $oldestDate = !empty($oldestDoc) ? substr($oldestDoc[0]['date'] ?? '', 0, 10) : null;
-        $newestDoc  = aw_list_docs('data', [q_order_desc('date'), q_limit(1)]);
+        $newestDoc  = $docs;
         $newestDate = !empty($newestDoc) ? substr($newestDoc[0]['date'] ?? '', 0, 10) : null;
         $snapshotDays = ($oldestDate && $newestDate)
             ? (int)round((strtotime($newestDate) - strtotime($oldestDate)) / 86400)

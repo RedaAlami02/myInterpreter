@@ -1,0 +1,550 @@
+[
+  {
+    "profile": "desktop",
+    "path": "index.php",
+    "title": "myInterpreter | Tableau de bord",
+    "finalUrl": "http://127.0.0.1:8018/index.php",
+    "ready": "complete",
+    "ttfb": 24.90000000037253,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.min.css",
+        "end": 42.299999999813735
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css",
+        "end": 181.29999999981374
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/global.css?v=4",
+        "end": 41.799999999813735
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.bundle.min.js",
+        "end": 44.09999999962747
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/js/app.js",
+        "end": 44.700000000186265
+      },
+      {
+        "name": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap",
+        "end": 212.5
+      }
+    ],
+    "lcp": {
+      "value": 392,
+      "selector": "H1",
+      "url": null
+    },
+    "timing": 452.20000000018626
+  },
+  {
+    "profile": "desktop",
+    "path": "infoAction.php",
+    "title": "myInterpreter | Consulter Action",
+    "finalUrl": "http://127.0.0.1:8018/infoAction.php",
+    "ready": "complete",
+    "ttfb": 985.2999999998137,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.min.css",
+        "end": 992.6000000005588
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css",
+        "end": 989.4000000003725
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/global.css?v=4",
+        "end": 992.9000000003725
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/infoAction.css?v=11",
+        "end": 995.6000000005588
+      },
+      {
+        "name": "https://cdn.jsdelivr.net/npm/chart.js",
+        "end": 1134.7000000001863
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/js/app.js",
+        "end": 996.2000000001863
+      },
+      {
+        "name": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap",
+        "end": 997.9000000003725
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2",
+        "end": 1000.7000000001863
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+        "end": 1001
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4Cw.woff2",
+        "end": 1001.2999999998137
+      }
+    ],
+    "lcp": {
+      "value": 1064,
+      "selector": "P",
+      "url": null
+    },
+    "timing": 1145.2000000001863
+  },
+  {
+    "profile": "desktop",
+    "path": "portfolio.php",
+    "title": "myInterpreter | Tableau de bord",
+    "finalUrl": "http://127.0.0.1:8018/index.php",
+    "ready": "complete",
+    "ttfb": 10.799999999813735,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.min.css",
+        "end": 19.40000000037253
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css",
+        "end": 14.299999999813735
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/global.css?v=4",
+        "end": 18.799999999813735
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/js/app.js",
+        "end": 19.09999999962747
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.bundle.min.js",
+        "end": 19.299999999813735
+      },
+      {
+        "name": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap",
+        "end": 19.5
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2",
+        "end": 23.90000000037253
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+        "end": 24.09999999962747
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwg.woff2",
+        "end": 24.40000000037253
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4Cw.woff2",
+        "end": 24.5
+      }
+    ],
+    "lcp": {
+      "value": 56,
+      "selector": "DIV.alert.alert-warn",
+      "url": null
+    },
+    "timing": 35.299999999813735
+  },
+  {
+    "profile": "desktop",
+    "path": "screener.php",
+    "title": "myInterpreter | Screener",
+    "finalUrl": "http://127.0.0.1:8018/screener.php",
+    "ready": "complete",
+    "ttfb": 1191.699999999255,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.min.css",
+        "end": 1203.199999999255
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css",
+        "end": 1198
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/global.css?v=4",
+        "end": 1202.3999999994412
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/screener.css?v=4",
+        "end": 1202.199999999255
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/screener-pilot.css?v=1",
+        "end": 1202.7999999998137
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/js/app.js",
+        "end": 1203.5999999996275
+      },
+      {
+        "name": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap",
+        "end": 1208.3999999994412
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2",
+        "end": 1213.0999999996275
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+        "end": 1213.2999999998137
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwg.woff2",
+        "end": 1213.5
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4Cw.woff2",
+        "end": 1213.699999999255
+      }
+    ],
+    "lcp": {
+      "value": 1300,
+      "selector": "DIV.brand-sub",
+      "url": null
+    },
+    "timing": 1278.5999999996275
+  },
+  {
+    "profile": "desktop",
+    "path": "dividendes.php",
+    "title": "myInterpreter | Calendrier des dividendes",
+    "finalUrl": "http://127.0.0.1:8018/dividendes.php",
+    "ready": "complete",
+    "ttfb": 1192.2000000001863,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.min.css",
+        "end": 1200.2000000001863
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css",
+        "end": 1197.2000000001863
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/global.css?v=4",
+        "end": 1199.6000000005588
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/dividendes.css?v=2",
+        "end": 1200
+      },
+      {
+        "name": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap",
+        "end": 1200.7999999998137
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2",
+        "end": 1206.5
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+        "end": 1206.7999999998137
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwg.woff2",
+        "end": 1207.2000000001863
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4Cw.woff2",
+        "end": 1207.4000000003725
+      }
+    ],
+    "lcp": {
+      "value": 1260,
+      "selector": "P.div-cycle-note",
+      "url": null
+    },
+    "timing": 1234.2000000001863
+  },
+  {
+    "profile": "mobile",
+    "path": "index.php",
+    "title": "myInterpreter | Tableau de bord",
+    "finalUrl": "http://127.0.0.1:8018/index.php",
+    "ready": "complete",
+    "ttfb": 3.300000000745058,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.min.css",
+        "end": 15.100000000558794
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css",
+        "end": 11.900000000372529
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/global.css?v=4",
+        "end": 15
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/js/app.js",
+        "end": 15.5
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.bundle.min.js",
+        "end": 15.900000000372529
+      },
+      {
+        "name": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap",
+        "end": 18
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2",
+        "end": 19.800000000745058
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+        "end": 20
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwg.woff2",
+        "end": 20.300000000745058
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4Cw.woff2",
+        "end": 20.5
+      }
+    ],
+    "lcp": {
+      "value": 48,
+      "selector": "DIV.brand-sub",
+      "url": null
+    },
+    "timing": 30.100000000558794
+  },
+  {
+    "profile": "mobile",
+    "path": "infoAction.php",
+    "title": "myInterpreter | Consulter Action",
+    "finalUrl": "http://127.0.0.1:8018/infoAction.php",
+    "ready": "complete",
+    "ttfb": 905.0999999996275,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.min.css",
+        "end": 914.2999999998137
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css",
+        "end": 910.0999999996275
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/global.css?v=4",
+        "end": 913
+      },
+      {
+        "name": "https://cdn.jsdelivr.net/npm/chart.js",
+        "end": 910.1999999992549
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/infoAction.css?v=11",
+        "end": 913.2999999998137
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/js/app.js",
+        "end": 914
+      },
+      {
+        "name": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap",
+        "end": 916.7999999998137
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2",
+        "end": 926
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+        "end": 926.1999999992549
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwg.woff2",
+        "end": 926.5999999996275
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4Cw.woff2",
+        "end": 926.6999999992549
+      }
+    ],
+    "lcp": {
+      "value": 964,
+      "selector": "P",
+      "url": null
+    },
+    "timing": 957.8999999994412
+  },
+  {
+    "profile": "mobile",
+    "path": "portfolio.php",
+    "title": "myInterpreter | Tableau de bord",
+    "finalUrl": "http://127.0.0.1:8018/index.php",
+    "ready": "complete",
+    "ttfb": 4.5,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.min.css",
+        "end": 12.799999999813735
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css",
+        "end": 7.599999999627471
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/global.css?v=4",
+        "end": 12.200000000186265
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.bundle.min.js",
+        "end": 12.599999999627471
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/js/app.js",
+        "end": 12.400000000372529
+      },
+      {
+        "name": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap",
+        "end": 18.90000000037253
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2",
+        "end": 21
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+        "end": 21.09999999962747
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwg.woff2",
+        "end": 21.40000000037253
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4Cw.woff2",
+        "end": 21.59999999962747
+      }
+    ],
+    "lcp": {
+      "value": 44,
+      "selector": "DIV.alert.alert-warn",
+      "url": null
+    },
+    "timing": 28.200000000186265
+  },
+  {
+    "profile": "mobile",
+    "path": "screener.php",
+    "title": "myInterpreter | Screener",
+    "finalUrl": "http://127.0.0.1:8018/screener.php",
+    "ready": "complete",
+    "ttfb": 975.1000000005588,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.min.css",
+        "end": 985.6000000005588
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css",
+        "end": 980.8000000007451
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/global.css?v=4",
+        "end": 985.8000000007451
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/screener.css?v=4",
+        "end": 984.9000000003725
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/screener-pilot.css?v=1",
+        "end": 985
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/js/app.js",
+        "end": 985.3000000007451
+      },
+      {
+        "name": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap",
+        "end": 992.8000000007451
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2",
+        "end": 997.3000000007451
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+        "end": 997.5
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwg.woff2",
+        "end": 997.8000000007451
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4Cw.woff2",
+        "end": 998.1000000005588
+      }
+    ],
+    "lcp": {
+      "value": 1068,
+      "selector": "DIV.brand-name",
+      "url": null
+    },
+    "timing": 1036.1000000005588
+  },
+  {
+    "profile": "mobile",
+    "path": "dividendes.php",
+    "title": "myInterpreter | Calendrier des dividendes",
+    "finalUrl": "http://127.0.0.1:8018/dividendes.php",
+    "ready": "complete",
+    "ttfb": 1197.9000000003725,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:8018/assets/vendor/bootstrap/bootstrap.min.css",
+        "end": 1205.1000000005588
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css",
+        "end": 1202.2999999998137
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/global.css?v=4",
+        "end": 1204.6000000005588
+      },
+      {
+        "name": "http://127.0.0.1:8018/assets/css/dividendes.css?v=2",
+        "end": 1205.6000000005588
+      },
+      {
+        "name": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap",
+        "end": 1206.6000000005588
+      },
+      {
+        "name": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2",
+        "end": 1211
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2",
+        "end": 1211.2999999998137
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwg.woff2",
+        "end": 1212
+      },
+      {
+        "name": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4Cw.woff2",
+        "end": 1212.2999999998137
+      }
+    ],
+    "lcp": {
+      "value": 1248,
+      "selector": "P.div-cycle-note",
+      "url": null
+    },
+    "timing": 1232.6000000005588
+  }
+]
