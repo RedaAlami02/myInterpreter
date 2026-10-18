@@ -9,20 +9,20 @@ function _sb_active(string $page): string {
     return $page === $_sbPage ? ' is-active' : '';
 }
 ?>
-<aside class="sidebar">
+<header class="sidebar">
   <a class="brand" href="index.php" aria-label="Retour au tableau de bord">
-    <div class="brand-mark">m</div>
+    <div class="brand-mark" aria-hidden="true">mi.</div>
     <div>
       <div class="brand-name">myInterpreter</div>
       <div class="brand-sub">Bourse de Casablanca</div>
     </div>
   </a>
 
-  <nav class="nav-group nav-group--primary">
+  <nav class="nav-group nav-group--primary" aria-label="Navigation principale">
     <div class="nav-label">Navigation</div>
     <a class="nav-item<?= _sb_active('index.php') ?>" href="index.php">
       <span class="nav-icon">◆</span>
-      <span>Tableau de bord</span>
+      <span>Marché</span>
     </a>
     <?php if ($_sbIsAdmin): ?>
     <a class="nav-item<?= _sb_active('Update.php') ?>" href="Update.php">
@@ -32,16 +32,16 @@ function _sb_active(string $page): string {
     <?php endif; ?>
     <a class="nav-item<?= _sb_active('infoAction.php') ?>" href="infoAction.php">
       <span class="nav-icon">⌕</span>
-      <span>Consulter Action</span>
+      <span>Sociétés</span>
     </a>
     <a class="nav-item<?= _sb_active('portfolio.php') ?>" href="portfolio.php">
       <span class="nav-icon">◐</span>
-      <span>Mon Portefeuille</span>
+      <span>Portefeuille</span>
       <span class="nav-badge">P&amp;L</span>
     </a>
     <a class="nav-item<?= _sb_active('screener.php') ?>" href="screener.php">
       <span class="nav-icon">▽</span>
-      <span>Stock Screener</span>
+      <span>Sélection</span>
       <?php if (!empty($screenerCount)): ?>
         <span class="nav-badge"><?= (int)$screenerCount ?></span>
       <?php endif; ?>
@@ -52,6 +52,10 @@ function _sb_active(string $page): string {
     </a>
   </nav>
 
+  <div class="workspace-actions">
+  <button type="button" class="theme-toggle" data-theme-toggle aria-label="Changer de thème">
+    <span aria-hidden="true">◐</span><span data-theme-label>Thème</span>
+  </button>
   <?php if ($_sbLogged): ?>
   <div class="user-pill">
     <div class="user-avatar"><?= htmlspecialchars($_sbInitial) ?></div>
@@ -67,4 +71,5 @@ function _sb_active(string $page): string {
     </div>
   </div>
   <?php endif; ?>
-</aside>
+  </div>
+</header>

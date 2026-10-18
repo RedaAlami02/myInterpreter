@@ -1,0 +1,206 @@
+// Local-only Chromium regression runner; no account, backend, or remote browser.
+import { spawn, execFileSync } from 'node:child_process';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createServer } from 'node:http';
+
+const root = new URL('../', import.meta.url);
+const fixtures = Object.fromEntries(['portfolio', 'index', 'login'].map(name => [name, execFileSync('php', ['tests/render_workspace_fixture.php', name], { cwd: fileURLToPath(root), encoding: 'utf8' })]));
+const profile = await mkdtemp(join(tmpdir(), 'loading-ui-'));
+let socket, chromium;
+const server = createServer(async (req, res) => {
+  const path = new URL(req.url, 'http://localhost').pathname;
+  const name = path.replace(/^\//, '').replace(/\.php$/, '');
+  if (fixtures[name] && req.method === 'GET') {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(fixtures[name]); return;
+  }
+  const target = resolve(fileURLToPath(root), '.' + path);
+  if (path.startsWith('/assets/') && target.startsWith(resolve(fileURLToPath(root), 'assets') + '/') && ['.js', '.css', '.woff2'].includes(extname(target))) {
+    try { res.setHeader('Content-Type', extname(target) === '.js' ? 'application/javascript' : extname(target) === '.css' ? 'text/css' : 'font/woff2'); res.end(await readFile(target)); return; } catch {}
+  }
+  res.statusCode = 404; res.end('Fixture only');
+});
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+try {
+  await mkdir(new URL('design-review/screenshots/prototypes/', root), {recursive: true});
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  chromium = spawn('chromium', ['--headless', '--no-sandbox', '--disable-gpu', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank']);
+  let ws, stderr = '';
+  chromium.stderr.on('data', chunk => { stderr += chunk; ws = stderr.match(/DevTools listening on (ws:\/\/\S+)/)?.[1]; });
+  for (let i = 0; i < 100 && !ws; i++) await delay(100);
+  if (!ws) throw new Error(`Chromium did not start: ${stderr}`);
+  socket = new WebSocket(ws);
+  await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }); });
+  let id = 0;
+  const pending = new Map();
+  socket.addEventListener('message', ({ data }) => {
+    const message = JSON.parse(data);
+    if (!pending.has(message.id)) return;
+    const { resolve, reject, timeout } = pending.get(message.id);
+    pending.delete(message.id); clearTimeout(timeout);
+    if (message.error) reject(new Error(message.error.message)); else resolve(message.result);
+  });
+  const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+    const key = ++id;
+    const timeout = setTimeout(() => { pending.delete(key); reject(new Error(`Timed out: ${method}`)); }, 15000);
+    pending.set(key, { resolve, reject, timeout });
+    socket.send(JSON.stringify({ id: key, method, params, ...(sessionId ? { sessionId } : {}) }));
+  });
+  const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
+  const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
+  const call = (method, params) => send(method, params, sessionId);
+  await call('Page.enable');
+  const evaluate = async expression => {
+    const result = await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+    if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
+    return result.result.value;
+  };
+  const errors = [];
+  socket.addEventListener('message', ({data}) => {
+    const event = JSON.parse(data);
+    if (event.method === 'Runtime.exceptionThrown') errors.push(event.params.exceptionDetails.exception?.description || event.params.exceptionDetails.text);
+  });
+  await call('Runtime.enable');
+  const navigate = async name => {
+    await call('Page.navigate', {url: `http://127.0.0.1:${server.address().port}/${name}.php`});
+    for (let i = 0; i < 300; i++) {
+      if (await evaluate('document.readyState === "complete" && !!document.querySelector("[data-theme-toggle]")')) return;
+      await delay(100);
+    }
+    throw new Error('Fixture load timeout');
+  };
+  await call('Emulation.setEmulatedMedia', {features:[{name:'prefers-color-scheme',value:'light'}]});
+  await navigate('portfolio');
+  console.log(await evaluate(`(() => {
+    const check = (v,m) => {if(!v) throw new Error(m)};
+    check(document.documentElement.dataset.theme === 'light', 'System light default');
+    check(document.querySelectorAll('#holdingsTbl tbody tr').length === 6, 'Holdings render');
+    check(window.Chart && Object.keys(Chart.instances).length >= 3, 'Chart libraries load');
+    document.querySelector('[data-theme-toggle]').click();
+    check(document.documentElement.dataset.theme === 'dark', 'Toggle dark');
+    check(localStorage.getItem('myinterpreter-theme') === 'dark', 'Preference saved');
+    switchTab('transactions'); check(document.querySelector('#tab-transactions').classList.contains('active'),'Transactions tab');
+    switchTab('history'); check(document.querySelector('#tab-history').classList.contains('active'),'History tab');
+    switchTab('portfolio');
+    document.querySelector('#showSectors').click();
+    check(!document.querySelector('#allocationSectors').inert,'Sector panel');
+    document.querySelector('#showValues').click();
+    check(document.querySelector('#allocationSectors').inert,'Allocation panel restored');
+    const before = Chart.getChart('chartCurrent').data.datasets[0].data.join(',');
+    document.querySelector('[data-theme-toggle]').click();
+    check(Chart.getChart('chartCurrent').data.datasets[0].data.join(',') === before,'Theme preserves chart data');
+    const form = document.querySelector('form[data-loading]');
+    const button = form.querySelector('button[type=submit]');
+    check(new FormData(form,button).has(button.name),'Submitter retained');
+    return 'PASS portfolio: fixture values, charts, tabs, sector controls, theme, form payload';
+  })()`));
+  await navigate('index');
+  if (await evaluate('document.documentElement.dataset.theme') !== 'light') throw new Error('Preference lost between pages');
+  await evaluate("document.querySelector('[data-theme-toggle]').click()");
+  await navigate('index');
+  if (await evaluate('document.documentElement.dataset.theme') !== 'dark') throw new Error('Preference lost on reload');
+  console.log('PASS preference across navigation and reload');
+  await evaluate("localStorage.removeItem('myinterpreter-theme')");
+  await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:'dark'}]});
+  await navigate('login');
+  if(await evaluate('document.documentElement.dataset.theme') !== 'dark') throw new Error('System dark default failed');
+  const blocked = await call('Page.addScriptToEvaluateOnNewDocument',{source:"Object.defineProperty(window, 'localStorage', {get(){throw new Error('Storage blocked for test')}})"});
+  await navigate('login');
+  await evaluate("document.querySelector('[data-theme-toggle]').click()");
+  if(await evaluate('document.documentElement.dataset.theme') !== 'light') throw new Error('Toggle with storage blocked failed');
+  await call('Page.removeScriptToEvaluateOnNewDocument',{identifier:blocked.identifier});
+  console.log('PASS system dark preference and blocked-storage fallback');
+  for (const name of ['portfolio','index','login']) {
+    await navigate(name);
+    for (const theme of ['light','dark']) {
+      await evaluate(`if(document.documentElement.dataset.theme !== '${theme}') document.querySelector('[data-theme-toggle]').click()`);
+      await evaluate(`(() => {
+        const css = getComputedStyle(document.documentElement);
+        const luminance = name => {
+          const hex = css.getPropertyValue(name).trim().slice(1);
+          const rgb = [0,2,4].map(i => parseInt(hex.slice(i,i+2),16)/255).map(v => v <= .04045 ? v/12.92 : ((v+.055)/1.055)**2.4);
+          return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;
+        };
+        const background = luminance('--surface-1');
+        for(const token of ['--text','--text-dim','--text-mute','--pos','--neg','--accent']) {
+          const value = luminance(token);
+          const contrast = (Math.max(value,background)+.05)/(Math.min(value,background)+.05);
+          if(!Number.isFinite(contrast) || contrast < 4.5) throw new Error(token+' contrast '+contrast);
+        }
+      })()`);
+      for (const [size,width,height] of [['desktop',1365,900],['mobile',412,915],['narrow',320,800]]) {
+        await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+        await delay(300);
+        const layout = await evaluate(`(() => {
+          const rect = document.querySelector('[data-theme-toggle]').getBoundingClientRect();
+          return {width:document.documentElement.scrollWidth, viewport:innerWidth, height:document.documentElement.scrollHeight, toggle:rect.right <= innerWidth && rect.left >= 0};
+        })()`);
+        if(layout.width > layout.viewport || !layout.toggle) throw new Error(`Overflow or clipped theme toggle: ${name}/${theme}/${size} ${JSON.stringify(layout)}`);
+        if(size !== 'narrow'){
+          const {data} = await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width,height:Math.min(layout.height,4000),scale:1}});
+          await writeFile(new URL(`design-review/screenshots/prototypes/workspace-live-${name}-${theme}-${size}.png`,root),Buffer.from(data,'base64'));
+        }
+        console.log(`PASS ${name}/${theme}/${size}`);
+      }
+    }
+  }
+  // Optional read-only public route checks. Never navigate to a protected account.
+  if (process.env.WORKSPACE_PUBLIC_ORIGIN) {
+    const origin = new URL(process.env.WORKSPACE_PUBLIC_ORIGIN);
+    if (!['127.0.0.1', 'localhost'].includes(origin.hostname)) throw new Error('Public checks must use a local server');
+    for (const name of ['screener', 'infoAction', 'dividendes']) {
+      await call('Page.navigate', {url: new URL(name + '.php', origin).href});
+      for(let i=0;i<300;i++) {
+        if(await evaluate('document.readyState === "complete" && !!document.querySelector("[data-theme-toggle]")')) break;
+        await delay(100);
+      }
+      if(name === 'screener') {
+        await evaluate(`(() => {
+          setPreset(10); setScore(3);
+          const rows = [...document.querySelectorAll('#screenerTable tbody tr[data-per]:not(.hidden-row)')];
+          if(rows.some(row => !(Number(row.dataset.per) < 10 && Number(row.dataset.score) >= 3))) throw new Error('Screener filters');
+          document.querySelector('[data-theme-toggle]').click();
+          if(Number(document.getElementById('visibleCount').textContent) !== rows.length) throw new Error('Theme resets filters');
+          sortTable(1,'num'); setPreset(22); setScore(0);
+        })()`);
+      }
+      if(name === 'infoAction') {
+        await evaluate(`(() => {
+          const search = document.getElementById('nameInput');
+          search.value = 'zzzz-fixture-no-match'; search.dispatchEvent(new Event('input'));
+          if(document.getElementById('directoryEmpty').hidden) throw new Error('Directory search');
+          document.querySelector('[data-theme-toggle]').click();
+          if(search.value !== 'zzzz-fixture-no-match') throw new Error('Theme resets search');
+          document.getElementById('resetDirectoryFilters').click();
+          document.getElementById('sectorTrigger').click();
+          if(document.getElementById('sectorMenu').hidden) throw new Error('Sector menu');
+          document.querySelector('.sector-option').click();
+        })()`);
+      }
+      for(const theme of ['light','dark']) {
+        await evaluate(`if(document.documentElement.dataset.theme !== '${theme}') document.querySelector('[data-theme-toggle]').click()`);
+        for(const [size,width,height] of [['desktop',1365,900],['mobile',412,915]]) {
+          await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+          await delay(250);
+          const layout=await evaluate('({width:document.documentElement.scrollWidth,viewport:innerWidth,height:document.documentElement.scrollHeight})');
+          if(layout.width>layout.viewport) throw new Error(`Public overflow: ${name}/${theme}/${size}`);
+          const {data}=await call('Page.captureScreenshot',{format:'png'});
+          await writeFile(new URL(`design-review/screenshots/prototypes/workspace-public-${name}-${theme}-${size}.png`,root),Buffer.from(data,'base64'));
+          console.log(`PASS public ${name}/${theme}/${size}`);
+        }
+      }
+    }
+  }
+  if(errors.length) throw new Error(errors.join('\n'));
+  console.log('PASS no uncaught browser exceptions; only synthetic account data rendered');
+
+} finally {
+  socket?.close();
+  if (chromium && chromium.exitCode === null) {
+    await new Promise(resolve => { chromium.once('exit', resolve); chromium.kill('SIGTERM'); });
+  }
+  await new Promise(resolve => server.close(resolve));
+  await rm(profile, { recursive: true, force: true });
+}

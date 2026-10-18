@@ -5,6 +5,7 @@ require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/auth.php';
 require_once 'core/dividends.php';
+require_once 'core/sector_allocation.php';
 requireLogin();
 
 $uid     = aw_user_id();
@@ -177,6 +178,7 @@ foreach (div_for_year($divYear) as $d) {
 }
 
 $holdings = [];
+$sectorHoldings = [];
 $chartNames = []; $chartValues = []; $chartBuys = [];
 $totalCurrentVal = 0.0; $totalBuyVal = 0.0;
 
@@ -188,6 +190,7 @@ foreach ($holdingsDocs as $h) {
     $curVal = $pa > 0 ? $qty * $pa : 0;
 
     $holdings[]    = $h;
+    $sectorHoldings[] = ['c_name' => $name, 'quantity' => $qty, 'current_value' => $curVal, 'has_price' => $pa > 0];
     $chartNames[]  = $name;
     $chartValues[] = round($curVal, 2);
     $chartBuys[]   = round($cost, 2);
@@ -200,6 +203,12 @@ foreach ($holdingsDocs as $h) {
 }
 
 $diffDisplay = $totalCurrentVal - $totalBuyVal;
+$sectorAllocation = market_sector_allocation($sectorHoldings);
+$sectorRows = $sectorAllocation['rows'];
+$sectorChartRows = array_values(array_filter($sectorRows, fn($row) => $row['held'] > 0));
+if ($sectorAllocation['unclassified']) {
+    $sectorChartRows[] = ['code' => 'OTHER', 'label' => 'Non classé', 'held' => count($sectorAllocation['unclassified'])];
+}
 $earnings    = array_map(fn($d) => ['DATE' => fmt_date($d['date']), 'VALUE' => $d['value']], $earningsDocs);
 
 // ─── Dividend income rows, one per holding that pays ──────
@@ -256,6 +265,7 @@ if (empty($_SESSION['company_list_cache']) || (time() - ($_SESSION['company_list
 } else {
     $allCompanies = $_SESSION['company_list_cache'];
 }
+$sectorDirectory = market_sector_directory($allCompanies);
 
 // Default active tab
 $activeTab = $_GET['tab'] ?? 'portfolio';
@@ -270,18 +280,22 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
   <title>myInterpreter | Portefeuille</title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <link href="assets/css/global.css?v=4" rel="stylesheet">
-  <link href="assets/css/portfolio.css?v=4" rel="stylesheet">
+  <link href="assets/css/global.css?v=5" rel="stylesheet">
+  <link href="assets/css/portfolio.css?v=5" rel="stylesheet">
   <link href="assets/css/statistics.css?v=3" rel="stylesheet">
+  <?php require 'core/theme.php'; ?>
 </head>
-<body>
+<body class="workspace workspace-portfolio">
 <div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
 <div class="app">
   <?php include 'core/sidebar.php'; ?>
   <main class="main">
 
   <div class="portfolio-wrap animate-up">
+    <header class="workspace-heading">
+      <h1>Portefeuille</h1>
+      <p>Vos positions, leur répartition et vos opérations au même endroit.</p>
+    </header>
 
     <!-- Flash messages -->
     <?php foreach ($flash as $f): ?>
@@ -336,19 +350,6 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
         </div>
       </div>
 
-      <!-- Charts -->
-      <?php if (!empty($chartNames)): ?>
-      <div class="charts-grid mb-4">
-        <div class="chart-card">
-          <h5><i class="fas fa-circle-dot me-2 t-cyan"></i>Répartition valeur actuelle</h5>
-          <canvas id="chartCurrent"></canvas>
-        </div>
-        <div class="chart-card">
-          <h5><i class="fas fa-circle-dot me-2 t-violet"></i>Répartition valeur d'achat</h5>
-          <canvas id="chartBuy"></canvas>
-        </div>
-      </div>
-      <?php endif; ?>
 
       <!-- Holdings table -->
       <?php if (!empty($holdings)): ?>
@@ -427,6 +428,56 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
       </div>
       <?php else: ?>
         <div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>Aucune position ouverte.</div>
+      <?php endif; ?>
+
+      <!-- Charts -->
+      <?php if (!empty($chartNames)): ?>
+      <div class="charts-viewport mb-4">
+        <div class="charts-track" id="allocationTrack">
+          <div class="charts-grid charts-page" id="allocationValues">
+            <div class="chart-card">
+              <h5><i class="fas fa-circle-dot me-2 t-cyan"></i>Répartition valeur actuelle</h5>
+              <div class="chart-canvas"><canvas id="chartCurrent"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-heading">
+                <h5><i class="fas fa-circle-dot me-2 t-violet"></i>Répartition valeur d'achat</h5>
+                <button class="chart-switch chart-switch--next" type="button" id="showSectors" aria-label="Afficher la répartition par secteurs" title="Voir les secteurs"><i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+              </div>
+              <div class="chart-canvas"><canvas id="chartBuy"></canvas></div>
+            </div>
+          </div>
+          <div class="charts-grid charts-page" id="allocationSectors" aria-hidden="true" inert>
+            <div class="chart-card">
+              <div class="chart-heading">
+                <button class="chart-switch chart-switch--previous" type="button" id="showValues" aria-label="Afficher la répartition par société" title="Voir les sociétés"><i class="fas fa-arrow-left" aria-hidden="true"></i></button>
+                <h5><i class="fas fa-circle-dot me-2 t-cyan"></i>Répartition par secteur</h5>
+              </div>
+              <p class="chart-caption">Part des sociétés détenues · une société compte une fois</p>
+              <div class="chart-canvas"><canvas id="chartSectors"></canvas></div>
+              <?php if (!$sectorChartRows): ?><p class="sector-note">Aucune société détenue à répartir.</p><?php endif; ?>
+              <?php if ($sectorAllocation['unclassified']): ?>
+                <p class="sector-note">Hors classement officiel : <?= htmlspecialchars(implode(', ', $sectorAllocation['unclassified'])) ?></p>
+              <?php endif; ?>
+
+            </div>
+            <div class="chart-card">
+              <h5><i class="fas fa-bars me-2 t-violet"></i>Couverture des secteurs</h5>
+              <p class="chart-caption">Sociétés détenues / sociétés cotées · Bourse de Casablanca, <?= MARKET_SECTOR_DATE ?></p>
+              <div class="sector-list" role="list">
+                <?php foreach ($sectorRows as $row):
+                  $fill = $row['market'] > 0 ? min(100, $row['held'] / $row['market'] * 100) : 0;
+                ?>
+                  <a class="sector-item" role="listitem" data-sector="<?= htmlspecialchars($row['code']) ?>" href="infoAction.php?sector=<?= urlencode($row['code']) ?>#companyDirectory" aria-label="Voir les sociétés du secteur <?= htmlspecialchars($row['label']) ?>">
+                    <div class="sector-item__heading"><span><?= htmlspecialchars($row['label']) ?></span><strong><?= $row['held'] ?>/<?= $row['market'] ?></strong></div>
+                    <div class="sector-item__track"><span style="width:<?= number_format($fill, 2, '.', '') ?>%"></span></div>
+                  </a>
+                <?php endforeach; ?>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <?php endif; ?>
 
       <!-- ── Revenus de dividendes ─────────────────────────── -->
@@ -641,7 +692,12 @@ function toggleCols(group, btn) {
 <?php if (!empty($chartNames)): ?>
 Chart.register(ChartDataLabels);
 
-const PALETTE = ['#22d3ee','#818cf8','#10b981','#f59e0b','#f43f5e','#a78bfa','#34d399','#fb923c'];
+const PALETTE = [
+  '#22d3ee', '#818cf8', '#10b981', '#f59e0b', '#f43f5e', '#a78bfa',
+  '#34d399', '#fb923c', '#facc15', '#f472b6', '#38bdf8', '#84cc16',
+  '#c084fc', '#2dd4bf', '#f87171', '#60a5fa', '#e879f9', '#14b8a6',
+  '#fbbf24', '#6366f1', '#4ade80', '#fb7185', '#06b6d4', '#d946ef'
+];
 
 function makeDoughnut(id, labels, data) {
   const ctx = document.getElementById(id);
@@ -654,15 +710,34 @@ function makeDoughnut(id, labels, data) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
+      onClick: id === 'chartSectors' ? (_event, elements) => {
+        if (elements.length) window.location.href = 'infoAction.php?sector=' + encodeURIComponent(sectorChartCodes[elements[0].index]) + '#companyDirectory';
+      } : undefined,
+      onHover: id === 'chartSectors' ? (_event, elements) => {
+        ctx.style.cursor = elements.length ? 'pointer' : 'default';
+      } : undefined,
       plugins: {
         legend: {
           position: 'bottom',
           labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 }, padding: 14 }
         },
+        tooltip: id === 'chartSectors' ? {
+          callbacks: {
+            label: (ctx) => `${ctx.raw} société${ctx.raw > 1 ? 's' : ''}`,
+            afterLabel: (ctx) => (sectorHoldingDetails[sectorChartCodes[ctx.dataIndex]] || []).map(h =>
+              `${h.name} — ${h.has_price ? new Intl.NumberFormat('fr-MA', { maximumFractionDigits: 2 }).format(h.value) + ' MAD' : 'cours indisponible'}`
+            )
+          }
+        } : {},
         datalabels: {
           anchor: 'center', align: 'center',
           color: '#030712',
           font: { size: 11, weight: 'bold' },
+          display: (ctx) => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+            return ctx.chart.width >= 400 || (total > 0 && ctx.dataset.data[ctx.dataIndex] / total >= 0.05);
+          },
           formatter: (value, ctx) => {
             const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
             const pct   = total > 0 ? ((value/total)*100).toFixed(1) : 0;
@@ -676,6 +751,65 @@ function makeDoughnut(id, labels, data) {
 
 makeDoughnut('chartCurrent', <?= json_encode($chartNames) ?>, <?= json_encode($chartValues) ?>);
 makeDoughnut('chartBuy',     <?= json_encode($chartNames) ?>, <?= json_encode($chartBuys) ?>);
+const sectorChartCodes = <?= json_encode(array_column($sectorChartRows, 'code')) ?>;
+const sectorHoldingDetails = <?= json_encode($sectorAllocation['held_companies'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+const sectorDirectory = <?= json_encode($sectorDirectory, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+makeDoughnut('chartSectors', <?= json_encode(array_column($sectorChartRows, 'label'), JSON_UNESCAPED_UNICODE) ?>, <?= json_encode(array_column($sectorChartRows, 'held')) ?>);
+
+const allocationTrack = document.getElementById('allocationTrack');
+const allocationValues = document.getElementById('allocationValues');
+const allocationSectors = document.getElementById('allocationSectors');
+function showAllocationSectors(show) {
+  allocationTrack.classList.toggle('show-sectors', show);
+  allocationValues.setAttribute('aria-hidden', String(show));
+  allocationSectors.setAttribute('aria-hidden', String(!show));
+  allocationValues.inert = show;
+  allocationSectors.inert = !show;
+}
+document.getElementById('showSectors').addEventListener('click', () => showAllocationSectors(true));
+document.getElementById('showValues').addEventListener('click', () => showAllocationSectors(false));
+
+const sectorHover = document.createElement('div');
+sectorHover.className = 'sector-hover';
+sectorHover.setAttribute('role', 'tooltip');
+sectorHover.hidden = true;
+document.body.appendChild(sectorHover);
+
+function placeSectorHover(x, y) {
+  const width = sectorHover.offsetWidth;
+  const height = sectorHover.offsetHeight;
+  sectorHover.style.left = `${Math.max(12, Math.min(x + 14, window.innerWidth - width - 12))}px`;
+  sectorHover.style.top = `${Math.max(12, Math.min(y + 14, window.innerHeight - height - 12))}px`;
+}
+function showSectorHover(item, x, y) {
+  const code = item.dataset.sector;
+  const all = sectorDirectory[code] || [];
+  const held = (sectorHoldingDetails[code] || []).map(h => h.name);
+  sectorHover.replaceChildren();
+  for (const [heading, names] of [
+    [`Sociétés du secteur (${all.length})`, all],
+    [`En portefeuille (${held.length})`, held]
+  ]) {
+    const title = document.createElement('strong');
+    title.textContent = heading;
+    sectorHover.appendChild(title);
+    const list = document.createElement('div');
+    list.textContent = names.length ? names.join(' · ') : 'Aucune';
+    sectorHover.appendChild(list);
+  }
+  sectorHover.hidden = false;
+  placeSectorHover(x, y);
+}
+document.querySelectorAll('.sector-item[data-sector]').forEach(item => {
+  item.addEventListener('pointerenter', event => showSectorHover(item, event.clientX, event.clientY));
+  item.addEventListener('pointermove', event => placeSectorHover(event.clientX, event.clientY));
+  item.addEventListener('pointerleave', () => { sectorHover.hidden = true; });
+  item.addEventListener('focus', () => {
+    const rect = item.getBoundingClientRect();
+    showSectorHover(item, rect.right, rect.top);
+  });
+  item.addEventListener('blur', () => { sectorHover.hidden = true; });
+});
 <?php endif; ?>
 
 <?php if (!empty($earnings)):

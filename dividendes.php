@@ -156,10 +156,11 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
   <title>myInterpreter | Calendrier des dividendes</title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link href="assets/css/global.css?v=4" rel="stylesheet">
+  <link href="assets/css/global.css?v=5" rel="stylesheet">
   <link href="assets/css/dividendes.css?v=2" rel="stylesheet">
+  <?php require 'core/theme.php'; ?>
 </head>
-<body>
+<body class="workspace workspace-dividends">
 <div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
 <div class="app">
   <?php include 'core/sidebar.php'; ?>

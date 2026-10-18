@@ -340,7 +340,7 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
   <title>myInterpreter | Tableau de bord</title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link href="assets/css/global.css?v=4" rel="stylesheet">
+  <link href="assets/css/global.css?v=5" rel="stylesheet">
   <style>
     body { overflow-x: hidden; }
     /* Login card — shown when logged out */
@@ -403,8 +403,9 @@ $dateLabel = $_days[(int)$nowParis->format('w')] . ' ' . $nowParis->format('j') 
     .modal-glass .modal-title  { font-family: var(--font-display); font-weight: 700; }
     .modal-glass .btn-close    { filter: invert(1) brightness(0.6); }
   </style>
+  <?php require 'core/theme.php'; ?>
 </head>
-<body>
+<body class="workspace workspace-index">
 
 <!-- Login Modal -->
 <div class="modal fade modal-glass" id="loginModal" tabindex="-1">

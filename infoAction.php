@@ -4,8 +4,11 @@ require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/Action.php';
 require_once 'core/dividends.php';
+require_once 'core/sector_allocation.php';
 
+$companyDocs = [];
 $allCompanies = [];
+$labelOf = [];
 $company      = null;
 $history      = [];
 $sparkLabels  = [];
@@ -29,10 +32,15 @@ $symbolTo     = [];   // ticker symbol => stored company name
 
 // ─── Initial company list ─────────────────────────────────
 try {
-    $directoryData = aw_multi_list_docs([
+    $directoryRequests = [
         'companies' => ['company', [q_order_asc('name'), q_limit(500)], null],
         'symbols' => ['format', [q_limit(500)], null],
-    ]);
+    ];
+    // The directory needs prices, but a company detail request does not.
+    if (empty($_GET['name']) && empty($_POST['NAME'])) {
+        $directoryRequests['prices'] = ['latest_prices', [q_limit(200)], null];
+    }
+    $directoryData = aw_multi_list_docs($directoryRequests);
     $companyDocs = $directoryData['companies'];
     $allCompanies = array_values(array_unique(array_filter(array_column($companyDocs, 'name'))));
 
@@ -49,6 +57,20 @@ try {
     }
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
+}
+
+$symbolOf = array_flip($symbolTo);
+$directoryBySector = market_sector_directory($allCompanies);
+$sectorParam = $_GET['sector'] ?? '';
+$selectedSector = is_string($sectorParam) ? strtoupper(trim($sectorParam)) : '';
+if (!isset($directoryBySector[$selectedSector])) $selectedSector = '';
+$directoryCount = $selectedSector === '' ? count($allCompanies) : count($directoryBySector[$selectedSector]);
+$directoryFilterParams = [];
+if ($selectedSector !== '') $directoryFilterParams['sector'] = $selectedSector;
+foreach (['price_min', 'price_max'] as $param) {
+    if (isset($_GET[$param]) && is_scalar($_GET[$param]) && is_numeric($_GET[$param])) {
+        $directoryFilterParams[$param] = max(0, (float)$_GET[$param]);
+    }
 }
 
 // ─── Handle search ────────────────────────────────────────
@@ -155,6 +177,24 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
     }
 }
 
+$directoryPrices = [];
+$directoryPriceCeiling = 100;
+if (!$searched && !$dbError) {
+    try {
+        $companySet = array_fill_keys($allCompanies, true);
+        foreach (($directoryData['prices'] ?? aw_list_docs('latest_prices', [q_limit(200)])) as $priceDoc) {
+            $priceName = $priceDoc['c_name'] ?? '';
+            $price = (float)($priceDoc['pa'] ?? 0);
+            if (isset($companySet[$priceName]) && $price > 0) $directoryPrices[$priceName] = $price;
+        }
+        if ($directoryPrices) {
+            $directoryPriceCeiling = max(100, (int)(ceil(max($directoryPrices) / 100) * 100));
+        }
+    } catch (Throwable $e) {
+        error_log('[myInterpreter] directory latest_prices error: ' . $e->getMessage());
+    }
+}
+
 // ─── Buy markers (shown when user is logged in) ───────────
 $buyMarkers = [];
 $awSession  = $_SESSION['aw_cookie'] ?? null;
@@ -188,10 +228,11 @@ if ($awSession && !empty($name ?? '')) {
   <title>myInterpreter | Consulter Action</title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link href="assets/css/global.css?v=4" rel="stylesheet">
-  <link href="assets/css/infoAction.css?v=9" rel="stylesheet">
+  <link href="assets/css/global.css?v=5" rel="stylesheet">
+  <link href="assets/css/infoAction.css?v=11" rel="stylesheet">
+  <?php require 'core/theme.php'; ?>
 </head>
-<body>
+<body class="workspace workspace-company">
 <div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
 <div class="app">
   <?php include 'core/sidebar.php'; ?>
@@ -211,17 +252,69 @@ if ($awSession && !empty($name ?? '')) {
     <?php else: ?>
 
     <div class="search-hero">
-      <h1><i class="fas fa-search t-emerald me-2"></i>Recherche Société</h1>
-      <p>Consultez les ratios fondamentaux et l'historique des prix.</p>
+      <h1><i class="fas fa-building t-emerald me-2"></i>Sociétés cotées</h1>
+      <p>Parcourez les sociétés par secteur, ou recherchez une fiche et son historique.</p>
     </div>
+
+    <?php if (!$searched): ?>
+      <section class="directory-filters" id="companyDirectory" aria-label="Filtres des sociétés">
+        <div class="directory-filters__head">
+          <div><span class="directory-filters__eyebrow">EXPLORER LE MARCHÉ</span><h2>Affiner les sociétés</h2></div>
+          <span class="directory-count" id="directoryCount"><?= $directoryCount ?> société<?= $directoryCount > 1 ? 's' : '' ?></span>
+        </div>
+        <div class="directory-filters__grid">
+          <div class="filter-field sector-picker" id="sectorPicker">
+            <label id="sectorPickerLabel">Secteur</label>
+            <button class="sector-picker__trigger" id="sectorTrigger" type="button" aria-expanded="false" aria-controls="sectorMenu" aria-labelledby="sectorPickerLabel sectorTriggerText">
+              <span id="sectorTriggerText"><?= $selectedSector === '' ? 'Tous les secteurs' : htmlspecialchars($selectedSector === 'OTHER' ? 'Hors classement officiel' : MARKET_SECTORS[$selectedSector]) ?></span>
+              <i class="fas fa-chevron-down" aria-hidden="true"></i>
+            </button>
+            <div class="sector-picker__menu" id="sectorMenu" hidden>
+              <div class="sector-picker__search"><i class="fas fa-search" aria-hidden="true"></i><input type="search" id="sectorSearch" placeholder="Chercher un secteur" aria-label="Chercher un secteur"></div>
+              <div class="sector-picker__options">
+                <button type="button" class="sector-option" data-code="" data-label="Tous les secteurs" aria-pressed="<?= $selectedSector === '' ? 'true' : 'false' ?>"><span>Tous les secteurs</span><em><?= count($allCompanies) ?></em></button>
+                <?php foreach (MARKET_SECTORS as $code => $label):
+                  if (empty($directoryBySector[$code])) continue;
+                ?>
+                  <button type="button" class="sector-option" data-code="<?= htmlspecialchars($code) ?>" data-label="<?= htmlspecialchars($label) ?>" aria-pressed="<?= $selectedSector === $code ? 'true' : 'false' ?>"><span><?= htmlspecialchars($label) ?></span><em><?= count($directoryBySector[$code]) ?></em></button>
+                <?php endforeach; ?>
+                <?php if ($directoryBySector['OTHER']): ?>
+                  <button type="button" class="sector-option" data-code="OTHER" data-label="Hors classement officiel" aria-pressed="<?= $selectedSector === 'OTHER' ? 'true' : 'false' ?>"><span>Hors classement officiel</span><em><?= count($directoryBySector['OTHER']) ?></em></button>
+                <?php endif; ?>
+              </div>
+              <p class="sector-picker__empty" id="sectorSearchEmpty" hidden>Aucun secteur trouvé.</p>
+            </div>
+          </div>
+          <div class="filter-field price-filter" id="priceFilter" data-ceiling="<?= $directoryPriceCeiling ?>">
+            <label for="priceMin">Cours actuel <span>(MAD par action)</span></label>
+            <?php if ($directoryPrices): ?>
+              <div class="price-filter__slider">
+                <div class="price-filter__rail"><div class="price-filter__selection" id="priceSelection"></div></div>
+                <input type="range" id="priceMinSlider" min="0" max="1000" value="0" aria-label="Cours minimum">
+                <input type="range" id="priceMaxSlider" min="0" max="1000" value="1000" aria-label="Cours maximum">
+              </div>
+              <div class="price-filter__inputs">
+                <label>Min. <input type="number" id="priceMin" min="0" max="<?= $directoryPriceCeiling ?>" step="0.01" value="0"></label>
+                <span aria-hidden="true">→</span>
+                <label>Max. <input type="number" id="priceMax" min="0" max="<?= $directoryPriceCeiling ?>" step="0.01" value="<?= $directoryPriceCeiling ?>"></label>
+              </div>
+              <p class="price-filter__hint">Glissez les bornes ou saisissez un cours exact.</p>
+            <?php else: ?>
+              <p class="price-filter__hint">Cours indisponibles pour le moment.</p>
+            <?php endif; ?>
+          </div>
+          <button class="filter-reset" id="resetDirectoryFilters" type="button"><i class="fas fa-rotate-left" aria-hidden="true"></i> Réinitialiser</button>
+        </div>
+      </section>
+    <?php endif; ?>
 
     <form method="POST" action="" data-loading>
       <div class="search-bar-wrap">
         <div class="form-floating flex-grow-1">
-          <input type="text" name="NAME" id="nameInput" list="companyList"
+          <input type="search" name="NAME" id="nameInput" list="companyList"
                  class="form-control" placeholder=" " required autocomplete="off"
                  value="<?= htmlspecialchars($_POST['NAME'] ?? '') ?>">
-          <label for="nameInput"><i class="fas fa-building me-2"></i>Nom de l'entreprise</label>
+          <label for="nameInput"><i class="fas fa-search me-2"></i>Filtrer la liste ou ouvrir une fiche</label>
           <datalist id="companyList">
             <?php
               // Label = readable name + ticker, always in that order so the
@@ -230,7 +323,6 @@ if ($awSession && !empty($name ?? '')) {
               // The only case worth suppressing is a label identical to the
               // symbol, which is what produced the useless "IAM — IAM"; a
               // substring test instead would strip the ticker from "CIH BANK".
-              $symbolOf = array_flip($symbolTo);
               foreach ($allCompanies as $n):
                 $sy    = $symbolOf[$n] ?? '';
                 $label = $labelOf[$n] ?? $n;
@@ -246,6 +338,32 @@ if ($awSession && !empty($name ?? '')) {
         </button>
       </div>
     </form>
+
+    <?php if (!$searched): ?>
+      <div class="directory-grid" id="directoryGrid">
+        <?php foreach ($allCompanies as $n):
+          $sectorCode = market_sector_for_company($n);
+          $sectorLabel = $sectorCode ? MARKET_SECTORS[$sectorCode] : 'Hors classement officiel';
+          $companyLabel = $labelOf[$n] ?? $n;
+          $ticker = $symbolOf[$n] ?? '';
+          $currentPrice = $directoryPrices[$n] ?? null;
+          $detailParams = ['name' => $n];
+          $detailParams = array_merge($detailParams, $directoryFilterParams);
+        ?>
+          <a class="directory-card" href="infoAction.php?<?= htmlspecialchars(http_build_query($detailParams)) ?>"
+             data-name="<?= htmlspecialchars($n) ?>"
+             data-search="<?= htmlspecialchars($n . ' ' . $companyLabel . ' ' . $ticker . ' ' . $sectorLabel) ?>"
+             data-sector="<?= htmlspecialchars($sectorCode ?? 'OTHER') ?>"
+             data-price="<?= $currentPrice !== null ? htmlspecialchars((string)$currentPrice) : '' ?>">
+            <span class="directory-card__top"><strong><?= htmlspecialchars($companyLabel) ?></strong><?php if ($ticker): ?><span class="mono"><?= htmlspecialchars($ticker) ?></span><?php endif; ?></span>
+            <span class="directory-card__bottom"><span class="directory-card__sector"><?= htmlspecialchars($sectorLabel) ?></span><span class="directory-card__price"><?= $currentPrice !== null ? number_format($currentPrice, 2, ',', ' ') . ' MAD' : 'Cours indisponible' ?></span></span>
+          </a>
+        <?php endforeach; ?>
+      </div>
+      <p class="directory-empty" id="directoryEmpty" <?= $directoryCount > 0 ? 'hidden' : '' ?>>Aucune société ne correspond à ce filtre.</p>
+    <?php else: ?>
+      <a class="directory-back" href="infoAction.php<?= $directoryFilterParams ? '?' . htmlspecialchars(http_build_query($directoryFilterParams)) : '' ?>#companyDirectory"><i class="fas fa-arrow-left me-1"></i>Retour à la liste<?= $selectedSector !== '' ? ' du secteur' : '' ?></a>
+    <?php endif; ?>
 
     <?php if ($searched): ?>
       <?php if (!$company): ?>
@@ -283,7 +401,10 @@ if ($awSession && !empty($name ?? '')) {
                     <span class="ticker-badge"><?= htmlspecialchars($symbol) ?></span>
                   <?php endif; ?>
                   <?= htmlspecialchars(display_name($company['name'] ?? $name, $company['ext_name'] ?? null)) ?>
-                  <?php if (!empty($company['sector'])): ?>
+                  <?php $detailSector = market_sector_for_company($company['name'] ?? $name); ?>
+                  <?php if ($detailSector): ?>
+                    <a class="sector-badge" href="infoAction.php?sector=<?= urlencode($detailSector) ?>#companyDirectory"><?= htmlspecialchars(MARKET_SECTORS[$detailSector]) ?></a>
+                  <?php elseif (!empty($company['sector'])): ?>
                     <span class="sector-badge"><?= htmlspecialchars($company['sector']) ?></span>
                   <?php endif; ?>
                   <?php if (!empty($company['fiscal_year'])): ?>
@@ -1010,6 +1131,138 @@ if ($awSession && !empty($name ?? '')) {
 </script>
 <?php endif; ?>
 <script>
+const directoryCards = [...document.querySelectorAll('.directory-card')];
+const directoryCount = document.getElementById('directoryCount');
+const directoryEmpty = document.getElementById('directoryEmpty');
+const normalizeDirectoryText = text => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
+const directorySearch = document.getElementById('nameInput');
+if (directoryCards.length) {
+  const picker = document.getElementById('sectorPicker');
+  const trigger = document.getElementById('sectorTrigger');
+  const triggerText = document.getElementById('sectorTriggerText');
+  const menu = document.getElementById('sectorMenu');
+  const sectorSearch = document.getElementById('sectorSearch');
+  const sectorOptions = [...document.querySelectorAll('.sector-option')];
+  const priceFilter = document.getElementById('priceFilter');
+  const priceCeiling = Number(priceFilter.dataset.ceiling);
+  const minInput = document.getElementById('priceMin');
+  const maxInput = document.getElementById('priceMax');
+  const minSlider = document.getElementById('priceMinSlider');
+  const maxSlider = document.getElementById('priceMaxSlider');
+  const initialParams = new URLSearchParams(location.search);
+  let selectedSector = <?= json_encode($selectedSector) ?>;
+  const clamp = value => Math.max(0, Math.min(priceCeiling, Number.isFinite(value) ? value : 0));
+  let minPrice = minInput ? clamp(Number(initialParams.get('price_min') || 0)) : 0;
+  let maxPrice = maxInput ? clamp(Number(initialParams.get('price_max') || priceCeiling)) : priceCeiling;
+  if (minPrice > maxPrice) minPrice = maxPrice;
+
+  // A logarithmic slider keeps ordinary share prices adjustable even when one
+  // expensive stock stretches the market range into five digits.
+  const sliderPosition = value => Math.round(Math.log1p(value) / Math.log1p(priceCeiling) * 1000);
+  const sliderPrice = position => Math.round(Math.expm1(Number(position) / 1000 * Math.log1p(priceCeiling)) * 100) / 100;
+  function updatePriceControls() {
+    if (!minInput) return;
+    minInput.value = minPrice.toFixed(2);
+    maxInput.value = maxPrice.toFixed(2);
+    minSlider.value = sliderPosition(minPrice);
+    maxSlider.value = sliderPosition(maxPrice);
+    const left = Number(minSlider.value) / 10;
+    const right = Number(maxSlider.value) / 10;
+    const selection = document.getElementById('priceSelection');
+    selection.style.left = left + '%';
+    selection.style.width = Math.max(0, right - left) + '%';
+  }
+  function closeSectorMenu() {
+    menu.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+  function filterDirectory(updateUrl = false) {
+    const query = normalizeDirectoryText(directorySearch.value.trim());
+    const usePrice = minInput && (minPrice > 0 || maxPrice < priceCeiling);
+    let visible = 0;
+    for (const card of directoryCards) {
+      const price = card.dataset.price === '' ? null : Number(card.dataset.price);
+      const matches = (!selectedSector || card.dataset.sector === selectedSector)
+        && normalizeDirectoryText(card.dataset.search).includes(query)
+        && (!usePrice || (price !== null && price >= minPrice && price <= maxPrice));
+      card.hidden = !matches;
+      if (matches) visible++;
+    }
+    directoryCount.textContent = visible + (visible === 1 ? ' société' : ' sociétés');
+    directoryEmpty.hidden = visible !== 0;
+    directoryEmpty.textContent = 'Aucune société ne correspond à ces filtres.';
+
+    const params = new URLSearchParams();
+    if (selectedSector) params.set('sector', selectedSector);
+    if (usePrice) {
+      if (minPrice > 0) params.set('price_min', minPrice.toFixed(2));
+      if (maxPrice < priceCeiling) params.set('price_max', maxPrice.toFixed(2));
+    }
+    for (const card of directoryCards) {
+      const detailParams = new URLSearchParams(params);
+      detailParams.set('name', card.dataset.name);
+      card.href = 'infoAction.php?' + detailParams.toString();
+    }
+    if (updateUrl) history.replaceState(null, '', 'infoAction.php' + (params.size ? '?' + params.toString() : '') + location.hash);
+  }
+
+  trigger.addEventListener('click', () => {
+    menu.hidden = !menu.hidden;
+    trigger.setAttribute('aria-expanded', String(!menu.hidden));
+    if (!menu.hidden) sectorSearch.focus();
+  });
+  document.addEventListener('pointerdown', event => { if (!picker.contains(event.target)) closeSectorMenu(); });
+  picker.addEventListener('keydown', event => { if (event.key === 'Escape') { closeSectorMenu(); trigger.focus(); } });
+  sectorSearch.addEventListener('input', () => {
+    const query = normalizeDirectoryText(sectorSearch.value.trim());
+    let visible = 0;
+    for (const option of sectorOptions) {
+      option.hidden = !normalizeDirectoryText(option.dataset.label).includes(query);
+      if (!option.hidden) visible++;
+    }
+    document.getElementById('sectorSearchEmpty').hidden = visible !== 0;
+  });
+  sectorOptions.forEach(option => option.addEventListener('click', () => {
+    selectedSector = option.dataset.code;
+    triggerText.textContent = option.dataset.label;
+    sectorOptions.forEach(item => item.setAttribute('aria-pressed', String(item === option)));
+    sectorSearch.value = '';
+    sectorSearch.dispatchEvent(new Event('input'));
+    closeSectorMenu();
+    filterDirectory(true);
+  }));
+  directorySearch.addEventListener('input', () => filterDirectory());
+
+  if (minInput) {
+    minSlider.addEventListener('input', () => {
+      minPrice = Math.min(sliderPrice(minSlider.value), maxPrice);
+      updatePriceControls(); filterDirectory(true);
+    });
+    maxSlider.addEventListener('input', () => {
+      maxPrice = Math.max(sliderPrice(maxSlider.value), minPrice);
+      updatePriceControls(); filterDirectory(true);
+    });
+    minInput.addEventListener('change', () => {
+      minPrice = Math.min(clamp(Number(minInput.value)), maxPrice);
+      updatePriceControls(); filterDirectory(true);
+    });
+    maxInput.addEventListener('change', () => {
+      maxPrice = Math.max(clamp(maxInput.value === '' ? priceCeiling : Number(maxInput.value)), minPrice);
+      updatePriceControls(); filterDirectory(true);
+    });
+    updatePriceControls();
+  }
+  document.getElementById('resetDirectoryFilters').addEventListener('click', () => {
+    selectedSector = '';
+    triggerText.textContent = 'Tous les secteurs';
+    sectorOptions.forEach(option => option.setAttribute('aria-pressed', String(option.dataset.code === '')));
+    minPrice = 0; maxPrice = priceCeiling;
+    directorySearch.value = '';
+    updatePriceControls(); filterDirectory(true);
+  });
+  filterDirectory();
+}
+
 // Panel tabs: snapshots vs dividends. Both panels are in the DOM already, so
 // switching is instant and needs no request.
 document.querySelectorAll('.panel-tab').forEach(function (tab) {
