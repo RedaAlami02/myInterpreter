@@ -267,8 +267,7 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
 
         <p class="fund-source">
           <i class="fas fa-calendar-alt me-1"></i>
-          Calendrier actualisé chaque semaine
-          <span class="muted">· un dividende versé en <?= $year ?> provient de l'exercice <?= $year - 1 ?>
+          <span class="muted">Un dividende versé en <?= $year ?> provient de l'exercice <?= $year - 1 ?>
           · les rendements sont calculés sur le cours du jour · montants bruts</span>
         </p>
 

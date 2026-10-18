@@ -94,6 +94,31 @@ try {
     const form = document.querySelector('form[data-loading]');
     const button = form.querySelector('button[type=submit]');
     check(new FormData(form,button).has(button.name),'Submitter retained');
+    check(!document.querySelector('[name=save_snapshot]'),'Manual snapshot control removed');
+    check(!document.body.textContent.includes('Historique des snapshots'),'Snapshot table removed');
+    const allocation = Chart.getChart('chartCurrent');
+    check(allocation.chartArea.height >= 230, 'Allocation circle gets enough room');
+    check(allocation.$workspaceLegend.querySelectorAll('button').length === 6, 'Allocation HTML legend');
+    const smallLabel = allocation.config.options.plugins.datalabels.display({chart:allocation,dataset:{data:[1,99]},dataIndex:0});
+    check(!smallLabel, 'Small slices do not crowd labels');
+    const host = document.createElement('div');
+    host.innerHTML = '<div><canvas id="fixtureFinance"></canvas></div>';
+    document.body.append(host);
+    const finance = new Chart(host.querySelector('canvas'), {
+      type:'bar', plugins:[WorkspaceCharts.financialLegend],
+      data:{labels:['2025'],datasets:['RNPG','CA','EBE'].map(label=>({label,data:[10]}))},
+      options:{animation:false,plugins:{legend:{display:false}}}
+    });
+    const buttons = finance.$workspaceLegend.querySelectorAll('button');
+    check(buttons.length === 3, 'Financial legend has all indicators');
+    for(const button of buttons) {
+      button.focus();
+      check(getComputedStyle(button.querySelector('[role=tooltip]')).display !== 'none','Definition on keyboard focus');
+      check(button.querySelector('[role=tooltip]').textContent.length > 60,'Plain-language definition');
+    }
+    buttons[0].click();
+    check(!finance.isDatasetVisible(0), 'Financial legend still toggles series');
+    finance.destroy(); host.remove();
     return 'PASS portfolio: fixture values, charts, tabs, sector controls, theme, form payload';
   })()`));
   await navigate('index');
@@ -130,15 +155,22 @@ try {
           if(!Number.isFinite(contrast) || contrast < 4.5) throw new Error(token+' contrast '+contrast);
         }
       })()`);
-      for (const [size,width,height] of [['desktop',1365,900],['mobile',412,915],['narrow',320,800]]) {
+      for (const [size,width,height] of [['desktop',1365,900],['mobile',412,915],['narrow',320,800],['tablet',768,1024],['laptop',1024,768],['wide',1920,1080]]) {
         await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
-        await delay(300);
+        await delay(1100); // Let Chart.js resize/entrance animations finish before screenshots.
+        if(name === 'portfolio') await evaluate(`(() => {
+          for(const id of ['chartCurrent','chartBuy']) {
+            const chart = Chart.getChart(id), arcs = chart.getDatasetMeta(0).data;
+            if(arcs.some(a => a.outerRadius < 80 || !Number.isFinite(a.x))) throw new Error('Collapsed allocation chart');
+            if(Math.abs(arcs.reduce((sum,a)=>sum+a.circumference,0) - Math.PI*2) > .01) throw new Error('Incomplete allocation circle');
+          }
+        })()`);
         const layout = await evaluate(`(() => {
           const rect = document.querySelector('[data-theme-toggle]').getBoundingClientRect();
           return {width:document.documentElement.scrollWidth, viewport:innerWidth, height:document.documentElement.scrollHeight, toggle:rect.right <= innerWidth && rect.left >= 0};
         })()`);
         if(layout.width > layout.viewport || !layout.toggle) throw new Error(`Overflow or clipped theme toggle: ${name}/${theme}/${size} ${JSON.stringify(layout)}`);
-        if(size !== 'narrow'){
+        if(size === 'desktop' || size === 'mobile'){
           const {data} = await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width,height:Math.min(layout.height,4000),scale:1}});
           await writeFile(new URL(`design-review/screenshots/prototypes/workspace-live-${name}-${theme}-${size}.png`,root),Buffer.from(data,'base64'));
         }

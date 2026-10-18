@@ -174,7 +174,24 @@ body.workspace { background: var(--bg); color: var(--text); font-family: var(--f
 .workspace .tab-btn { flex: none; border-radius: 0; border-bottom: 2px solid transparent; font-size: 12px; padding: 12px 2px; font-weight: 500; }
 .workspace .tab-btn.active { color: var(--text); background: none; border-color: var(--accent); }
 .workspace .chart-card { padding: 18px 20px; }
-.workspace .chart-canvas { height: 280px; }
+.workspace .chart-canvas { height: clamp(280px, 29vw, 390px); max-width: 440px; margin-inline: auto; }
+.workspace .workspace-chart-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 12px; margin-top: 18px; }
+.workspace-chart-legend button { position: relative; display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-height: 36px; padding: 5px; background: none; border: 0; color: var(--text-dim); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.workspace-chart-legend button[aria-pressed="false"] > span:not(.chart-legend-help) { opacity: .55; text-decoration: line-through; }
+.chart-legend-swatch { flex: 0 0 12px; width: 12px; height: 12px; border-radius: 2px; }
+.chart-legend-value { font-variant-numeric: tabular-nums; color: var(--text); }
+.chart-legend-help { display: none; position: absolute; z-index: 10; bottom: calc(100% + 6px); left: 0; width: min(260px, 65vw); padding: 12px; border: 1px solid var(--border-hi); border-radius: 4px; background: var(--surface-1); color: var(--text); box-shadow: var(--shadow-lg); line-height: 1.5; pointer-events: none; }
+.workspace-chart-legend button:hover .chart-legend-help, .workspace-chart-legend button:focus .chart-legend-help { display: block; }
+.workspace .workspace-chart-legend { position: relative; }
+.workspace-chart-legend button { position: static; overflow-wrap: anywhere; }
+.chart-legend-help { left: 0; right: 0; margin-inline: auto; width: min(400px, 100%); }
+.workspace .main, .workspace .main > *, .workspace .mkt-section { min-width: 0; }
+.workspace .mkt-chart-wrap { position: relative; min-width: 0; }
+.workspace .mkt-section canvas { max-width: 100%; }
+.workspace .charts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  .workspace .charts-grid { grid-template-columns: minmax(0, 1fr); }
+}
 .workspace .chart-card h5 { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--text); margin-bottom: 16px; }
 .workspace .chart-switch { top: 18px; transform: none; border-radius: 4px; width: 30px; height: 30px; }
 .workspace .chart-switch:hover { transform: none; }
@@ -282,7 +299,7 @@ body.workspace { background: var(--bg); color: var(--text); font-family: var(--f
   .workspace .pf-summary .stat-chip { padding: 16px; }
   .workspace .pf-summary .stat-chip:first-child { grid-column: 1 / -1; border-right: 0; border-bottom: 1px solid var(--border); }
   .workspace .stat-chip__value { font-size: 21px; }
-  .workspace .chart-canvas { height: 260px; }
+  .workspace .chart-canvas { height: clamp(230px, 70vw, 350px); }
   .workspace .chart-card { padding: 16px; }
   .workspace .tab-nav { gap: 16px; }
   .workspace .tab-btn { font-size: 11px; gap: 5px; }

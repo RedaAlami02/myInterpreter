@@ -104,38 +104,9 @@ if (isset($_POST['add_sell'])) {
     }
 }
 
-// ─── Save portfolio snapshot to benefits ─────────────────
-if (isset($_POST['save_snapshot'])) {
-    csrf_verify();
-    try {
-        $today    = date('Y-m-d');
-        $existing = aw_list_docs('benefits', [
-            q_equal('user_id', $uid),
-            q_equal('date', $today),
-            q_limit(1),
-        ], $session);
-        $snapValue = (float) ($_POST['snapshot_value'] ?? 0);
-        if (empty($existing)) {
-            aw_create_doc('benefits', [
-                'date'    => $today,
-                'value'   => $snapValue,
-                'user_id' => $uid,
-            ], aw_user_permissions($uid), null);
-        } else {
-            aw_update_doc('benefits', $existing[0]['$id'], ['value' => $snapValue], null);
-        }
-        $flash[] = ['type' => 'success', 'msg' => "Snapshot P&L enregistré pour aujourd'hui."];
-    } catch (Throwable $e) {
-        error_log('[myInterpreter] save_snapshot error: ' . $e->getMessage());
-        $flash[] = ['type' => 'error', 'msg' => 'Erreur lors de l\'enregistrement du snapshot : ' . $e->getMessage()];
-    }
-}
-
-// ─── Load portfolio data ──────────────────────────────────────────────────────
+// Load portfolio data; the daily P&L writer runs separately from page requests.
 $holdingsDocs = [];
 $latestData   = [];
-$lastSnapDate = null;
-$lastSync     = null;
 $earningsDocs = [];
 $loadError    = null;
 
@@ -143,15 +114,11 @@ try {
     // Independent reads overlap; private queries retain their user and session.
     $portfolioData = aw_multi_list_docs([
         'holdings' => ['portefeuille', [q_equal('user_id', $uid), q_limit(200)], $session],
-        'recent' => ['data', [q_order_desc('date'), q_limit(1)], null],
         'earnings' => ['benefits', [q_equal('user_id', $uid), q_order_desc('date'), q_limit(500)], $session],
     ]);
     $holdingsDocs = $portfolioData['holdings'];
-    $recentDoc = $portfolioData['recent'];
-    $lastSync  = $recentDoc[0]['date'] ?? null;
 
     $earningsDocs = $portfolioData['earnings'];
-    $lastSnapDate = $earningsDocs[0]['date'] ?? null;
 } catch (Throwable $e) {
     error_log('[myInterpreter] portfolio.php data load error: ' . $e->getMessage());
     $loadError = 'Impossible de charger les données. Veuillez réessayer.';
@@ -304,17 +271,6 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
     <?php if ($loadError): ?>
       <div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i><?= htmlspecialchars($loadError) ?></div>
     <?php endif; ?>
-
-    <!-- Info row -->
-    <div class="sync-row">
-      <span class="sync-label"><i class="fas fa-save me-1"></i>Dernier snapshot :</span>
-      <span class="sync-value"><?= fmt_datetime($lastSnapDate) ?></span>
-      <div class="divider"></div>
-      <span class="sync-label"><i class="fas fa-sync me-1"></i>Dernier sync :</span>
-      <span class="sync-value"><?= fmt_datetime($lastSync) ?></span>
-      <div class="divider"></div>
-      <span class="sync-label muted">Cours différés ~15 min · heure de Casablanca</span>
-    </div>
 
     <!-- Tab navigation -->
     <div class="tab-nav" role="tablist">
@@ -550,18 +506,6 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
       </div>
       <?php endif; ?>
 
-      <!-- Save snapshot -->
-      <div style="display:flex;gap:12px;justify-content:flex-end;align-items:center;flex-wrap:wrap">
-        <span class="muted" style="font-size:0.82rem">Sauvegarder la plus/moins-value d'aujourd'hui :</span>
-        <form method="POST" style="display:inline">
-          <?= csrf_field() ?>
-          <input type="hidden" name="snapshot_value" value="<?= $diffDisplay ?>">
-          <button type="submit" name="save_snapshot" class="btn btn-ghost btn-sm">
-            <i class="fas fa-bookmark"></i> Snapshot
-          </button>
-        </form>
-      </div>
-
     </div><!-- tab-portfolio -->
 
     <!-- ── Tab 2: Transactions ───────────────────────────────── -->
@@ -623,28 +567,6 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
 
       </div><!-- .forms-grid -->
 
-      <!-- Earnings history -->
-      <?php if (!empty($earnings)): ?>
-      <div class="mt-4">
-        <div class="section-label"><i class="fas fa-history me-1"></i>Historique des snapshots</div>
-        <div class="card-glass overflow-x-auto">
-          <table class="tbl">
-            <thead><tr><th>Date</th><th class="num">Plus/Moins-value</th></tr></thead>
-            <tbody>
-              <?php foreach ($earnings as $e):
-                $cls = $e['VALUE'] > 0 ? 'pos' : ($e['VALUE'] < 0 ? 'neg' : 'zero');
-              ?>
-              <tr>
-                <td class="date"><?= htmlspecialchars($e['DATE']) ?></td>
-                <td class="num mono <?= $cls ?>"><?= ($e['VALUE']>=0?'+':'') . number_format((float)$e['VALUE'],2) ?></td>
-              </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <?php endif; ?>
-
     </div><!-- tab-transactions -->
 
     <!-- ── Tab 3: FIFO History ───────────────────────────────── -->
@@ -653,7 +575,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
       <?php if (!empty($earnings)): ?>
       <div class="chart-card mb-4">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-          <h5 style="margin:0"><i class="fas fa-chart-line me-2 t-emerald"></i>Évolution P&L (snapshots)</h5>
+          <h5 style="margin:0"><i class="fas fa-chart-line me-2 t-emerald"></i>Évolution P&L</h5>
           <span id="pnlHoverVal" style="font-family:var(--font-mono);font-size:0.88rem;font-weight:700;color:var(--cyan)"></span>
         </div>
         <div style="position:relative;height:200px"><canvas id="chartPnl"></canvas></div>
@@ -704,6 +626,7 @@ function makeDoughnut(id, labels, data) {
   if (!ctx || !data.length) return;
   new Chart(ctx, {
     type: 'doughnut',
+    plugins: [window.WorkspaceCharts.allocationLegend],
     data: {
       labels,
       datasets: [{ data, backgroundColor: PALETTE, hoverOffset: 6 }]
@@ -711,6 +634,7 @@ function makeDoughnut(id, labels, data) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: false,
       onClick: id === 'chartSectors' ? (_event, elements) => {
         if (elements.length) window.location.href = 'infoAction.php?sector=' + encodeURIComponent(sectorChartCodes[elements[0].index]) + '#companyDirectory';
       } : undefined,
@@ -719,7 +643,7 @@ function makeDoughnut(id, labels, data) {
       } : undefined,
       plugins: {
         legend: {
-          position: 'bottom',
+          display: false,
           labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 }, padding: 14 }
         },
         tooltip: id === 'chartSectors' ? {
@@ -736,7 +660,7 @@ function makeDoughnut(id, labels, data) {
           font: { size: 11, weight: 'bold' },
           display: (ctx) => {
             const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-            return ctx.chart.width >= 400 || (total > 0 && ctx.dataset.data[ctx.dataIndex] / total >= 0.05);
+            return total > 0 && ctx.dataset.data[ctx.dataIndex] / total >= 0.05;
           },
           formatter: (value, ctx) => {
             const total = ctx.dataset.data.reduce((a,b) => a+b, 0);

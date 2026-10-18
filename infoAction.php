@@ -536,28 +536,10 @@ if ($awSession && !empty($name ?? '')) {
             </div>
             <?php endif; ?>
 
-            <?php
-              // The snapshot table used to render every stored day — 795 rows for
-              // IAM, a 564 KB page. The chart above already covers the same ground
-              // with period buttons, so the table now shows a recent window and
-              // says so rather than pretending to be the full record.
-              $SNAP_WINDOW  = 60;
-              $historyShown = array_slice($history, 0, $SNAP_WINDOW);
-            ?>
-            <div class="panel-tabs" role="tablist">
-              <button class="panel-tab active" data-panel="snapshots" role="tab" aria-selected="true">
-                <i class="fas fa-history me-2"></i>Historique des snapshots
-              </button>
-              <button class="panel-tab" data-panel="dividendes" role="tab" aria-selected="false">
-                <i class="fas fa-coins me-2"></i>Dividendes
-                <?php if ($divNext && !empty($divNext['amount'])): ?>
-                  <span class="tab-badge"><?= number_format((float)$divNext['amount'], 2, ',', ' ') ?></span>
-                <?php endif; ?>
-              </button>
-            </div>
+            <h2 class="section-label">Dividendes</h2>
 
             <!-- ── Dividendes ─────────────────────────────── -->
-            <div class="panel-body" id="panel-dividendes" hidden>
+            <div class="panel-body" id="panel-dividendes">
               <?php if (!$divRows): ?>
                 <div class="alert alert-info mb-0">
                   <i class="fas fa-info-circle me-2"></i>
@@ -713,58 +695,6 @@ if ($awSession && !empty($name ?? '')) {
               <?php endif; ?>
             </div>
 
-            <!-- ── Snapshots ──────────────────────────────── -->
-            <div class="panel-body" id="panel-snapshots">
-            <p class="fund-source">
-              <i class="fas fa-clock-rotate-left me-1"></i>
-              <?= count($historyShown) ?> derniers jours
-              <span class="muted">sur <?= number_format(count($history), 0, ',', ' ') ?> enregistrés ·
-              l'évolution complète est dans le graphique ci-dessus</span>
-            </p>
-            <div class="card-glass overflow-x-auto">
-              <table class="tbl">
-                <thead><tr>
-                  <th>DATE</th>
-                  <th class="num">PA</th>
-                  <th class="num">CB</th>
-                  <th class="num col-per">PER</th>
-                  <th class="num col-peg">PEG</th>
-                  <th class="num col-pr">P/R</th>
-                  <th class="num col-pb">P/B</th>
-                </tr></thead>
-                <tbody>
-                  <?php foreach ($historyShown as $row):
-                    $per = (float)($row['per'] ?? 0);
-                    $peg = (float)($row['peg'] ?? 0);
-                    $pr  = (float)($row['pr']  ?? 0);
-                    $pb  = (float)($row['pb']  ?? 0);
-                    $perColor = $per == 0 ? 'none' : ($per < PER_GREEN ? 'green' : ($per < PER_ORANGE ? 'orange' : 'red'));
-                    $pegColor = $peg <= 0 ? 'none' : ($peg < PEG_GREEN ? 'green' : ($peg < PEG_ORANGE ? 'orange' : 'red'));
-                    $prColor  = $pr  == 0 ? 'none' : ($pr  < PR_GREEN  ? 'green' : ($pr  < PR_ORANGE  ? 'orange' : 'red'));
-                    $pbColor  = $pb  == 0 ? 'none' : ($pb  < PB_GREEN  ? 'green' : ($pb  < PB_ORANGE  ? 'orange' : 'red'));
-                  ?>
-                  <tr>
-                    <td class="date"><?= fmt_date($row['date'] ?? '') ?></td>
-                    <td class="num mono"><?= number_format((float)($row['pa'] ?? 0), 2) ?></td>
-                    <td class="num mono"><?= number_format((float)($row['cb'] ?? 0), 0, ',', ' ') ?></td>
-                    <td class="num mono col-per c-<?= $perColor ?>">
-                      <?= $per == 0 ? '—' : number_format($per, 2) ?>
-                    </td>
-                    <td class="num mono col-peg c-<?= $pegColor ?>">
-                      <?= $peg == 0 ? '—' : number_format($peg, 2) ?>
-                    </td>
-                    <td class="num mono col-pr c-<?= $prColor ?>">
-                      <?= $pr == 0 ? '—' : number_format($pr, 2) ?>
-                    </td>
-                    <td class="num mono col-pb c-<?= $pbColor ?>">
-                      <?= $pb == 0 ? '—' : number_format($pb, 2) ?>
-                    </td>
-                  </tr>
-                  <?php endforeach; ?>
-                </tbody>
-              </table>
-            </div>
-            </div><!-- /panel-snapshots -->
 
           <?php else: ?>
             <div class="alert alert-info">
@@ -802,13 +732,7 @@ if ($awSession && !empty($name ?? '')) {
 
     let html = '';
 
-    // Description
-    if (d.description) {
-      html += `<div class="mkt-section">
-        <div class="mkt-section-title"><i class="fas fa-info-circle me-2 t-cyan"></i>À propos</div>
-        <p class="mkt-desc">${d.description.replace(/\r\n|\n/g,'<br>')}</p>
-      </div>`;
-    }
+    // Keep the primary company description above; do not repeat it here.
 
     // Financial charts
     const caData = ch.ca || {}; const rnpgData = ch.rnpg || {}; const ebeData = ch.ebe || {};
@@ -867,7 +791,7 @@ if ($awSession && !empty($name ?? '')) {
       const colors = y => projYears.includes(y) ? 'rgba(34,211,238,0.4)' : '#22d3ee';
       new Chart(document.getElementById('finChart').getContext('2d'), {
         type: 'bar',
-        plugins: [barCrosshair],
+        plugins: [barCrosshair, window.WorkspaceCharts.financialLegend],
         data: {
           labels: allYears,
           datasets: [
@@ -880,7 +804,7 @@ if ($awSession && !empty($name ?? '')) {
           responsive: true,
           interaction: { mode: 'index', intersect: false },
           plugins: {
-            legend: { labels: { color: '#94a3b8', font: { size: 12 } } },
+            legend: { display: false },
             tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw !== null ? c.raw.toFixed(2) : '—'} M` } }
           },
           scales: {
@@ -1262,22 +1186,6 @@ if (directoryCards.length) {
   });
   filterDirectory();
 }
-
-// Panel tabs: snapshots vs dividends. Both panels are in the DOM already, so
-// switching is instant and needs no request.
-document.querySelectorAll('.panel-tab').forEach(function (tab) {
-  tab.addEventListener('click', function () {
-    var want = tab.dataset.panel;
-    document.querySelectorAll('.panel-tab').forEach(function (t) {
-      var on = t === tab;
-      t.classList.toggle('active', on);
-      t.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
-    document.querySelectorAll('.panel-body').forEach(function (p) {
-      p.hidden = (p.id !== 'panel-' + want);
-    });
-  });
-});
 
 function toggleDesc(btn) {
   const p     = btn.closest('.company-desc');

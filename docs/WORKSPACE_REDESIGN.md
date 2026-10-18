@@ -59,3 +59,24 @@ Changes are split into an inert theme-foundation commit and a page-integration
 commit. Revert integration first, then foundation if desired, preserving later
 work. No push or deployment is part of this change. Do not deploy tests,
 design-review artifacts or configuration secrets as web assets.
+
+## Follow-up refinements — 18 October
+
+- Kept the primary company description; removed the repeated enrichment description.
+- Removed the company snapshot table and redundant portfolio snapshot table;
+  historical records and the portfolio P&L chart are preserved.
+- Replaced crowded canvas legends with keyboard/touch-operable HTML legends.
+  Allocation circles are larger; slices below 5% omit their in-circle label but
+  retain exact values in tooltips and percentages in the legend.
+- RNPG, CA and EBE have plain-language French explanations on hover or focus.
+- Removed update/schedule notices and the manual snapshot form/POST handler.
+  Removed the portfolio query used only to display its last synchronization time.
+- Responsive checks now include 320, 412, 768, 1024, 1365 and 1920 pixel widths.
+
+The user approved reusing `benefits` for automatic weekday P&L after market
+close, without adding a column. `cloud_function/functions/daily_pnl` implements
+this independently of page visits, with private per-user permissions,
+idempotent document keys and incomplete-valuation guards. See its README for
+schedule, deployment and limitations. It is **not yet deployed or activated**;
+no live schema or schedule was changed. Until deployed, the removed manual
+control has no automatic replacement.

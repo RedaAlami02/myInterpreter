@@ -164,11 +164,6 @@ $noPER          = $totalCompanies - count($rated);
         <h1>Sélection d’actions</h1>
         <p>Comparez les sociétés par valorisation et qualité des ratios, sans perdre le contexte du marché.</p>
       </div>
-      <p class="data-source">
-        <span><i class="fas fa-clock" aria-hidden="true"></i> Données au <strong><?= fmt_datetime($lastUpdate) ?></strong></span>
-        <span>Cours différés d’environ 15 min · heure de Casablanca</span>
-        <span class="schedule">Actualisation toutes les 15 min, de 09:00 à 16:45, du lundi au vendredi</span>
-      </p>
     </div>
 
     <?php if ($dbError): ?>
