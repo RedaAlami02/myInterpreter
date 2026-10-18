@@ -75,63 +75,112 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Loading spinner on form submit.
-  // IMPORTANT: we must NOT set btn.disabled = true — disabled controls are excluded
-  // from POST data by the HTML spec, so the button's name would never reach PHP.
-  // Instead we add a CSS class that blocks further clicks visually.
-  document.querySelectorAll('form[data-loading]').forEach(form => {
-    form.addEventListener('submit', () => {
-      const btn = form.querySelector('[type=submit]');
-      if (btn) {
-        btn.classList.add('btn-loading');
-        btn.setAttribute('aria-disabled', 'true');
-        const label = btn.dataset.loadingText || 'Chargement…';
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>' + label;
-      }
-    });
-  });
 });
 
-/* ── Page loading overlay ────────────────────────────────── */
+/* ── Navigation and form feedback ────────────────────────── */
 (function () {
-  const overlay = document.createElement('div');
-  overlay.className = 'page-overlay';
-  overlay.innerHTML = '<div class="page-overlay__ring"></div>';
-  document.body.appendChild(overlay);
+  const indicator = document.createElement('div');
+  indicator.className = 'page-loading';
+  indicator.hidden = true;
+  indicator.innerHTML = '<div class="page-loading__track" aria-hidden="true"></div>';
+  const status = document.createElement('div');
+  status.className = 'page-loading__status';
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  status.setAttribute('aria-atomic', 'true');
+  document.body.append(indicator, status);
+  let timers = [];
+  const pendingForms = new Map();
 
-  function show() { overlay.classList.add('visible'); }
-  function hide() { overlay.classList.remove('visible'); }
+  function reset() {
+    timers.forEach(clearTimeout);
+    timers = [];
+    indicator.hidden = true;
+    status.textContent = '';
+    for (const [form, state] of pendingForms) {
+      if (state.busy === null) form.removeAttribute('aria-busy');
+      else form.setAttribute('aria-busy', state.busy);
+      if (state.button) {
+        state.button.innerHTML = state.html;
+        state.button.classList.remove('btn-loading');
+        if (state.disabled === null) state.button.removeAttribute('aria-disabled');
+        else state.button.setAttribute('aria-disabled', state.disabled);
+      }
+    }
+    pendingForms.clear();
+  }
 
-  // Hide once everything (images, fonts, scripts) is fully loaded
-  window.addEventListener('load', hide);
-  // Hide when restored from bfcache (browser back/forward) — 'load' doesn't fire in that case
-  window.addEventListener('pageshow', function(e) { if (e.persisted) hide(); });
+  function show(label) {
+    timers.forEach(clearTimeout);
+    timers = [
+      setTimeout(() => { indicator.hidden = false; status.textContent = label; }, 180),
+      setTimeout(() => { status.textContent = 'Cela prend plus de temps que prévu…'; }, 8000),
+      setTimeout(() => {
+        const hadForm = pendingForms.size > 0;
+        reset();
+        status.textContent = hadForm
+          ? 'Réponse tardive. Vérifiez le résultat avant de réessayer.'
+          : 'Chargement prolongé. Vous pouvez choisir une autre page.';
+      }, 20000),
+    ];
+  }
 
-  // Safety: hide after 8s regardless, so a stalled resource never locks the page
-  setTimeout(hide, 8000);
+  function sameWindow(target) { return !target || target.toLowerCase() === '_self'; }
+  window.addEventListener('pageshow', reset);
+  window.addEventListener('pagehide', reset);
 
-  document.addEventListener('DOMContentLoaded', function () {
-    // Show overlay on any internal link click
-    document.addEventListener('click', function (e) {
-      const a = e.target.closest('a[href]');
-      if (!a) return;
-      const href = a.getAttribute('href') || '';
-      if (
-        href.startsWith('#') ||
-        a.target === '_blank' ||
-        a.hasAttribute('download') ||
-        a.hasAttribute('data-no-overlay') ||
-        href.startsWith('mailto:') ||
-        href.startsWith('tel:')
-      ) return;
-      show();
-    });
+  document.addEventListener('click', e => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest?.('a[href]');
+    if (!a || a.hasAttribute('download') || a.hasAttribute('data-no-overlay')) return;
+    if (!sameWindow(a.target || document.querySelector('base[target]')?.target)) return;
+    const url = new URL(a.href, location.href);
+    if (!['http:', 'https:'].includes(url.protocol) || url.origin !== location.origin) return;
+    if (url.pathname === location.pathname && url.search === location.search && url.hash) return;
+    queueMicrotask(() => { if (!e.defaultPrevented) show('Chargement de la page…'); });
+  });
 
-    // Show overlay on any form submit
-    document.addEventListener('submit', function (e) {
-      if (!e.target.hasAttribute('data-no-overlay')) show();
+  document.addEventListener('submit', e => {
+    const form = e.target;
+    if (e.defaultPrevented || form.hasAttribute('data-no-overlay')) return;
+    const button = e.submitter;
+    const target = button?.getAttribute('formtarget') ?? form.target;
+    if (!sameWindow(target || document.querySelector('base[target]')?.target)) return;
+    if ((button?.getAttribute('formmethod') || form.method).toLowerCase() === 'dialog') return;
+    if (pendingForms.has(form)) { e.preventDefault(); return; }
+    queueMicrotask(() => {
+      if (e.defaultPrevented) return;
+      const state = { busy: form.getAttribute('aria-busy'), button: null };
+      if (form.hasAttribute('data-loading') && button) {
+        state.button = button;
+        state.html = button.innerHTML;
+        state.disabled = button.getAttribute('aria-disabled');
+        // Keep the actual submitter enabled so its name/value reaches PHP.
+        button.classList.add('btn-loading');
+        button.setAttribute('aria-disabled', 'true');
+        button.textContent = button.dataset.loadingText || 'Chargement…';
+      }
+      pendingForms.set(form, state);
+      form.setAttribute('aria-busy', 'true');
+      show(button?.dataset.loadingText || 'Envoi en cours…');
     });
   });
+})();
+
+/* Only this section loads after the document; do not mask server-rendered data. */
+(function () {
+  const placeholder = document.getElementById('mkt-loading');
+  if (!placeholder) return;
+  placeholder.removeAttribute('style');
+  placeholder.className = 'content-loading';
+  placeholder.setAttribute('role', 'status');
+  placeholder.setAttribute('aria-live', 'polite');
+  placeholder.innerHTML = '<span class="content-loading__label">Chargement des données financières…</span>'
+    + '<div class="content-loading__preview" aria-hidden="true">'
+    + '<span class="skeleton skeleton--heading"></span><span class="skeleton"></span>'
+    + '<span class="skeleton skeleton--short"></span>'
+    + '<div class="content-loading__cards"><span class="skeleton"></span>'
+    + '<span class="skeleton"></span><span class="skeleton"></span></div></div>';
 })();
 
 /* ── Number formatter ────────────────────────────────────── */

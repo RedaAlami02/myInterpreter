@@ -275,5 +275,6 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
     </div>
   </main>
 </div>
+<script src="assets/js/app.js"></script>
 </body>
 </html>
