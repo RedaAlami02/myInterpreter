@@ -124,6 +124,10 @@ body.workspace { background: var(--bg); color: var(--text); font-family: var(--f
 .workspace .brand { flex-shrink: 0; border: 0; padding: 0; margin: 0; gap: 9px; }
 .workspace .brand-mark { width: auto; height: auto; font: 700 28px var(--font-body); letter-spacing: -2px; background: none; color: var(--text); box-shadow: none; border-radius: 0; }
 .workspace .brand:hover .brand-mark { box-shadow: none; }
+.workspace .sidebar { padding: 0; justify-content: center; }
+.workspace-header-inner { display: flex; align-items: center; gap: 24px; width: 100%; max-width: 1600px; min-height: 72px; padding-inline: 32px; }
+.workspace .brand-logo { width: 36px; height: 36px; flex: 0 0 36px; }
+.workspace .workspace-header-inner .nav-group { flex: 1; justify-content: center; gap: clamp(18px, 2vw, 30px); }
 .workspace .brand-name { font-size: 14px; }
 .workspace .brand-sub { display: none; }
 .workspace .nav-label, .workspace .nav-group .nav-icon { display: none; }
@@ -186,7 +190,14 @@ body.workspace { background: var(--bg); color: var(--text); font-family: var(--f
 .workspace-chart-legend button { position: static; overflow-wrap: anywhere; }
 .chart-legend-help { left: 0; right: 0; margin-inline: auto; width: min(400px, 100%); }
 .workspace .main, .workspace .main > *, .workspace .mkt-section { min-width: 0; }
-.workspace .mkt-chart-wrap { position: relative; min-width: 0; }
+.workspace .mkt-chart-wrap { position: relative; min-width: 0; width: 100%; height: clamp(260px, 25vw, 420px); max-height: none; }
+.workspace .mkt-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+.workspace .holders-chart-wrap { position: relative; width: min(100%, 280px); aspect-ratio: 1; margin-inline: auto; }
+.workspace .holders-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+.workspace .mkt-two-col { grid-template-columns: minmax(180px, 280px) minmax(0, 1fr); }
+.workspace .holder-name { overflow-wrap: anywhere; min-width: 0; }
+.workspace .col-toggle { transition: background-color 200ms, border-color 200ms, opacity 200ms; opacity: .8; }
+.workspace .col-toggle.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); opacity: 1; }
 .workspace .mkt-section canvas { max-width: 100%; }
 .workspace .charts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 900px) {
@@ -197,7 +208,8 @@ body.workspace { background: var(--bg); color: var(--text); font-family: var(--f
 .workspace .chart-switch:hover { transform: none; }
 .workspace .chart-switch--previous { left: auto; right: 12px; }
 .workspace .chart-heading { padding-right: 32px; }
-.workspace .sector-list { max-height: 280px; }
+.workspace .sector-list { max-height: none; overflow: visible; padding-inline-end: 0; }
+.workspace .charts-track { align-items: flex-start; }
 .workspace .sector-hover, .workspace .sector-picker__menu { background: var(--surface-1); color: var(--text); border-radius: 5px; }
 .workspace .price-filter__selection { background: var(--accent); }
 .workspace .directory-filters { padding: 20px; }
@@ -268,14 +280,16 @@ body.workspace { background: var(--bg); color: var(--text); font-family: var(--f
 .workspace .page-loading { background: var(--accent-dim); }
 .workspace :is(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 @media (max-width: 1200px) {
-  .workspace .sidebar { gap: 20px; padding: 0 24px; flex-wrap: wrap; }
+  .workspace .sidebar { padding: 0; }
+  .workspace-header-inner { gap: 20px; padding-inline: 24px; flex-wrap: wrap; }
   .workspace .nav-group { gap: 14px; }
   .workspace .user-pill { max-width: 130px; }
   .workspace .user-name { max-width: 85px; }
   .workspace .main { padding: 24px; }
 }
 @media (max-width: 1000px) {
-  .workspace .sidebar { padding: 16px 24px 0; gap: 12px 20px; }
+  .workspace-header-inner { padding: 16px 24px 0; gap: 12px 20px; }
+  .workspace .workspace-header-inner .nav-group { justify-content: flex-start; flex: 1 0 100%; }
   .workspace .nav-group { order: 3; flex-basis: 100%; overflow-x: auto; gap: 24px; }
   .workspace .nav-item { min-height: 46px; }
   .workspace .user-pill { max-width: 190px; }
@@ -284,7 +298,7 @@ body.workspace { background: var(--bg); color: var(--text); font-family: var(--f
   .workspace .metric { border-bottom: 1px solid var(--border); }
 }
 @media (max-width: 768px) {
-  .workspace .sidebar { padding: 14px 16px 0; }
+  .workspace-header-inner { padding: 14px 16px 0; }
   .workspace .brand-name { font-size: 13px; }
   .workspace .brand-mark { font-size: 24px; }
   .workspace .nav-group { gap: 22px; }
@@ -320,6 +334,10 @@ body.workspace { background: var(--bg); color: var(--text); font-family: var(--f
   .workspace .div-years { margin-left: 0; }
   .workspace .login-wrap { min-height: 0; }
   .workspace .dash-card-inner { padding: 28px 20px; }
+}
+@media (max-width: 600px) {
+  .workspace .mkt-two-col { grid-template-columns: minmax(0, 1fr); }
+  .workspace .mkt-section { padding: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

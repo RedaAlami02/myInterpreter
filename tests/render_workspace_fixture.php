@@ -11,6 +11,7 @@ $_SESSION = ['logged_in' => $page !== 'login', 'USER_ID' => 'fixture-user', 'USE
 // Load pure formatting/calculation helpers, explicitly excluding secret loading.
 $config = file_get_contents('config/config.php');
 $config = preg_replace('/^require_once[^\n]+secrets\.php[^\n]*\n/m', '', $config);
+$config = preg_replace("/^define\\('ADMIN_USER_ID'.*$/m", "define('ADMIN_USER_ID', 'fixture-user');", $config);
 eval('?>' . $config);
 function aw_user_id() { return 'fixture-user'; }
 require 'core/auth.php';
@@ -39,6 +40,9 @@ $sectorRows = [
     ['code' => 'DEMO-C', 'label' => 'Services (démo)', 'held' => 2, 'market' => 7],
 ];
 $sectorChartRows = $sectorRows;
+for ($i = 4; $i <= 14; $i++) {
+    $sectorRows[] = ['code' => 'DEMO-' . $i, 'label' => 'Secteur fictif ' . $i, 'held' => 1, 'market' => 8];
+}
 $sectorAllocation = ['unclassified' => [], 'held_companies' => []];
 $sectorDirectory = [];
 $isLoggedIn = $page !== 'login'; $loginError = ''; $isSignUp = false;

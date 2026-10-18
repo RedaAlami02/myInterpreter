@@ -8,11 +8,26 @@ import { createServer } from 'node:http';
 
 const root = new URL('../', import.meta.url);
 const fixtures = Object.fromEntries(['portfolio', 'index', 'login'].map(name => [name, execFileSync('php', ['tests/render_workspace_fixture.php', name], { cwd: fileURLToPath(root), encoding: 'utf8' })]));
+// Execute the actual asynchronous company-chart code against invented financial data.
+const companySource = await readFile(new URL('infoAction.php', root), 'utf8');
+const enrichment = companySource.slice(companySource.indexOf('(async function()'), companySource.indexOf('})();', companySource.indexOf('(async function()')) + 5)
+  .replace('<?= json_encode($symbol) ?>', '"DEMO"');
+const header = fixtures.portfolio.match(/<header class="sidebar">[\s\S]*?<\/header>/)[0];
+fixtures.company = `<!doctype html><html lang="fr"><head><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="assets/css/global.css"><link rel="stylesheet" href="assets/css/infoAction.css">
+<link rel="stylesheet" href="assets/css/workspace.css"><script src="assets/js/theme.js"></script><script src="assets/js/workspace-charts.js"></script>
+</head><body class="workspace">${header}<main class="main"><div id="mkt-enrichment"></div></main>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script>${enrichment}</script></body></html>`;
 const profile = await mkdtemp(join(tmpdir(), 'loading-ui-'));
 let socket, chromium;
 const server = createServer(async (req, res) => {
   const path = new URL(req.url, 'http://localhost').pathname;
   const name = path.replace(/^\//, '').replace(/\.php$/, '');
+  if(path === '/favicon.svg') { res.setHeader('Content-Type','image/svg+xml'); res.end(await readFile(new URL('favicon.svg',root))); return; }
+  if(path === '/handlers/market_proxy.php') {
+    res.setHeader('Content-Type','application/json');
+    res.end(JSON.stringify({charts:{ca:{2023:100,2024:120,2025:140},rnpg:{2023:12,2024:15,2025:18},ebe:{2023:22,2024:25,2025:28}},trim:{T42023:20,T12024:25,T22024:30,T32024:32,T42024:33,T12025:35},shareholders:[{name:'Groupe démo',pct:60},{name:'Autres investisseurs',pct:40}]})); return;
+  }
   if (fixtures[name] && req.method === 'GET') {
     res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(fixtures[name]); return;
   }
@@ -76,6 +91,7 @@ try {
   console.log(await evaluate(`(() => {
     const check = (v,m) => {if(!v) throw new Error(m)};
     check(document.documentElement.dataset.theme === 'light', 'System light default');
+    check(document.querySelector('.brand-logo').naturalWidth > 0, 'Existing logo loads');
     check(document.querySelectorAll('#holdingsTbl tbody tr').length === 6, 'Holdings render');
     check(window.Chart && Object.keys(Chart.instances).length >= 3, 'Chart libraries load');
     document.querySelector('[data-theme-toggle]').click();
@@ -121,6 +137,20 @@ try {
     finance.destroy(); host.remove();
     return 'PASS portfolio: fixture values, charts, tabs, sector controls, theme, form payload';
   })()`));
+  for(const reduced of [false,true]) {
+    await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:reduced?'reduce':'no-preference'}]});
+    await evaluate(`(() => {
+      const button = document.querySelector('.col-toggle');
+      button.click(); button.click(); button.click();
+      if(button.getAttribute('aria-pressed') !== 'true') throw new Error('Rapid column toggle state');
+      if(getComputedStyle(document.querySelector('#holdingsTbl .col-frais')).display === 'none') throw new Error('Columns did not open');
+      if(${reduced} && document.querySelector('#holdingsTbl').getAnimations({subtree:true}).length) throw new Error('Reduced motion ignored');
+      button.click();
+      if(button.getAttribute('aria-pressed') !== 'false') throw new Error('Columns did not close');
+    })()`);
+  }
+  await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
+  console.log('PASS column transitions, rapid toggles and reduced motion');
   await navigate('index');
   if (await evaluate('document.documentElement.dataset.theme') !== 'light') throw new Error('Preference lost between pages');
   await evaluate("document.querySelector('[data-theme-toggle]').click()");
@@ -137,8 +167,12 @@ try {
   if(await evaluate('document.documentElement.dataset.theme') !== 'light') throw new Error('Toggle with storage blocked failed');
   await call('Page.removeScriptToEvaluateOnNewDocument',{identifier:blocked.identifier});
   console.log('PASS system dark preference and blocked-storage fallback');
-  for (const name of ['portfolio','index','login']) {
+  for (const name of ['portfolio','index','login','company']) {
     await navigate(name);
+    if(name === 'company') {
+      for(let i=0;i<100 && !(await evaluate("!!window.Chart?.getChart('holdersChart')"));i++) await delay(100);
+      if(!(await evaluate("!!window.Chart?.getChart('holdersChart')"))) throw new Error('Company enrichment did not render');
+    }
     for (const theme of ['light','dark']) {
       await evaluate(`if(document.documentElement.dataset.theme !== '${theme}') document.querySelector('[data-theme-toggle]').click()`);
       await evaluate(`(() => {
@@ -155,7 +189,7 @@ try {
           if(!Number.isFinite(contrast) || contrast < 4.5) throw new Error(token+' contrast '+contrast);
         }
       })()`);
-      for (const [size,width,height] of [['desktop',1365,900],['mobile',412,915],['narrow',320,800],['tablet',768,1024],['laptop',1024,768],['wide',1920,1080]]) {
+      for (const [size,width,height] of [['desktop',1365,900],['mobile',412,915],['narrow',320,800],['tablet',768,1024],['laptop',1024,768],['wide',1920,1080],['qhd',2560,1440]]) {
         await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
         await delay(1100); // Let Chart.js resize/entrance animations finish before screenshots.
         if(name === 'portfolio') await evaluate(`(() => {
@@ -164,13 +198,26 @@ try {
             if(arcs.some(a => a.outerRadius < 80 || !Number.isFinite(a.x))) throw new Error('Collapsed allocation chart');
             if(Math.abs(arcs.reduce((sum,a)=>sum+a.circumference,0) - Math.PI*2) > .01) throw new Error('Incomplete allocation circle');
           }
+          const list = document.querySelector('.sector-list');
+          if(list.scrollHeight > list.clientHeight + 1) throw new Error('Sector list clipped');
+        })()`);
+        if(name === 'company') await evaluate(`(() => {
+          for(const id of ['finChart','trimChart']) {
+            const canvas = document.getElementById(id), rect = canvas.getBoundingClientRect(), parent = canvas.parentElement.getBoundingClientRect();
+            if(Math.abs(rect.width-parent.width)>2 || rect.height<240) throw new Error('Squeezed financial chart: '+id);
+            const chart = Chart.getChart(id), bars = chart.getDatasetMeta(0).data;
+            if(bars.length > 1 && bars.at(-1).x - bars[0].x < chart.chartArea.width * .4) throw new Error('Financial bars collapsed to one side');
+          }
+          const donut = document.getElementById('holdersChart').getBoundingClientRect();
+          if(Math.abs(donut.width-donut.height)>2 || donut.width<150) throw new Error('Distorted shareholder donut');
+          if(Chart.getChart('trimChart').data.labels[0] !== 'Q4 2023') throw new Error('Quarters not chronological');
         })()`);
         const layout = await evaluate(`(() => {
           const rect = document.querySelector('[data-theme-toggle]').getBoundingClientRect();
           return {width:document.documentElement.scrollWidth, viewport:innerWidth, height:document.documentElement.scrollHeight, toggle:rect.right <= innerWidth && rect.left >= 0};
         })()`);
         if(layout.width > layout.viewport || !layout.toggle) throw new Error(`Overflow or clipped theme toggle: ${name}/${theme}/${size} ${JSON.stringify(layout)}`);
-        if(size === 'desktop' || size === 'mobile'){
+        if(size === 'desktop' || size === 'mobile' || size === 'qhd'){
           const {data} = await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width,height:Math.min(layout.height,4000),scale:1}});
           await writeFile(new URL(`design-review/screenshots/prototypes/workspace-live-${name}-${theme}-${size}.png`,root),Buffer.from(data,'base64'));
         }

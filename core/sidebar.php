@@ -10,8 +10,9 @@ function _sb_active(string $page): string {
 }
 ?>
 <header class="sidebar">
+  <div class="workspace-header-inner">
   <a class="brand" href="index.php" aria-label="Retour au tableau de bord">
-    <div class="brand-mark" aria-hidden="true">mi.</div>
+    <img class="brand-logo" src="favicon.svg" width="36" height="36" alt="">
     <div>
       <div class="brand-name">myInterpreter</div>
       <div class="brand-sub">Bourse de Casablanca</div>
@@ -71,5 +72,6 @@ function _sb_active(string $page): string {
     </div>
   </div>
   <?php endif; ?>
+  </div>
   </div>
 </header>

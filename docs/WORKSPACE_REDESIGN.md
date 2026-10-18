@@ -80,3 +80,27 @@ idempotent document keys and incomplete-valuation guards. See its README for
 schedule, deployment and limitations. It is **not yet deployed or activated**;
 no live schema or schedule was changed. Until deployed, the removed manual
 control has no automatic replacement.
+
+## Wide-screen and interaction follow-up
+
+- Removed the 280px sector-list cap so all coverage rows use the card rather
+  than being cut off behind an unnecessary internal scrollbar. The allocation
+  track no longer stretches both slides to the taller slide's height.
+- Financial canvases now have explicit fluid containers and disabled aspect
+  ratio preservation. The shareholder donut has its own square container.
+  Financial-chart animations are disabled to avoid stale plotted positions
+  after resize/theme changes. Shareholder colors continue matching their list.
+- Quarterly results are sorted by year and then quarter, not lexicographically
+  by a quarter-first key.
+- Frais/Équilibre controls animate the movement and appearance of table cells,
+  expose `aria-pressed`, handle rapid toggles and respect reduced motion.
+- The header restores the existing `favicon.svg` identity, centers navigation
+  and aligns its bounded inner layout with content instead of separating the
+  brand and account across the entire 2560px screen.
+- Browser fixtures now execute the actual asynchronous company-chart script
+  with invented API responses, cover admin navigation and a long sector list,
+  and extend both-theme checks to 2560×1440. Checks include rendered bar spread,
+  circle geometry, matching canvas/container width and logo loading.
+
+English/Arabic research is in `docs/LOCALIZATION_PLAN.md`; translations are not
+implemented in this refinement. The daily P&L job remains undeployed.

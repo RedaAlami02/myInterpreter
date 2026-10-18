@@ -66,7 +66,7 @@
         if (axis.grid) axis.grid.color = color('--border');
         if (axis.border) axis.border.color = color('--border');
       }
-      if (chart.config.type === 'doughnut') {
+      if (['chartCurrent', 'chartBuy', 'chartSectors'].includes(chart.canvas.id)) {
         // Categorical allocation colors, not gain/loss indicators.
         const palette = ['#86a8c7', '#a8b4c6', '#8fb9ac', '#d2b789', '#c8a4a4', '#b1a6c6',
           '#8fb8bd', '#bdc494', '#bba88c', '#b89eb4', '#9ab6d2', '#b2c6b8',

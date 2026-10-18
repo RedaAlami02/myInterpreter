@@ -746,8 +746,10 @@ if ($awSession && !empty($name ?? '')) {
 
     // Quarterly CA
     const trim = d.trim;
+    const quarterKeys = Object.keys(trim || {}).filter(k => /^T[1-4]\d{4}$/.test(k))
+      .sort((a, b) => Number(a.slice(2)) - Number(b.slice(2)) || Number(a[1]) - Number(b[1]));
     if (trim) {
-      const qKeys = Object.keys(trim).filter(k => /^T\d\d{4}$/.test(k)).sort();
+      const qKeys = quarterKeys;
       if (qKeys.length > 0) {
         html += `<div class="mkt-section">
           <div class="mkt-section-title"><i class="fas fa-calendar-alt me-2 t-amber"></i>Chiffre d'affaires trimestriel (MMAD)</div>
@@ -761,7 +763,7 @@ if ($awSession && !empty($name ?? '')) {
       html += `<div class="mkt-section">
         <div class="mkt-section-title"><i class="fas fa-users me-2 t-emerald"></i>Actionnariat</div>
         <div class="mkt-two-col">
-          <canvas id="holdersChart" style="max-height:220px"></canvas>
+          <div class="holders-chart-wrap"><canvas id="holdersChart"></canvas></div>
           <div class="holders-list" id="holders-list"></div>
         </div>
       </div>`;
@@ -802,6 +804,8 @@ if ($awSession && !empty($name ?? '')) {
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
           interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { display: false },
@@ -817,7 +821,7 @@ if ($awSession && !empty($name ?? '')) {
 
     // Draw quarterly chart
     if (trim) {
-      const qKeys = Object.keys(trim).filter(k => /^T\d\d{4}$/.test(k)).sort().slice(-12);
+      const qKeys = quarterKeys.slice(-12);
       if (qKeys.length > 0 && document.getElementById('trimChart')) {
         new Chart(document.getElementById('trimChart').getContext('2d'), {
           type: 'bar',
@@ -828,6 +832,8 @@ if ($awSession && !empty($name ?? '')) {
           },
           options: {
             responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
             interaction: { mode: 'index', intersect: false },
             plugins: { legend: { display: false } },
             scales: {
@@ -849,7 +855,8 @@ if ($awSession && !empty($name ?? '')) {
           datasets: [{ data: d.shareholders.map(h => h.pct), backgroundColor: colors.slice(0, d.shareholders.length), borderWidth: 0 }]
         },
         options: {
-          responsive: true, maintainAspectRatio: true,
+          responsive: true, maintainAspectRatio: false,
+          animation: false,
           plugins: { legend: { display: false } }
         }
       });

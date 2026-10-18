@@ -329,10 +329,10 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
       </style>
       <div class="col-toggles">
         <span class="lbl"><i class="fas fa-table-columns me-1"></i>Colonnes :</span>
-        <button type="button" class="btn btn-ghost btn-sm col-toggle" onclick="toggleCols('frais', this)">
+        <button type="button" class="btn btn-ghost btn-sm col-toggle" aria-pressed="false" onclick="toggleCols('frais', this)">
           <i class="fas fa-coins"></i> Frais
         </button>
-        <button type="button" class="btn btn-ghost btn-sm col-toggle" onclick="toggleCols('seuil', this)">
+        <button type="button" class="btn btn-ghost btn-sm col-toggle" aria-pressed="false" onclick="toggleCols('seuil', this)">
           <i class="fas fa-scale-balanced"></i> Équilibre
         </button>
       </div>
@@ -606,8 +606,22 @@ function switchTab(name) {
 
 /* ── Collapsible column groups (frais / seuil) — collapsed by default ── */
 function toggleCols(group, btn) {
-  document.getElementById('holdingsTbl').classList.toggle('show-' + group);
-  btn.classList.toggle('active');
+  const table = document.getElementById('holdingsTbl');
+  const cells = [...table.querySelectorAll('th, td')];
+  cells.forEach(cell => cell.getAnimations().forEach(animation => animation.cancel()));
+  const before = new Map(cells.filter(cell => cell.offsetWidth).map(cell => [cell, cell.getBoundingClientRect()]));
+  const open = table.classList.toggle('show-' + group);
+  btn.classList.toggle('active', open);
+  btn.setAttribute('aria-pressed', String(open));
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (const cell of cells) {
+    if (!cell.offsetWidth || cell.cellIndex === 0) continue;
+    const old = before.get(cell), next = cell.getBoundingClientRect();
+    cell.animate([
+      {transform: old ? `translateX(${old.left - next.left}px)` : 'translateX(8px)', opacity: old ? 1 : 0},
+      {transform: 'translateX(0)', opacity: 1}
+    ], {duration: 240, easing: 'cubic-bezier(.2,.7,.2,1)'});
+  }
 }
 
 /* ── Doughnut charts ───────────────────────────────────── */
