@@ -1,5 +1,6 @@
 <?php
 // Bourse de Casablanca, Bulletin de la cote, séance du 28/09/2026.
+// T2S healthcare classification supplemented from its exchange instrument record.
 // One listed issuer per line. Refresh this snapshot when the listing changes.
 const MARKET_SECTOR_DATE = '28/09/2026';
 const MARKET_SECTORS = [
@@ -103,6 +104,7 @@ CASH PLUS S.A|SFA
 CFG BANK|BAN
 TGCC S.A|BMC
 VICENNE|SAN
+T2S Group Holding|SAN
 AGMA|ASS
 COLORADO|BMC
 DISTY TECHNOLOGIES|LSI

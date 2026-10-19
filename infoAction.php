@@ -400,9 +400,9 @@ if ($awSession && !empty($name ?? '')) {
                   <?= htmlspecialchars(display_name($company['name'] ?? $name, $company['ext_name'] ?? null)) ?>
                   <?php $detailSector = market_sector_for_company($company['name'] ?? $name); ?>
                   <?php if ($detailSector): ?>
-                    <a class="sector-badge" href="infoAction.php?sector=<?= urlencode($detailSector) ?>#companyDirectory"><?= htmlspecialchars(MARKET_SECTORS[$detailSector]) ?></a>
+                    <a class="sector-badge" href="infoAction.php?sector=<?= urlencode($detailSector) ?>#companyDirectory"><?= te(MARKET_SECTORS[$detailSector]) ?></a>
                   <?php elseif (!empty($company['sector'])): ?>
-                    <span class="sector-badge"><?= htmlspecialchars($company['sector']) ?></span>
+                    <span class="sector-badge"><?= te($company['sector']) ?></span>
                   <?php endif; ?>
                   <?php if (!empty($company['fiscal_year'])): ?>
                     <?php // Every figure below comes from this one financial year.
@@ -711,7 +711,7 @@ if ($awSession && !empty($name ?? '')) {
   if (!container) return;
 
   try {
-    const r   = await fetch('handlers/market_proxy.php?symbol=' + encodeURIComponent(sym));
+    const r   = await fetch('handlers/market_proxy.php?v=2&symbol=' + encodeURIComponent(sym));
     const d   = await r.json();
     const c   = d.computed || {};
     const ch  = d.charts   || {};
@@ -744,10 +744,25 @@ if ($awSession && !empty($name ?? '')) {
       }
     }
 
+    // Interim periods are explicitly separate from the annual valuation basis.
+    if (Array.isArray(d.interim) && d.interim.length) {
+      const escapeText = value => {
+        const span = document.createElement('span'); span.textContent = String(value); return span.innerHTML;
+      };
+      html += `<div class="mkt-section">
+        <div class="mkt-section-title">${window.I18n.t('Résultats semestriels (MMAD)')}</div>
+        <p class="muted">${window.I18n.t('Résultats publiés, non annualisés ; exclus des ratios annuels.')}</p>
+        <div class="overflow-x-auto"><table class="table"><thead><tr><th>${window.I18n.t('Période')}</th><th>CA</th><th>EBE</th><th>RNPG</th></tr></thead><tbody>
+          ${d.interim.map(row => `<tr><td>${escapeText(window.I18n.t(row.period))}</td><td>${Number(row.revenue).toFixed(0)}</td><td>${Number(row.ebitda).toFixed(0)}</td><td>${Number(row.net_profit).toFixed(0)}</td></tr>`).join('')}
+        </tbody></table></div>
+      </div>`;
+    }
+
     // Shareholders
     if (d.shareholders && d.shareholders.length > 0) {
       html += `<div class="mkt-section">
         <div class="mkt-section-title"><i class="fas fa-users me-2 t-emerald"></i>${window.I18n.t('Actionnariat')}</div>
+        ${d.shareholders_as_of === '2026-07-27' ? `<p class="muted">${window.I18n.t('Répartition au 27/07/2026, avant l’augmentation de capital d’octobre 2026.')}</p>` : ''}
         <div class="mkt-two-col">
           <div class="holders-chart-wrap"><canvas id="holdersChart"></canvas></div>
           <div class="holders-list" id="holders-list"></div>

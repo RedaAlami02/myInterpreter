@@ -6,11 +6,17 @@
  */
 
 require_once __DIR__ . '/../config/sources.php';
+require_once __DIR__ . '/../core/company_disclosures.php';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function mkt_batch(array $requests): array {
-    $mh = curl_multi_init();
+    $multiAvailable = true;
+    foreach (['init', 'add_handle', 'exec', 'select', 'getcontent', 'remove_handle', 'close'] as $operation) {
+        if (!function_exists('curl_multi_' . $operation)) $multiAvailable = false;
+    }
+    $mh = $multiAvailable ? curl_multi_init() : null;
     $handles = [];
+    $results = [];
     foreach ($requests as $key => $spec) {
         $ch  = curl_init($spec['url']);
         // The upstream proxy returns 403 without a same-origin Referer/Origin.
@@ -27,9 +33,16 @@ function mkt_batch(array $requests): array {
             $opts[CURLOPT_HTTPHEADER][] = 'Content-Type: application/json';
         }
         curl_setopt_array($ch, $opts);
-        curl_multi_add_handle($mh, $ch);
-        $handles[$key] = $ch;
+        if ($multiAvailable) {
+            curl_multi_add_handle($mh, $ch);
+            $handles[$key] = $ch;
+        } else {
+            $body = curl_exec($ch);
+            $results[$key] = $body ? (json_decode($body, true) ?? null) : null;
+            curl_close($ch);
+        }
     }
+    if (!$multiAvailable) return $results;
     $running = null;
     do { curl_multi_exec($mh, $running); curl_multi_select($mh, 0.1); } while ($running > 0);
     $results = [];
@@ -106,6 +119,10 @@ function mkt_cagr(array $r, string $k, int $yr = 5): ?float {
 
 // ── Main fetch function (callable directly or via HTTP) ───────────────────────
 function mkt_fetch_symbol(string $symbol): array {
+    return apply_reviewed_disclosure($symbol, mkt_fetch_upstream_symbol($symbol));
+}
+
+function mkt_fetch_upstream_symbol(string $symbol): array {
     $_SRC1 = SRC_FUND_BASE;
     $_SRC2 = SRC_FUND_BASE . '/supabase';
 

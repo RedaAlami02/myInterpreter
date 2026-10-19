@@ -37,7 +37,7 @@ const server = createServer(async (req, res) => {
   if(path === '/favicon.svg') { res.setHeader('Content-Type','image/svg+xml'); res.end(await readFile(new URL('favicon.svg',root))); return; }
   if(path === '/handlers/market_proxy.php') {
     res.setHeader('Content-Type','application/json');
-    res.end(JSON.stringify({charts:{ca:{2023:100,2024:120,2025:140},rnpg:{2023:12,2024:15,2025:18},ebe:{2023:22,2024:25,2025:28}},trim:{T42023:20,T12024:25,T22024:30,T32024:32,T42024:33,T12025:35},shareholders:[{name:'Groupe démo',pct:60},{name:'Autres investisseurs',pct:40}]})); return;
+    res.end(JSON.stringify({charts:{ca:{2023:100,2024:120,2025:140},rnpg:{2023:12,2024:15,2025:18},ebe:{2023:22,2024:25,2025:28}},trim:{T42023:20,T12024:25,T22024:30,T32024:32,T42024:33,T12025:35},shareholders:[{name:'Groupe démo',pct:60},{name:'Autres investisseurs',pct:40}],shareholders_as_of:'2026-07-27',interim:[{period:'S1 2025',revenue:50,ebitda:10,net_profit:7},{period:'S1 2026',revenue:60,ebitda:12,net_profit:8}]})); return;
   }
   if (fixtures[name] && req.method === 'GET') {
     res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(fixtures[name]); return;
@@ -191,6 +191,7 @@ try {
     if(name === 'company') {
       for(let i=0;i<100 && !(await evaluate("!!window.Chart?.getChart('holdersChart')"));i++) await delay(100);
       if(!(await evaluate("!!window.Chart?.getChart('holdersChart')"))) throw new Error('Company enrichment did not render');
+      if(await evaluate("document.querySelectorAll('#mkt-enrichment table tbody tr').length") !== 2) throw new Error('Separate interim results missing');
     }
     for (const theme of ['light','dark']) {
       await evaluate(`if(document.documentElement.dataset.theme !== '${theme}') document.querySelector('[data-theme-toggle]').click()`);

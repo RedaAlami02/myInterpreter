@@ -13,7 +13,8 @@ $allocation = market_sector_allocation([
 
 $byCode = array_column($allocation['rows'], null, 'code');
 assert(count(MARKET_SECTORS) === 24);
-assert(array_sum(array_column($allocation['rows'], 'market')) === 78);
+assert(array_sum(array_column($allocation['rows'], 'market')) === 79);
+assert(market_sector_for_company('T2S Group Holding') === 'SAN');
 assert($byCode['AGR']['held'] === 2 && $byCode['AGR']['market'] === 6);
 assert($byCode['AGR']['value'] === 300.0);
 assert($byCode['BMC']['held'] === 1 && $byCode['BMC']['market'] === 9);
