@@ -13,7 +13,7 @@ function check($value, string $message): void {
 }
 $expected = $mode === 'cookie' ? 'ary' : ($mode === 'invalid' ? 'fr' : $mode);
 check(ui_locale() === $expected, 'Allowlisted language selection');
-check(ui_direction() === ($expected === 'fr' ? 'ltr' : 'rtl'), 'Direction');
+check(ui_direction() === (in_array($expected, ['ar', 'ary'], true) ? 'rtl' : 'ltr'), 'Direction');
 if ($expected !== 'fr') {
     check(t('Portefeuille') !== 'Portefeuille', 'Portfolio translated');
     check(t('Bénéfice net') !== 'Bénéfice net', 'Shared financial terminology');
@@ -24,6 +24,15 @@ check(te('<script>') === '&lt;script&gt;', 'Fallback escaped');
 check(t('Historique &amp; ratios') === t('Historique & ratios'), 'Entity normalization');
 $ar = json_decode(file_get_contents(__DIR__ . '/../locales/ar.json'), true, 512, JSON_THROW_ON_ERROR);
 $ary = json_decode(file_get_contents(__DIR__ . '/../locales/ary.json'), true, 512, JSON_THROW_ON_ERROR);
+$en = json_decode(file_get_contents(__DIR__ . '/../locales/en.json'), true, 512, JSON_THROW_ON_ERROR);
+check(!array_diff_key($ar, $en) && !array_diff_key($en, $ar), 'English catalog covers the same messages');
+foreach ($en as $key => $value) {
+    check(is_string($value) && trim($value) !== '', 'English catalog entry: ' . $key);
+    preg_match_all('/\{\w+\}/', $key, $base);
+    preg_match_all('/\{\w+\}/', $value, $translated);
+    sort($base[0]); sort($translated[0]);
+    check($base[0] === $translated[0], 'English placeholders: ' . $key);
+}
 foreach ($ary as $key => $value) {
     check(isset($ar[$key]), 'Darija override has Arabic base: ' . $key);
     preg_match_all('/\{\w+\}/', $key, $base);

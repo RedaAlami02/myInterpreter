@@ -109,7 +109,8 @@ Initial language research is in `docs/LOCALIZATION_PLAN.md`.
 French, Arabic and Moroccan Darija now share local translation catalogs, a
 remembered header selector and RTL-aware layouts. Both themes and financial
 values are preserved. See `docs/LOCALIZATION.md` for architecture, verification
-and remaining native-copy review. English is not implemented. Browser checks
+and remaining native-copy review. English was added in the follow-up with a
+complete catalog and LTR layout using the same selector. Browser checks
 passed all three locales at seven widths in both themes; Arabic/Darija also
 passed read-only public-route checks. Authenticated tests use invented data.
 The allocation viewport follows the active slide height, avoiding blank space

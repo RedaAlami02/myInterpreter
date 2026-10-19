@@ -4,8 +4,8 @@ function ui_locale(): string {
     static $locale;
     if ($locale !== null) return $locale;
     $candidate = $_GET['lang'] ?? $_SESSION['ui_locale'] ?? $_COOKIE['mi_locale'] ?? 'fr';
-    $locale = is_string($candidate) && in_array($candidate, ['fr', 'ar', 'ary'], true) ? $candidate : 'fr';
-    if (isset($_GET['lang']) && is_string($_GET['lang']) && in_array($_GET['lang'], ['fr', 'ar', 'ary'], true)) {
+    $locale = is_string($candidate) && in_array($candidate, ['fr', 'en', 'ar', 'ary'], true) ? $candidate : 'fr';
+    if (isset($_GET['lang']) && is_string($_GET['lang']) && in_array($_GET['lang'], ['fr', 'en', 'ar', 'ary'], true)) {
         $_SESSION['ui_locale'] = $locale;
         if (PHP_SAPI !== 'cli' && !headers_sent()) {
             setcookie('mi_locale', $locale, ['expires' => time() + 31536000, 'path' => '/',
@@ -23,7 +23,7 @@ function ui_messages(): array {
     if ($messages !== null) return $messages;
     $messages = [];
     if (ui_locale() === 'fr') return $messages;
-    $files = ['ar'];
+    $files = [ui_locale() === 'en' ? 'en' : 'ar'];
     if (ui_locale() === 'ary') $files[] = 'ary';
     foreach ($files as $file) {
         $catalog = json_decode(file_get_contents(__DIR__ . '/../locales/' . $file . '.json'), true, 512, JSON_THROW_ON_ERROR);
@@ -40,5 +40,5 @@ function t(string $text, array $values = []): string {
 function te(string $text, array $values = []): string {
     return htmlspecialchars(t($text, $values), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
-function ui_direction(): string { return ui_locale() === 'fr' ? 'ltr' : 'rtl'; }
+function ui_direction(): string { return in_array(ui_locale(), ['ar', 'ary'], true) ? 'rtl' : 'ltr'; }
 ui_locale();

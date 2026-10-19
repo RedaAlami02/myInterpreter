@@ -9,7 +9,8 @@ import { Script } from 'node:vm';
 
 const root = new URL('../', import.meta.url);
 const locale = process.env.UI_LOCALE || 'fr';
-if(!['fr','ar','ary'].includes(locale)) throw new Error('Invalid fixture locale');
+if(!['fr','en','ar','ary'].includes(locale)) throw new Error('Invalid fixture locale');
+const direction = ['ar','ary'].includes(locale) ? 'rtl' : 'ltr';
 const fixtures = Object.fromEntries(['portfolio', 'index', 'login'].map(name => [name, execFileSync('php', ['tests/render_workspace_fixture.php', name, locale], { cwd: fileURLToPath(root), encoding: 'utf8' })]));
 for(const [name, html] of Object.entries(fixtures)) {
   for(const match of html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {
@@ -21,7 +22,7 @@ const companySource = await readFile(new URL('infoAction.php', root), 'utf8');
 const enrichment = companySource.slice(companySource.indexOf('(async function()'), companySource.indexOf('})();', companySource.indexOf('(async function()')) + 5)
   .replace('<?= json_encode($symbol) ?>', '"DEMO"');
 const header = fixtures.portfolio.match(/<header class="sidebar">[\s\S]*?<\/header>/)[0];
-fixtures.company = `<!doctype html><html lang="${locale}" dir="${locale==='fr'?'ltr':'rtl'}"><head><meta name="viewport" content="width=device-width,initial-scale=1">
+fixtures.company = `<!doctype html><html lang="${locale}" dir="${direction}"><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="assets/css/global.css"><link rel="stylesheet" href="assets/css/infoAction.css">
 <link rel="stylesheet" href="assets/css/workspace.css"><link rel="stylesheet" href="assets/css/rtl.css">
 ${fixtures.portfolio.match(/<script id="ui-locale"[\s\S]*?<\/script>/)[0]}<script src="assets/js/i18n.js"></script>
@@ -102,8 +103,13 @@ try {
     const check = (v,m) => {if(!v) throw new Error(m)};
     check(document.documentElement.dataset.theme === 'light', 'System light default');
     check(document.documentElement.lang === '${locale}', 'Root language');
-    check(document.documentElement.dir === '${locale==='fr'?'ltr':'rtl'}', 'Root direction');
+    check(document.documentElement.dir === '${direction}', 'Root direction');
     check(document.querySelector('[data-language-select]').value === '${locale}', 'Language selector');
+    if ('${locale}' === 'en') {
+      check(document.querySelector('h1').textContent.trim() === 'Portfolio', 'English page heading');
+      check(window.I18n.t('Chargement…') === 'Loading…', 'English browser catalog');
+      check(window.I18n.t('1A') === '1Y', 'English display period');
+    }
     check(document.querySelector('.brand-logo').naturalWidth > 0, 'Existing logo loads');
     check(document.querySelectorAll('#holdingsTbl tbody tr').length === 6, 'Holdings render');
     check(window.Chart && Object.keys(Chart.instances).length >= 3, 'Chart libraries load');

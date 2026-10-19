@@ -61,7 +61,7 @@ function _sb_active(string $page): string {
     <?php endforeach; ?>
     <label class="visually-hidden" for="uiLanguage"><?= te('Langue') ?></label>
     <select id="uiLanguage" name="lang" data-language-select aria-label="<?= te('Langue') ?>">
-      <?php foreach (['fr' => 'Français', 'ar' => 'العربية', 'ary' => 'الدارجة المغربية'] as $code => $label): ?>
+      <?php foreach (['fr' => 'Français', 'en' => 'English', 'ar' => 'العربية', 'ary' => 'الدارجة المغربية'] as $code => $label): ?>
         <option value="<?= $code ?>" lang="<?= $code ?>" <?= ui_locale() === $code ? 'selected' : '' ?>><?= $label ?></option>
       <?php endforeach; ?>
     </select>

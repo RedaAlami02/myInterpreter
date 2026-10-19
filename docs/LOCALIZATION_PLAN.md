@@ -2,7 +2,7 @@
 
 Status: initial proposal below retained for background. The user subsequently
 approved both Modern Standard Arabic and Moroccan Darija. French, Arabic and
-Darija are now implemented; English remains future work. See
+Darija are now implemented, with English added in the follow-up. See
 [LOCALIZATION.md](LOCALIZATION.md) for the actual architecture and limitations.
 
 ## Feasibility and scope
