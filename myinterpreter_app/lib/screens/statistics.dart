@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:appwrite/appwrite.dart';
-import '../appwrite_client.dart';
-import '../main.dart' show kAccent, kBorder, kNegative, kPositive, kSurface, kSurfaceHigh, kTextMuted, kTextPrimary;
+import '../query.dart';
+import '../backend.dart';
+import '../portfolio_math.dart';
+import '../main.dart'
+    show
+        kAccent,
+        kBorder,
+        kNegative,
+        kPositive,
+        kSurface,
+        kSurfaceHigh,
+        kTextMuted,
+        kTextPrimary;
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -20,18 +30,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   Future<Map<String, dynamic>> _load() async {
-    try {
-    print('DEBUG stats: getting user...');
-    final me = await account.get();
-    final userId = me.$id;
-    print('DEBUG stats: user=$userId');
+    final me = await backend.getUser();
+    final userId = me.id;
 
-    final dataRes = await databases.listDocuments(
-      databaseId: dbId,
+    final dataRes = await backend.listDocuments(
       collectionId: 'data',
       queries: [Query.orderDesc('date'), Query.limit(500)],
     );
-    print('DEBUG stats: got ${dataRes.documents.length} data docs');
     final latest = <String, Map<String, dynamic>>{};
     for (final d in dataRes.documents) {
       final n = d.data['c_name'] as String?;
@@ -46,65 +51,86 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       if (k != null && counts.containsKey(k)) counts[k] = counts[k]! + 1;
     }
 
-    final ventesRes = await databases.listDocuments(
-      databaseId: dbId,
+    final ventesRes = await backend.listDocuments(
       collectionId: 'ventes',
       queries: [Query.equal('user_id', userId), Query.limit(500)],
     );
-    final achatsRes = await databases.listDocuments(
-      databaseId: dbId,
+    final achatsRes = await backend.listDocuments(
       collectionId: 'achats',
       queries: [Query.equal('user_id', userId), Query.limit(500)],
     );
 
     final buyMap = <String, List<Map<String, dynamic>>>{};
+    final sellMap = <String, List<Map<String, dynamic>>>{};
     for (final d in achatsRes.documents) {
       final name = d.data['c_name'] as String? ?? '';
-      buyMap.putIfAbsent(name, () => []).add(d.data);
+      buyMap.putIfAbsent(name, () => []).add({
+        'ID': d.id,
+        'DATE': d.data['date'],
+        'NUMBER': d.data['quantity'] ?? d.data['number'],
+        'PRIX_ACHAT': d.data['price'] ?? d.data['prix_achat'],
+      });
     }
-
-    final gains = <Map<String, dynamic>>[];
     for (final d in ventesRes.documents) {
       final name = d.data['c_name'] as String? ?? '';
-      // Support both new records ('price'/'quantity') and migrated MySQL records ('prix_vente'/'number')
-      final sellPrice = (d.data['price'] as num?)?.toDouble()
-          ?? (d.data['prix_vente'] as num?)?.toDouble() ?? 0;
-      final sellQty = (d.data['quantity'] as num?)?.toDouble()
-          ?? (d.data['number'] as num?)?.toDouble() ?? 0;
-      final buys = buyMap[name] ?? [];
-      double totalCost = 0, totalQty = 0;
-      for (final b in buys) {
-        final bp = (b['price'] as num?)?.toDouble() ?? (b['prix_achat'] as num?)?.toDouble() ?? 0;
-        final bq = (b['quantity'] as num?)?.toDouble() ?? (b['number'] as num?)?.toDouble() ?? 0;
-        totalCost += bp * bq;
-        totalQty += bq;
-      }
-      final avgCost = totalQty > 0 ? totalCost / totalQty : 0.0;
-      final gain = (sellPrice - avgCost) * sellQty;
-      // Brokerage commission (~1%) on both legs of this realized trade.
-      final frais = (sellPrice * sellQty + avgCost * sellQty) * kCommissionRate;
-      gains.add({'c_name': name, 'gain': gain, 'qty': sellQty, 'date': d.data['date'], 'frais': frais});
+      sellMap.putIfAbsent(name, () => []).add({
+        'ID': d.id,
+        'DATE': d.data['date'],
+        'NUMBER': d.data['quantity'] ?? d.data['number'],
+        'PRIX_VENTE': d.data['price'] ?? d.data['prix_vente'],
+      });
     }
-
-    final totalGain = gains.fold<double>(0, (s, g) => s + (g['gain'] as double));
-    final totalFrais = gains.fold<double>(0, (s, g) => s + (g['frais'] as double));
-    const taxRate = 0.10;
-    final taxOwed = totalGain > 0 ? totalGain * taxRate : 0.0;
-    final netGain = totalGain - taxOwed - totalFrais;
+    final rows = <Map<String, dynamic>>[];
+    final groupedGains = <String, Map<String, dynamic>>{};
+    for (final entry in sellMap.entries) {
+      final matched = fifoMatches(buyMap[entry.key] ?? [], entry.value);
+      rows.addAll(matched);
+      for (final lot in matched) {
+        if (lot.containsKey('error')) continue;
+        final key = '${entry.key}/${lot['sale_id']}';
+        final gain = groupedGains.putIfAbsent(
+          key,
+          () => {
+            'c_name': entry.key,
+            'gain': 0.0,
+            'qty': 0.0,
+            'date': lot['vente_date'],
+            'frais': 0.0,
+          },
+        );
+        gain['gain'] = (gain['gain'] as double) + (lot['benefice'] as double);
+        gain['qty'] = (gain['qty'] as double) + (lot['vente_nombre'] as double);
+        gain['frais'] =
+            (gain['frais'] as double) +
+            ((lot['achat_montant'] as double) +
+                    (lot['vente_montant'] as double)) *
+                kCommissionRate;
+      }
+    }
+    final totals = realizedTotals(rows, kCommissionRate, kTaxRate);
+    final gains = groupedGains.values.toList();
+    final totalGain = totals['gross'] as double;
+    final totalFrais = totals['fees'] as double;
+    final taxOwed = totals['tax'] as double;
+    final netGain = totals['net'] as double;
 
     // PER-sorted company list (exclude stocks with null/zero PER)
-    final perList = latest.values
-        .where((r) => (r['per'] as num?) != null && (r['per'] as num) > 0)
-        .toList()
-      ..sort((a, b) => (a['per'] as num).compareTo(b['per'] as num));
+    final perList =
+        latest.values
+            .where((r) => (r['per'] as num?) != null && (r['per'] as num) > 0)
+            .toList()
+          ..sort((a, b) => (a['per'] as num).compareTo(b['per'] as num));
 
-    return {'counts': counts, 'gains': gains, 'totalGain': totalGain, 'taxOwed': taxOwed,
-            'totalFrais': totalFrais, 'netGain': netGain, 'perList': perList};
-    } catch (e, st) {
-      print('DEBUG stats ERROR: $e');
-      print('DEBUG stats STACK: $st');
-      rethrow;
-    }
+    return {
+      'unresolvedSales': totals['unresolved_sales'],
+      'counts': counts,
+      'gains': gains,
+      'totalGain': totalGain,
+      'taxOwed': taxOwed,
+      'totalFrais': totalFrais,
+      'netGain': netGain,
+      'perList': perList,
+    };
   }
 
   Widget _perRatingCard(String label, int count, Color color) {
@@ -118,33 +144,71 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(9),
         child: IntrinsicHeight(
-          child: Row(children: [
-            Container(width: 4, color: color),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                child: Row(children: [
-                  Text(label, style: GoogleFonts.inter(color: kTextMuted, fontSize: 13)),
-                  const Spacer(),
-                  Text('$count', style: GoogleFonts.inter(
-                    color: color, fontSize: 18, fontWeight: FontWeight.w700)),
-                ]),
+          child: Row(
+            children: [
+              Container(width: 4, color: color),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        label,
+                        style: GoogleFonts.inter(
+                          color: kTextMuted,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '$count',
+                        style: GoogleFonts.inter(
+                          color: color,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _totalRow(String label, double amount, {required Color valueColor, bool big = false}) => Row(children: [
-    Expanded(child: Text(label, style: GoogleFonts.inter(
-      color: big ? kTextPrimary : kTextMuted, fontSize: big ? 13 : 12,
-      fontWeight: big ? FontWeight.w600 : FontWeight.w400))),
-    Text('${amount >= 0 ? '+' : ''}${amount.toStringAsFixed(2)} MAD',
-      style: GoogleFonts.inter(color: valueColor, fontSize: big ? 18 : 13,
-        fontWeight: big ? FontWeight.w700 : FontWeight.w600)),
-  ]);
+  Widget _totalRow(
+    String label,
+    double amount, {
+    required Color valueColor,
+    bool big = false,
+  }) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: big ? kTextPrimary : kTextMuted,
+            fontSize: big ? 13 : 12,
+            fontWeight: big ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+      ),
+      Text(
+        '${amount >= 0 ? '+' : ''}${amount.toStringAsFixed(2)} MAD',
+        style: GoogleFonts.inter(
+          color: valueColor,
+          fontSize: big ? 18 : 13,
+          fontWeight: big ? FontWeight.w700 : FontWeight.w600,
+        ),
+      ),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -159,23 +223,46 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         future: _future,
         builder: (ctx, snap) {
           if (snap.hasError) {
-            return ListView(children: [
-              SizedBox(
-                height: MediaQuery.of(ctx).size.height * 0.8,
-                child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const Icon(Icons.error_outline, size: 48, color: kNegative),
-                  const SizedBox(height: 16),
-                  Text('Error: ${snap.error}', textAlign: TextAlign.center, style: const TextStyle(color: kTextMuted)),
-                  const SizedBox(height: 16),
-                  ElevatedButton(onPressed: () => setState(() => _future = _load()), child: const Text('Retry')),
-                ])),
-              ),
-            ]);
+            return ListView(
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(ctx).size.height * 0.8,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: kNegative,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Statistics could not be calculated. Check your transaction history and retry.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: kTextMuted),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => setState(() => _future = _load()),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
           }
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kAccent));
+          if (!snap.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(color: kAccent),
+            );
+          }
 
           final counts = snap.data!['counts'] as Map<String, dynamic>;
           final gains = snap.data!['gains'] as List<Map<String, dynamic>>;
+          final unresolvedSales = snap.data!['unresolvedSales'] as int;
           final totalGain = snap.data!['totalGain'] as double;
           final taxOwed = snap.data!['taxOwed'] as double;
           final totalFrais = snap.data!['totalFrais'] as double;
@@ -185,6 +272,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              if (unresolvedSales > 0)
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    'Purchase history needs review: $unresolvedSales sale(s) excluded from estimates.',
+                    style: const TextStyle(color: kNegative),
+                  ),
+                ),
               // Market overview card
               Container(
                 padding: const EdgeInsets.all(16),
@@ -193,29 +288,70 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: kBorder),
                 ),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Market Overview', style: GoogleFonts.inter(
-                    color: kTextMuted, fontSize: 12, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 8),
-                  Text('${counts['total']} stocks tracked', style: GoogleFonts.inter(
-                    color: kTextPrimary, fontSize: 22, fontWeight: FontWeight.w700)),
-                ]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Market Overview',
+                      style: GoogleFonts.inter(
+                        color: kTextMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${counts['total']} stocks tracked',
+                      style: GoogleFonts.inter(
+                        color: kTextPrimary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
-              Text('PER Ratings', style: GoogleFonts.inter(
-                color: kTextMuted, fontSize: 12, fontWeight: FontWeight.w500)),
+              Text(
+                'PER Ratings',
+                style: GoogleFonts.inter(
+                  color: kTextMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               const SizedBox(height: 8),
-              _perRatingCard('Undervalued (green)', counts['green'] as int, kPositive),
-              _perRatingCard('Fair value (orange)', counts['orange'] as int, const Color(0xFFE3A008)),
-              _perRatingCard('Overvalued (red)', counts['red'] as int, kNegative),
+              _perRatingCard(
+                'Undervalued (green)',
+                counts['green'] as int,
+                kPositive,
+              ),
+              _perRatingCard(
+                'Fair value (orange)',
+                counts['orange'] as int,
+                const Color(0xFFE3A008),
+              ),
+              _perRatingCard(
+                'Overvalued (red)',
+                counts['red'] as int,
+                kNegative,
+              ),
               const SizedBox(height: 20),
               const Divider(height: 1),
               const SizedBox(height: 16),
-              Text('Companies by PER', style: GoogleFonts.inter(
-                color: kTextPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(
+                'Companies by PER',
+                style: GoogleFonts.inter(
+                  color: kTextPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('Sorted lowest → highest (best value first)', style: GoogleFonts.inter(
-                color: kTextMuted, fontSize: 11)),
+              Text(
+                'Sorted lowest → highest (best value first)',
+                style: GoogleFonts.inter(color: kTextMuted, fontSize: 11),
+              ),
               const SizedBox(height: 8),
               ...perList.asMap().entries.map((entry) {
                 final i = entry.key;
@@ -223,55 +359,94 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 final per = (r['per'] as num).toDouble();
                 final rating = r['per_rating'] as String?;
                 final ratingColor = switch (rating) {
-                  'green'  => kPositive,
+                  'green' => kPositive,
                   'orange' => const Color(0xFFE3A008),
-                  'red'    => kNegative,
-                  _        => kTextMuted,
+                  'red' => kNegative,
+                  _ => kTextMuted,
                 };
                 return Container(
                   margin: const EdgeInsets.symmetric(vertical: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: kSurface,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: kBorder),
                   ),
-                  child: Row(children: [
-                    SizedBox(
-                      width: 28,
-                      child: Text('${i + 1}', style: GoogleFonts.inter(
-                        color: kTextMuted, fontSize: 12)),
-                    ),
-                    Expanded(
-                      child: Text(r['c_name'] as String? ?? '?', style: GoogleFonts.inter(
-                        color: kTextPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: ratingColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: ratingColor.withValues(alpha: 0.4)),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 28,
+                        child: Text(
+                          '${i + 1}',
+                          style: GoogleFonts.inter(
+                            color: kTextMuted,
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
-                      child: Text(per.toStringAsFixed(1), style: GoogleFonts.inter(
-                        color: ratingColor, fontSize: 12, fontWeight: FontWeight.w700)),
-                    ),
-                  ]),
+                      Expanded(
+                        child: Text(
+                          r['c_name'] as String? ?? '?',
+                          style: GoogleFonts.inter(
+                            color: kTextPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ratingColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: ratingColor.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Text(
+                          per.toStringAsFixed(1),
+                          style: GoogleFonts.inter(
+                            color: ratingColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               }),
               const SizedBox(height: 20),
               const Divider(height: 1),
               const SizedBox(height: 16),
-              Row(children: [
-                Text('Realized Gains', style: GoogleFonts.inter(
-                  color: kTextPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
-              ]),
+              Row(
+                children: [
+                  Text(
+                    'Realized Gains',
+                    style: GoogleFonts.inter(
+                      color: kTextPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
               if (gains.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: Text('No transactions yet',
-                    style: GoogleFonts.inter(color: kTextMuted))),
+                  child: Center(
+                    child: Text(
+                      'No transactions yet',
+                      style: GoogleFonts.inter(color: kTextMuted),
+                    ),
+                  ),
                 )
               else
                 ...gains.map((g) {
@@ -279,29 +454,57 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   final isPos = gain >= 0;
                   final color = isPos ? kPositive : kNegative;
                   final date = (g['date']?.toString() ?? '');
-                  final dateShort = date.length >= 10 ? date.substring(0, 10) : date;
+                  final dateShort = date.length >= 10
+                      ? date.substring(0, 10)
+                      : date;
                   return Container(
                     margin: const EdgeInsets.symmetric(vertical: 3),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 11,
+                    ),
                     decoration: BoxDecoration(
                       color: kSurface,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: kBorder),
                     ),
-                    child: Row(children: [
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(g['c_name'] as String, style: GoogleFonts.inter(
-                          color: kTextPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                        if (dateShort.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(dateShort, style: GoogleFonts.inter(color: kTextMuted, fontSize: 11)),
-                        ],
-                      ])),
-                      Text(
-                        '${isPos ? '+' : ''}${gain.toStringAsFixed(2)} MAD',
-                        style: GoogleFonts.inter(color: color, fontSize: 14, fontWeight: FontWeight.w700),
-                      ),
-                    ]),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                g['c_name'] as String,
+                                style: GoogleFonts.inter(
+                                  color: kTextPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (dateShort.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  dateShort,
+                                  style: GoogleFonts.inter(
+                                    color: kTextMuted,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${isPos ? '+' : ''}${gain.toStringAsFixed(2)} MAD',
+                          style: GoogleFonts.inter(
+                            color: color,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 }),
               const SizedBox(height: 16),
@@ -312,20 +515,34 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: kBorder),
                 ),
-                child: Column(children: [
-                  _totalRow('Bénéfice brut', totalGain,
-                    valueColor: totalGain >= 0 ? kPositive : kNegative, big: true),
-                  const SizedBox(height: 10),
-                  _totalRow('Taxe (10%)', -taxOwed, valueColor: kTextMuted),
-                  const SizedBox(height: 6),
-                  _totalRow('Frais courtage (1%)', -totalFrais, valueColor: kTextMuted),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 10),
-                    child: Divider(height: 1),
-                  ),
-                  _totalRow('Bénéfice net', netGain,
-                    valueColor: netGain >= 0 ? kPositive : kNegative, big: true),
-                ]),
+                child: Column(
+                  children: [
+                    _totalRow(
+                      'Bénéfice brut',
+                      totalGain,
+                      valueColor: totalGain >= 0 ? kPositive : kNegative,
+                      big: true,
+                    ),
+                    const SizedBox(height: 10),
+                    _totalRow('Taxe (10%)', -taxOwed, valueColor: kTextMuted),
+                    const SizedBox(height: 6),
+                    _totalRow(
+                      'Frais courtage (1%)',
+                      -totalFrais,
+                      valueColor: kTextMuted,
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Divider(height: 1),
+                    ),
+                    _totalRow(
+                      'Bénéfice net',
+                      netGain,
+                      valueColor: netGain >= 0 ? kPositive : kNegative,
+                      big: true,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
             ],

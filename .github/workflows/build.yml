@@ -6,6 +6,12 @@ on:
       - 'cloud_function/**'
       - '**.md'
   workflow_dispatch:
+    inputs:
+      backend:
+        description: Application backend for this build
+        type: choice
+        options: [supabase]
+        default: supabase
 
 jobs:
   build:
@@ -37,8 +43,15 @@ jobs:
           storeFile=upload-keystore.jks
           EOF
 
+      - name: Prepare public backend configuration
+        env:
+          MYINTERPRETER_BACKEND: supabase
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: python3 tools/write_flutter_build_config.py --from-env --backend "$MYINTERPRETER_BACKEND" --output "$RUNNER_TEMP/myinterpreter-backend.json"
+
       - name: Build release APK
-        run: cd myinterpreter_app && flutter build apk --release
+        run: cd myinterpreter_app && flutter build apk --release --dart-define-from-file="$RUNNER_TEMP/myinterpreter-backend.json"
 
       - uses: actions/upload-artifact@v4
         with:

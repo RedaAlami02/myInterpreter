@@ -1,33 +1,74 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'appwrite_client.dart';
+import 'backend.dart';
 import 'screens/login.dart';
 import 'screens/home.dart';
+import 'screens/password_recovery.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
-const kBg         = Color(0xFF0D1117);
-const kSurface     = Color(0xFF161B22);
+const kBg = Color(0xFF0D1117);
+const kSurface = Color(0xFF161B22);
 const kSurfaceHigh = Color(0xFF21262D);
-const kAccent      = Color(0xFFD4A017);
+const kAccent = Color(0xFFD4A017);
 const kTextPrimary = Color(0xFFE6EDF3);
-const kTextMuted   = Color(0xFF8B949E);
-const kPositive    = Color(0xFF3FB950);
-const kNegative    = Color(0xFFF85149);
-const kBorder      = Color(0xFF30363D);
+const kTextMuted = Color(0xFF8B949E);
+const kPositive = Color(0xFF3FB950);
+const kNegative = Color(0xFFF85149);
+const kBorder = Color(0xFF30363D);
 
 ThemeData buildTheme() {
-  final base = GoogleFonts.interTextTheme(const TextTheme(
-    displayLarge:   TextStyle(color: kTextPrimary, fontWeight: FontWeight.w700, fontSize: 32),
-    headlineMedium: TextStyle(color: kTextPrimary, fontWeight: FontWeight.w700, fontSize: 24),
-    titleLarge:     TextStyle(color: kTextPrimary, fontWeight: FontWeight.w600, fontSize: 18),
-    titleMedium:    TextStyle(color: kTextPrimary, fontWeight: FontWeight.w600, fontSize: 16),
-    bodyLarge:      TextStyle(color: kTextPrimary, fontWeight: FontWeight.w400, fontSize: 16),
-    bodyMedium:     TextStyle(color: kTextPrimary, fontWeight: FontWeight.w400, fontSize: 14),
-    bodySmall:      TextStyle(color: kTextMuted,   fontWeight: FontWeight.w400, fontSize: 12),
-    labelLarge:     TextStyle(color: kBg,          fontWeight: FontWeight.w600, fontSize: 14),
-    labelSmall:     TextStyle(color: kTextMuted,   fontWeight: FontWeight.w500, fontSize: 11),
-  ));
+  final base = GoogleFonts.interTextTheme(
+    const TextTheme(
+      displayLarge: TextStyle(
+        color: kTextPrimary,
+        fontWeight: FontWeight.w700,
+        fontSize: 32,
+      ),
+      headlineMedium: TextStyle(
+        color: kTextPrimary,
+        fontWeight: FontWeight.w700,
+        fontSize: 24,
+      ),
+      titleLarge: TextStyle(
+        color: kTextPrimary,
+        fontWeight: FontWeight.w600,
+        fontSize: 18,
+      ),
+      titleMedium: TextStyle(
+        color: kTextPrimary,
+        fontWeight: FontWeight.w600,
+        fontSize: 16,
+      ),
+      bodyLarge: TextStyle(
+        color: kTextPrimary,
+        fontWeight: FontWeight.w400,
+        fontSize: 16,
+      ),
+      bodyMedium: TextStyle(
+        color: kTextPrimary,
+        fontWeight: FontWeight.w400,
+        fontSize: 14,
+      ),
+      bodySmall: TextStyle(
+        color: kTextMuted,
+        fontWeight: FontWeight.w400,
+        fontSize: 12,
+      ),
+      labelLarge: TextStyle(
+        color: kBg,
+        fontWeight: FontWeight.w600,
+        fontSize: 14,
+      ),
+      labelSmall: TextStyle(
+        color: kTextMuted,
+        fontWeight: FontWeight.w500,
+        fontSize: 11,
+      ),
+    ),
+  );
 
   const scheme = ColorScheme(
     brightness: Brightness.dark,
@@ -70,7 +111,10 @@ ThemeData buildTheme() {
       backgroundColor: kSurface,
       foregroundColor: kTextPrimary,
       titleTextStyle: GoogleFonts.inter(
-        color: kAccent, fontSize: 18, fontWeight: FontWeight.w700),
+        color: kAccent,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+      ),
       elevation: 0,
       shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
@@ -87,7 +131,11 @@ ThemeData buildTheme() {
       }),
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
-          return GoogleFonts.inter(color: kAccent, fontSize: 12, fontWeight: FontWeight.w600);
+          return GoogleFonts.inter(
+            color: kAccent,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          );
         }
         return GoogleFonts.inter(color: kTextMuted, fontSize: 12);
       }),
@@ -138,24 +186,140 @@ ThemeData buildTheme() {
       backgroundColor: kSurfaceHigh,
       selectedColor: kAccent.withValues(alpha: 0.2),
       labelStyle: GoogleFonts.inter(color: kTextMuted, fontSize: 12),
-      secondaryLabelStyle: GoogleFonts.inter(color: kAccent, fontSize: 12, fontWeight: FontWeight.w600),
+      secondaryLabelStyle: GoogleFonts.inter(
+        color: kAccent,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
       side: const BorderSide(color: kBorder),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       padding: const EdgeInsets.symmetric(horizontal: 4),
     ),
-    dividerTheme: const DividerThemeData(color: kBorder, thickness: 1, space: 1),
+    dividerTheme: const DividerThemeData(
+      color: kBorder,
+      thickness: 1,
+      space: 1,
+    ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
       elevation: 2,
     ),
   );
 }
 
-void main() => runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await initializeBackend();
+    runApp(const MyApp());
+  } catch (_) {
+    runApp(
+      const MaterialApp(
+        home: Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: Text(
+                'Unable to initialize the application backend. Please check configuration and restart.',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyApp extends StatefulWidget {
+  /// Tests supply a synthetic stream; production uses Android's app-link plugin.
+  final Stream<Uri>? emailLinkStream;
+  const MyApp({super.key, this.emailLinkStream});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final _navigator = GlobalKey<NavigatorState>();
+  final _messenger = GlobalKey<ScaffoldMessengerState>();
+  StreamSubscription<Uri>? _links;
+  Uri? _lastLink;
+  bool _handling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final service = backend;
+    if (service is EmailAuthBackend) {
+      final auth = service as EmailAuthBackend;
+      if (!auth.emailLinksEnabled) return;
+      _links = (widget.emailLinkStream ?? AppLinks().uriLinkStream).listen(
+        (uri) => _handleLink(auth, uri),
+        onError: (Object _) => _linkError(),
+      );
+      if (widget.emailLinkStream == null) {
+        // Subscribe before fetching the cold-start link. Some platforms deliver
+        // it on both paths; _lastLink avoids a second single-use code exchange.
+        AppLinks().getInitialLink().then((uri) {
+          if (uri != null && mounted) _handleLink(auth, uri);
+        }, onError: (Object _) => _linkError());
+      }
+    }
+  }
+
+  void _linkError() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _messenger.currentState?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Email link could not be completed. Request a new link on this device.',
+            ),
+          ),
+        );
+      }
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> _handleLink(EmailAuthBackend auth, Uri uri) async {
+    if (!mounted || _handling || uri == _lastLink) return;
+    _handling = true;
+    _lastLink = uri;
+    try {
+      final result = await auth.completeEmailLink(uri);
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _navigator.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute<void>(
+            builder: (_) => result == EmailLinkOutcome.passwordRecovery
+                ? PasswordRecoveryScreen(auth: auth)
+                : const LoginScreen(
+                    initialNotice:
+                        'Email confirmed. Sign in with your password.',
+                  ),
+          ),
+          (_) => false,
+        );
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
+    } catch (_) {
+      _linkError();
+    } finally {
+      _handling = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _links?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => MaterialApp(
+    navigatorKey: _navigator,
+    scaffoldMessengerKey: _messenger,
     title: 'myInterpreter',
     theme: buildTheme(),
     home: const _AuthGate(),
@@ -172,32 +336,16 @@ class _AuthGate extends StatefulWidget {
 class _AuthGateState extends State<_AuthGate> {
   late final Future _future = _checkAuth();
 
-  Future _checkAuth() async {
-    try {
-      const storage = FlutterSecureStorage();
-      final stay = await storage.read(key: 'stay_logged_in');
-      if (stay == 'false') {
-        // User opted out of staying logged in — log them out
-        await storage.delete(key: 'stay_logged_in');
-        try { await account.deleteSession(sessionId: 'current'); } catch (_) {}
-        throw Exception('not staying logged in');
-      }
-      print('DEBUG auth: checking session...');
-      final me = await account.get();
-      print('DEBUG auth: logged in as ${me.$id}');
-      return me;
-    } catch (e) {
-      print('DEBUG auth: not logged in — $e');
-      rethrow;
-    }
-  }
+  Future<AppUser> _checkAuth() => backend.restoreUser();
 
   @override
   Widget build(BuildContext context) => FutureBuilder(
     future: _future,
     builder: (ctx, snap) {
       if (snap.connectionState != ConnectionState.done) {
-        return const Scaffold(body: Center(child: CircularProgressIndicator(color: kAccent)));
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator(color: kAccent)),
+        );
       }
       if (snap.hasError) return const LoginScreen();
       if (snap.hasData) return const HomeScreen();

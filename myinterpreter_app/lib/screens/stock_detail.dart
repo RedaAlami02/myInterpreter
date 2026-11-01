@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:appwrite/appwrite.dart';
+import '../query.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../appwrite_client.dart';
-import '../main.dart' show kAccent, kBorder, kNegative, kPositive, kSurface, kSurfaceHigh, kTextMuted;
+import '../backend.dart';
+import '../main.dart'
+    show kAccent, kBorder, kNegative, kPositive, kSurface, kTextMuted;
 import 'buy_sell_sheet.dart';
+import '../market_preview.dart';
+import '../shadow_market_feed.dart';
 
 class StockDetailScreen extends StatefulWidget {
   final String name;
-  const StockDetailScreen({super.key, required this.name});
+  final ShadowQuote? previewQuote;
+  final DateTime Function()? marketClock;
+  const StockDetailScreen({
+    super.key,
+    required this.name,
+    this.previewQuote,
+    this.marketClock,
+  });
 
   @override
   State<StockDetailScreen> createState() => _StockDetailScreenState();
@@ -17,6 +27,9 @@ class StockDetailScreen extends StatefulWidget {
 class _StockDetailScreenState extends State<StockDetailScreen> {
   late Future<List<Map<String, dynamic>>> _future;
   String _range = 'Week';
+  bool get _isIndex =>
+      widget.previewQuote?.instrumentType == 'INDEX' || widget.name == 'MASI';
+  String get _priceUnit => _isIndex ? 'points' : 'MAD';
 
   @override
   void initState() {
@@ -25,17 +38,15 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
-    try {
     final now = DateTime.now();
     final cutoff = switch (_range) {
       'Today' => DateTime(now.year, now.month, now.day),
-      'Week'  => now.subtract(const Duration(days: 7)),
+      'Week' => now.subtract(const Duration(days: 7)),
       'Month' => now.subtract(const Duration(days: 30)),
-      _       => DateTime(now.year - 1, now.month, now.day),
+      _ => DateTime(now.year - 1, now.month, now.day),
     };
     final cutoffStr = cutoff.toUtc().toIso8601String();
-    final res = await databases.listDocuments(
-      databaseId: dbId,
+    final res = await backend.listDocuments(
       collectionId: 'data',
       queries: [
         Query.equal('c_name', widget.name),
@@ -44,25 +55,25 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         Query.limit(2000),
       ],
     );
-    print('DEBUG detail: got ${res.documents.length} docs for ${widget.name}');
-    if (res.documents.isNotEmpty) print('DEBUG detail first: ${res.documents.first.data}');
     return res.documents.map((d) => d.data).toList();
-    } catch (e, st) {
-      print('DEBUG detail ERROR: $e');
-      print('DEBUG detail STACK: $st');
-      rethrow;
-    }
   }
 
   void _refresh() => setState(() => _future = _load());
-  void _setRange(String range) => setState(() { _range = range; _future = _load(); });
+  void _setRange(String range) => setState(() {
+    _range = range;
+    _future = _load();
+  });
 
   Widget _buildChart(List<Map<String, dynamic>> rows) {
     if (rows.isEmpty) {
       return SizedBox(
         height: 220,
-        child: Center(child: Text('No data for this range',
-          style: GoogleFonts.inter(color: kTextMuted))),
+        child: Center(
+          child: Text(
+            'No data for this range',
+            style: GoogleFonts.inter(color: kTextMuted),
+          ),
+        ),
       );
     }
     final reversed = rows.reversed.toList();
@@ -101,7 +112,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             gridData: FlGridData(
               show: true,
               drawVerticalLine: false,
-              getDrawingHorizontalLine: (_) => const FlLine(color: kBorder, strokeWidth: 1),
+              getDrawingHorizontalLine: (_) =>
+                  const FlLine(color: kBorder, strokeWidth: 1),
             ),
             borderData: FlBorderData(show: false),
             titlesData: FlTitlesData(
@@ -109,8 +121,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 52,
-                  getTitlesWidget: (v, _) => Text(v.toStringAsFixed(0),
-                    style: GoogleFonts.inter(color: kTextMuted, fontSize: 10)),
+                  getTitlesWidget: (v, _) => Text(
+                    v.toStringAsFixed(0),
+                    style: GoogleFonts.inter(color: kTextMuted, fontSize: 10),
+                  ),
                 ),
               ),
               bottomTitles: AxisTitles(
@@ -120,17 +134,28 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   interval: spots.length <= 1 ? 1 : (spots.length - 1) / 2,
                   getTitlesWidget: (v, _) {
                     final idx = v.round();
-                    if (idx < 0 || idx >= reversed.length) return const SizedBox();
+                    if (idx < 0 || idx >= reversed.length) {
+                      return const SizedBox();
+                    }
                     return Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text(labelAt(idx),
-                        style: GoogleFonts.inter(color: kTextMuted, fontSize: 9)),
+                      child: Text(
+                        labelAt(idx),
+                        style: GoogleFonts.inter(
+                          color: kTextMuted,
+                          fontSize: 9,
+                        ),
+                      ),
                     );
                   },
                 ),
               ),
-              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
             ),
             lineTouchData: LineTouchData(
               touchTooltipData: LineTouchTooltipData(
@@ -139,8 +164,14 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                 getTooltipItems: (spots) => spots.map((s) {
                   final idx = s.x.round();
                   final date = idx < reversed.length ? labelAt(idx) : '';
-                  return LineTooltipItem('$date\n${s.y.toStringAsFixed(2)} MAD',
-                    GoogleFonts.inter(fontSize: 12, color: kAccent, fontWeight: FontWeight.w600));
+                  return LineTooltipItem(
+                    '$date\n${s.y.toStringAsFixed(2)} $_priceUnit',
+                    GoogleFonts.inter(
+                      fontSize: 12,
+                      color: kAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  );
                 }).toList(),
               ),
             ),
@@ -167,16 +198,20 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Row(
-        children: ['Today', 'Week', 'Month', 'Year'].map((label) => Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3),
-            child: ChoiceChip(
-              label: Text(label),
-              selected: _range == label,
-              onSelected: (_) => _setRange(label),
-            ),
-          ),
-        )).toList(),
+        children: ['Today', 'Week', 'Month', 'Year']
+            .map(
+              (label) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: ChoiceChip(
+                    label: Text(label),
+                    selected: _range == label,
+                    onSelected: (_) => _setRange(label),
+                  ),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -185,9 +220,40 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final price = rows.isNotEmpty && rows.first['pa'] != null
         ? (rows.first['pa'] as num).toDouble()
         : 0.0;
-    final result = await showBuySellSheet(context, widget.name, price, isBuy: isBuy);
+    final result = await showBuySellSheet(
+      context,
+      widget.name,
+      price,
+      isBuy: isBuy,
+    );
     if (result) _refresh();
   }
+
+  Widget _previewHeader() => ExpiringMarketRows(
+    quotes: [widget.previewQuote!],
+    clock: widget.marketClock,
+    builder: (context, current) {
+      final row = current.first;
+      final unit = widget.previewQuote!.instrumentType == 'INDEX'
+          ? 'points'
+          : 'MAD';
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                row['pa'] != null ? '${row['pa']} $unit' : '—',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              MarketPriceContext(row: row),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +263,11 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         final rows = snap.data ?? [];
         return Scaffold(
           appBar: AppBar(title: Text(widget.name)),
-          floatingActionButton: snap.hasData && rows.isNotEmpty
+          floatingActionButton:
+              !_isIndex &&
+                  widget.previewQuote == null &&
+                  snap.hasData &&
+                  rows.isNotEmpty
               ? Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -219,65 +289,130 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   ],
                 )
               : null,
-          body: () {
-            if (snap.hasError) {
-              return Center(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.error_outline, size: 48, color: kNegative),
-                  const SizedBox(height: 12),
-                  Text('${snap.error}', textAlign: TextAlign.center,
-                    style: const TextStyle(color: kTextMuted)),
-                  const SizedBox(height: 12),
-                  ElevatedButton(onPressed: _refresh, child: const Text('Retry')),
-                ]),
-              );
-            }
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: kAccent));
-            return RefreshIndicator(
-              color: kAccent,
-              onRefresh: () { _refresh(); return Future.value(); },
-              child: ListView(
-                children: [
-                  _buildChart(rows),
-                  _buildRangeSelector(),
-                  const Divider(height: 16),
-                  ...rows.map((r) {
-                    final date = (r['date']?.toString() ?? '');
-                    final dateShort = date.length >= 10 ? date.substring(0, 10) : date;
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: kSurface,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: kBorder),
-                      ),
-                      child: Row(children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(dateShort, style: GoogleFonts.inter(
-                            color: kTextMuted, fontSize: 12)),
-                          const SizedBox(height: 2),
-                          Text(
-                            'PER ${r['per']?.toStringAsFixed(2) ?? '-'}  '
-                            'PEG ${r['peg']?.toStringAsFixed(2) ?? '-'}  '
-                            'PR ${r['pr']?.toStringAsFixed(2) ?? '-'}  '
-                            'PB ${r['pb']?.toStringAsFixed(2) ?? '-'}',
-                            style: GoogleFonts.inter(color: kTextMuted, fontSize: 11),
+          body: Column(
+            children: [
+              if (widget.previewQuote != null) ...[
+                _previewHeader(),
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('Historique enregistré'),
+                ),
+              ],
+              Expanded(
+                child: () {
+                  if (snap.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: kNegative,
                           ),
-                        ])),
-                        Text(
-                          r['pa'] != null ? '${r['pa']} MAD' : '—',
-                          style: GoogleFonts.inter(
-                            color: kAccent, fontSize: 14, fontWeight: FontWeight.w700),
-                        ),
-                      ]),
+                          const SizedBox(height: 12),
+                          Text(
+                            widget.previewQuote != null
+                                ? 'Historique indisponible. Réessayez plus tard.'
+                                : '${snap.error}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: kTextMuted),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: _refresh,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
                     );
-                  }),
-                  const SizedBox(height: 80),
-                ],
+                  }
+                  if (!snap.hasData) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: kAccent),
+                    );
+                  }
+                  return RefreshIndicator(
+                    color: kAccent,
+                    onRefresh: () {
+                      _refresh();
+                      return Future.value();
+                    },
+                    child: ListView(
+                      children: [
+                        _buildChart(rows),
+                        _buildRangeSelector(),
+                        const Divider(height: 16),
+                        ...rows.map((r) {
+                          final date = (r['date']?.toString() ?? '');
+                          final dateShort = date.length >= 10
+                              ? date.substring(0, 10)
+                              : date;
+                          return Container(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 3,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: kSurface,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: kBorder),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        dateShort,
+                                        style: GoogleFonts.inter(
+                                          color: kTextMuted,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      if (!_isIndex)
+                                        Text(
+                                          'PER ${r['per']?.toStringAsFixed(2) ?? '-'}  '
+                                          'PEG ${r['peg']?.toStringAsFixed(2) ?? '-'}  '
+                                          'PR ${r['pr']?.toStringAsFixed(2) ?? '-'}  '
+                                          'PB ${r['pb']?.toStringAsFixed(2) ?? '-'}',
+                                          style: GoogleFonts.inter(
+                                            color: kTextMuted,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  r['pa'] != null
+                                      ? '${r['pa']} $_priceUnit'
+                                      : '—',
+                                  style: GoogleFonts.inter(
+                                    color: kAccent,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        const SizedBox(height: 80),
+                      ],
+                    ),
+                  );
+                }(),
               ),
-            );
-          }(),
+            ],
+          ),
         );
       },
     );

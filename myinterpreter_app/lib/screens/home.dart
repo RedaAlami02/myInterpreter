@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../appwrite_client.dart';
+import '../backend.dart';
 import 'screener.dart';
 import 'portfolio.dart';
 import 'statistics.dart';
@@ -23,7 +23,12 @@ class _HomeScreenState extends State<HomeScreen> {
     DividendsScreen(),
     StatisticsScreen(),
   ];
-  static const _titles = ['Screener', 'Portefeuille', 'Dividendes', 'Statistiques'];
+  static const _titles = [
+    'Screener',
+    'Portefeuille',
+    'Dividendes',
+    'Statistiques',
+  ];
 
   Future<void> _logout() async {
     final ok = await showDialog<bool>(
@@ -32,16 +37,32 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Se déconnecter ?'),
         content: const Text('Vous devrez saisir vos identifiants à nouveau.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true),  child: const Text('Déconnexion')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Déconnexion'),
+          ),
         ],
       ),
     );
     if (ok != true) return;
-    await account.deleteSession(sessionId: 'current');
+    try {
+      await backend.signOut();
+    } on BackendFailure catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+      if (!error.signedOut) return;
+    }
     if (!mounted) return;
-    Navigator.pushReplacement(context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()));
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
   }
 
   @override
@@ -50,7 +71,9 @@ class _HomeScreenState extends State<HomeScreen> {
       title: Text(_titles[_idx]),
       actions: [IconButton(icon: const Icon(Icons.logout), onPressed: _logout)],
     ),
-    body: SafeArea(child: IndexedStack(index: _idx, children: _pages)),
+    body: SafeArea(
+      child: IndexedStack(index: _idx, children: _pages),
+    ),
     bottomNavigationBar: NavigationBar(
       selectedIndex: _idx,
       onDestinationSelected: (i) => setState(() => _idx = i),
@@ -58,19 +81,23 @@ class _HomeScreenState extends State<HomeScreen> {
         NavigationDestination(
           icon: Icon(Icons.search_outlined),
           selectedIcon: Icon(Icons.search),
-          label: 'Screener'),
+          label: 'Screener',
+        ),
         NavigationDestination(
           icon: Icon(Icons.account_balance_wallet_outlined),
           selectedIcon: Icon(Icons.account_balance_wallet),
-          label: 'Portefeuille'),
+          label: 'Portefeuille',
+        ),
         NavigationDestination(
           icon: Icon(Icons.savings_outlined),
           selectedIcon: Icon(Icons.savings),
-          label: 'Dividendes'),
+          label: 'Dividendes',
+        ),
         NavigationDestination(
           icon: Icon(Icons.bar_chart_outlined),
           selectedIcon: Icon(Icons.bar_chart),
-          label: 'Stats'),
+          label: 'Stats',
+        ),
       ],
     ),
   );
