@@ -78,11 +78,11 @@ void main() {
     await trade.submit(fixture);
     await tester.pumpAndSettle();
     expect(find.text('2 shares'), findsOneWidget);
-    expect(fixture.reads['portefeuille'], portfolios + 1);
+    expect(fixture.reads['portefeuille'], portfolios + 2);
     expect(fixture.reads['achats'], purchases + 1);
     await trade.submit(fixture);
     await tester.pumpAndSettle();
-    expect(fixture.reads['portefeuille'], portfolios + 1);
+    expect(fixture.reads['portefeuille'], portfolios + 2);
     expect(fixture.reads['achats'], purchases + 1);
   });
 
@@ -99,7 +99,7 @@ void main() {
     expect(fixture.reads['portefeuille'], initial);
     await trade.submit(fixture);
     await tester.pumpAndSettle();
-    expect(fixture.reads['portefeuille'], initial! + 1);
+    expect(fixture.reads['portefeuille'], initial! + 2);
     expect(fixture.trades[0]['id'], fixture.trades[1]['id']);
   });
 

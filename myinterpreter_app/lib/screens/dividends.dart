@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../query.dart';
 import '../backend.dart';
 import '../dividends.dart';
+import '../portfolio_changes.dart';
 import '../main.dart'
     show
         kAccent,
@@ -34,6 +35,21 @@ class _DividendsScreenState extends State<DividendsScreen> {
   void initState() {
     super.initState();
     _future = _load();
+    portfolioChanges.addListener(_reload);
+  }
+
+  void _reload() {
+    if (!mounted) return;
+    final next = _load();
+    setState(() {
+      _future = next;
+    });
+  }
+
+  @override
+  void dispose() {
+    portfolioChanges.removeListener(_reload);
+    super.dispose();
   }
 
   Future<_DivData> _load() async {
@@ -128,7 +144,7 @@ class _DividendsScreenState extends State<DividendsScreen> {
       return RefreshIndicator(
         color: kAccent,
         onRefresh: () {
-          setState(() => _future = _load());
+          _reload();
           return _future;
         },
         child: ListView(
@@ -506,10 +522,7 @@ class _DividendsScreenState extends State<DividendsScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: () => setState(() => _future = _load()),
-            child: const Text('Réessayer'),
-          ),
+          ElevatedButton(onPressed: _reload, child: const Text('Réessayer')),
         ],
       ),
     ),
