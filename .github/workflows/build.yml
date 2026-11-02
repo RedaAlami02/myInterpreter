@@ -48,6 +48,7 @@ jobs:
           MYINTERPRETER_BACKEND: supabase
           SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          MYINTERPRETER_MOBILE_AUTH_LINKS: 'true'
         run: python3 tools/write_flutter_build_config.py --from-env --backend "$MYINTERPRETER_BACKEND" --output "$RUNNER_TEMP/myinterpreter-backend.json"
 
       - name: Build release APK

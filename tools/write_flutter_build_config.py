@@ -21,11 +21,12 @@ def public_config(config, backend="supabase"):
         raise ValueError("Invalid public client configuration")
     result = {"MYINTERPRETER_BACKEND":"supabase", "SUPABASE_PROJECT_URL":url,
               "SUPABASE_PUBLISHABLE_KEY":key}
-    preview = config.get("MYINTERPRETER_MARKET_PREVIEW")
-    if preview is not None:
-        if preview not in ("true", "false"):
-            raise ValueError("Invalid market preview setting")
-        result["MYINTERPRETER_MARKET_PREVIEW"] = preview
+    for field in ("MYINTERPRETER_MARKET_PREVIEW", "MYINTERPRETER_MOBILE_AUTH_LINKS"):
+        setting = config.get(field)
+        if setting is not None:
+            if setting not in ("true", "false"):
+                raise ValueError("Invalid public feature setting")
+            result[field] = setting
     return result
 
 

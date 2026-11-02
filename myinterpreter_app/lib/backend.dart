@@ -66,8 +66,8 @@ Future<void> initializeBackend() async {
     authOptions: FlutterAuthClientOptions(
       localStorage: storage,
       pkceAsyncStorage: SecurePkceStorage(namespace),
-      // Confirm email in the browser, then return to the login form. Enable
-      // callback detection only with deliberately configured/verified deep links.
+      // MobileEmailAuth and AppLinks validate locally initiated PKCE callbacks.
+      // Leave SDK auto-adoption off so links cannot bypass that intent check.
       detectSessionInUri: false,
       authFlowType: AuthFlowType.pkce,
     ),
