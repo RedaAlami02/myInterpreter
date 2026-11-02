@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../query.dart';
 import '../backend.dart';
 import '../portfolio_math.dart';
+import '../portfolio_changes.dart';
 import '../main.dart'
     show
         kAccent,
@@ -27,6 +28,21 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   void initState() {
     super.initState();
     _future = _load();
+    portfolioChanges.addListener(_reload);
+  }
+
+  void _reload() {
+    if (!mounted) return;
+    final next = _load();
+    setState(() {
+      _future = next;
+    });
+  }
+
+  @override
+  void dispose() {
+    portfolioChanges.removeListener(_reload);
+    super.dispose();
   }
 
   Future<Map<String, dynamic>> _load() async {
@@ -216,7 +232,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       color: kAccent,
       onRefresh: () {
         final f = _load();
-        setState(() => _future = f);
+        setState(() {
+          _future = f;
+        });
         return f;
       },
       child: FutureBuilder<Map<String, dynamic>>(
@@ -244,7 +262,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                          onPressed: () => setState(() => _future = _load()),
+                          onPressed: _reload,
                           child: const Text('Retry'),
                         ),
                       ],
