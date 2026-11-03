@@ -80,6 +80,10 @@ Future<void> initializeBackend() async {
       'MYINTERPRETER_MOBILE_AUTH_LINKS',
       defaultValue: false,
     ),
+    recurringMarketFeed: const bool.fromEnvironment(
+      'MYINTERPRETER_RECURRING_FEED',
+      defaultValue: false,
+    ),
     marketDisplayEnabled: const bool.fromEnvironment(
       'MYINTERPRETER_MARKET_PREVIEW',
       defaultValue: false,

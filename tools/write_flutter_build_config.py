@@ -21,7 +21,7 @@ def public_config(config, backend="supabase"):
         raise ValueError("Invalid public client configuration")
     result = {"MYINTERPRETER_BACKEND":"supabase", "SUPABASE_PROJECT_URL":url,
               "SUPABASE_PUBLISHABLE_KEY":key}
-    for field in ("MYINTERPRETER_MARKET_PREVIEW", "MYINTERPRETER_MOBILE_AUTH_LINKS"):
+    for field in ("MYINTERPRETER_MARKET_PREVIEW", "MYINTERPRETER_MOBILE_AUTH_LINKS", "MYINTERPRETER_RECURRING_FEED"):
         setting = config.get(field)
         if setting is not None:
             if setting not in ("true", "false"):

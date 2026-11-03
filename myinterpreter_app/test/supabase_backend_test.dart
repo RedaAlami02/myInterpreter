@@ -81,6 +81,30 @@ void main() {
     calls.clear();
   }
 
+  test(
+    'authenticated display selects the explicit recurring reader without financial writes',
+    () async {
+      await login();
+      for (final recurring in [false, true]) {
+        backend = SupabaseBackend(
+          client,
+          storage,
+          marketDisplayEnabled: true,
+          recurringMarketFeed: recurring,
+        );
+        calls.clear();
+        respond = (_) async => jsonResponse('{}', 200);
+        await backend.readMarketDisplay();
+        expect(calls, hasLength(1));
+        expect(
+          calls.single.url.path,
+          '/rest/v1/rpc/read_shadow_application_feed${recurring ? '_recurring_v1' : ''}',
+        );
+        expect(jsonDecode(calls.single.body), isNull);
+      }
+    },
+  );
+
   test('rejects elevated keys and malformed project URL', () {
     expect(
       () => validateSupabaseConfiguration(fixtureUrl, 'sb_secret_fixture'),
