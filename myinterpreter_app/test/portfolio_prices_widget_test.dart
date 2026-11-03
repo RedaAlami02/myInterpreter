@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myinterpreter_app/backend.dart';
@@ -37,6 +39,15 @@ class PortfolioFixture extends FakeBackend {
   }
 }
 
+class CurrentPortfolioFixture extends PortfolioFixture
+    implements MarketDisplayBackend {
+  @override
+  bool get marketDisplayEnabled => true;
+  late Map<String, dynamic> payload;
+  @override
+  Future<Object?> readMarketDisplay() async => payload;
+}
+
 void main() {
   late AppBackend previous;
   late PortfolioFixture fixture;
@@ -48,17 +59,70 @@ void main() {
   tearDown(() {
     backend = previous;
   });
-  Future<void> render(WidgetTester tester) async {
+  Future<void> render(WidgetTester tester, {DateTime Function()? clock}) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
-      const MaterialApp(home: Scaffold(body: PortfolioScreen())),
+      MaterialApp(
+        home: Scaffold(body: PortfolioScreen(clock: clock)),
+      ),
     );
     await tester.pumpAndSettle();
   }
 
+  testWidgets(
+    'fresh portfolio quote expires back to its dated reference without financial writes',
+    (tester) async {
+      var now = DateTime.utc(2030, 1, 3, 12);
+      final value =
+          jsonDecode(
+                File(
+                  '../tests/fixtures/shadow_market_preview_v3.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>;
+      final row = Map<String, dynamic>.from(
+        (value['rows'] as List).first as Map,
+      );
+      final expiry = now.add(const Duration(seconds: 1)).toIso8601String();
+      row.addAll({
+        'c_name': 'Alpha',
+        'price_decimal': '20',
+        'captured_at': now.toIso8601String(),
+        'expires_at': expiry,
+        'application_expires_at': expiry,
+        'reported_day': '2030-01-03',
+      });
+      (row['application_fields'] as Map<String, dynamic>).addAll(
+        <String, dynamic>{
+          'c_name': 'Alpha',
+          'pa': 20,
+          'date': now.toIso8601String(),
+        },
+      );
+      value.addAll({
+        'as_of': now.toIso8601String(),
+        'captured_at': now.toIso8601String(),
+        'rows': [row],
+      });
+      final current = CurrentPortfolioFixture()
+        ..signedIn = true
+        ..payload = value;
+      backend = current;
+      await render(tester, clock: () => now);
+      expect(find.textContaining('Reported 2030-01-03'), findsOneWidget);
+      expect(find.textContaining('→ 20.00 MAD'), findsOneWidget);
+      now = now.add(const Duration(seconds: 2));
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.textContaining('Reported 2030-01-03'), findsNothing);
+      expect(find.textContaining('Recorded 2000-01-03'), findsOneWidget);
+      expect(find.textContaining('→ 10.00 MAD'), findsOneWidget);
+      expect(current.trades, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets(
     'partial recorded prices show no current total or false portfolio loss',
     (tester) async {

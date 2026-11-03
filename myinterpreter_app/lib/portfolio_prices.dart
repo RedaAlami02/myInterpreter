@@ -1,3 +1,6 @@
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
+
 /// Informational recorded-price estimates, never authority for saved valuations.
 class RecordedPortfolioPrice {
   final double? price;
@@ -126,4 +129,63 @@ PortfolioReferenceTotals portfolioReferenceTotals(
     covered,
     holdings.length,
   );
+}
+
+final tz.Location _marketLocation = (() {
+  tzdata.initializeTimeZones();
+  return tz.getLocation('Africa/Casablanca');
+})();
+
+/// Display copies only: originals and official-close valuations are untouched.
+Map<String, RecordedPortfolioPrice> portfolioDisplayPrices(
+  List<Map<String, dynamic>> recorded,
+  List<Map<String, dynamic>> displayRows, {
+  DateTime? now,
+}) {
+  final moment = now ?? DateTime.now().toUtc();
+  final local = tz.TZDateTime.from(moment, _marketLocation);
+  final day =
+      '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+  final result = recordedPortfolioPrices(recorded, now: moment);
+  final seen = <String>{};
+  for (final row in displayRows) {
+    final metadata = row['_market_display'];
+    if (metadata is! Map ||
+        metadata['available'] != true ||
+        metadata['price_basis'] != 'REPORTED_QUOTE' ||
+        metadata['reported_day'] != day ||
+        metadata['asset_key'] is! String ||
+        !(metadata['asset_key'] as String).startsWith('company:')) {
+      continue;
+    }
+    final captured = DateTime.tryParse(
+      metadata['captured_at'] as String? ?? '',
+    );
+    final expiry = DateTime.tryParse(metadata['expires_at'] as String? ?? '');
+    final name = row['c_name'];
+    final raw = metadata['price_decimal'];
+    final price = raw is String ? double.tryParse(raw) : null;
+    if (name is! String ||
+        name.isEmpty ||
+        captured == null ||
+        expiry == null ||
+        captured.isAfter(moment) ||
+        !moment.isBefore(expiry) ||
+        price == null ||
+        !price.isFinite ||
+        price <= 0 ||
+        price > 1e12) {
+      continue;
+    }
+    if (!seen.add(name)) {
+      result[name] = const RecordedPortfolioPrice(null, null, 'CONFLICT');
+    } else {
+      result[name] = RecordedPortfolioPrice(
+        price,
+        day,
+        'CURRENT_REPORTED_QUOTE',
+      );
+    }
+  }
+  return result;
 }
