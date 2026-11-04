@@ -1,0 +1,46 @@
+{
+  "description": "Invented live quote over a verified reference for isolated cross-client tests; never forward predictions.",
+  "references": [
+    {
+      "id": "close:fixture",
+      "c_name": "SGTM",
+      "pa": 524,
+      "date": "2026-11-03T19:23:21Z",
+      "origin_collection": "verified_official_close_display/v1"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "after market close",
+      "now": "2026-11-03T20:00:00Z",
+      "captured": "2026-11-03T16:55:00Z",
+      "expires": "2026-11-03T17:15:00Z",
+      "day": "2026-11-03",
+      "expected": 524
+    },
+    {
+      "name": "exact quote expiry",
+      "now": "2026-11-04T10:20:00Z",
+      "captured": "2026-11-04T10:00:00Z",
+      "expires": "2026-11-04T10:20:00Z",
+      "day": "2026-11-04",
+      "expected": 524
+    },
+    {
+      "name": "following morning before new quotes",
+      "now": "2026-11-04T07:00:00Z",
+      "captured": "2026-11-03T16:55:00Z",
+      "expires": "2026-11-03T17:15:00Z",
+      "day": "2026-11-03",
+      "expected": 524
+    },
+    {
+      "name": "fresh next-session quote",
+      "now": "2026-11-04T10:10:00Z",
+      "captured": "2026-11-04T10:00:00Z",
+      "expires": "2026-11-04T10:20:00Z",
+      "day": "2026-11-04",
+      "expected": 526
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../query.dart';
@@ -26,18 +27,24 @@ class PortfolioScreen extends StatefulWidget {
   State<PortfolioScreen> createState() => _PortfolioScreenState();
 }
 
-class _PortfolioScreenState extends State<PortfolioScreen> {
+class _PortfolioScreenState extends State<PortfolioScreen>
+    with WidgetsBindingObserver {
   late Future<Map<String, dynamic>> _future;
+  Timer? _quoteRefreshTimer;
+  int _loadGeneration = 0;
+  bool _foreground = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _future = _load();
     portfolioChanges.addListener(_reload);
   }
 
   void _reload() {
     if (!mounted) return;
+    _quoteRefreshTimer?.cancel();
     final next = _load();
     setState(() {
       _future = next;
@@ -45,12 +52,43 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (_foreground) {
+      _reload();
+    } else {
+      _quoteRefreshTimer?.cancel();
+    }
+  }
+
+  void _scheduleReferenceRefresh(List<ShadowQuote> quotes) {
+    _quoteRefreshTimer?.cancel();
+    if (!_foreground) return;
+    final now = widget.clock?.call() ?? DateTime.now();
+    final expiries =
+        quotes
+            .where((q) => q.priceAt(now) != null)
+            .map((q) => q.applicationExpiresAt)
+            .whereType<DateTime>()
+            .where((expiry) => expiry.isAfter(now))
+            .toList()
+          ..sort();
+    if (expiries.isNotEmpty) {
+      // One read at expiry; an already expired response cannot create a retry loop.
+      _quoteRefreshTimer = Timer(expiries.first.difference(now), _reload);
+    }
+  }
+
+  @override
   void dispose() {
+    _quoteRefreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     portfolioChanges.removeListener(_reload);
     super.dispose();
   }
 
   Future<Map<String, dynamic>> _load() async {
+    final generation = ++_loadGeneration;
     final me = await backend.getUser();
     final portRes = await backend.listDocuments(
       collectionId: 'portefeuille',
@@ -90,6 +128,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       }
     } catch (_) {}
 
+    if (mounted && generation == _loadGeneration) {
+      _scheduleReferenceRefresh(currentQuotes);
+    }
     return {
       'holdings': portRes.documents.map((d) => d.data).toList(),
       'priceRecords': priceRecords,

@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:myinterpreter_app/portfolio_prices.dart';
 
 import 'package:myinterpreter_app/query.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -81,6 +83,130 @@ void main() {
     calls.clear();
   }
 
+  test(
+    'verified reference RPC preserves filters, pagination and safe projection',
+    () async {
+      await login();
+      respond = (request) async {
+        expect(request.method, 'GET');
+        expect(
+          request.url.path,
+          '/rest/v1/rpc/read_latest_price_references_v1',
+        );
+        expect(request.url.queryParameters['c_name'], 'eq.SGTM');
+        expect(request.url.queryParameters['order'], contains('date.desc'));
+        final offset = int.parse(request.url.queryParameters['offset']!);
+        return jsonResponse(
+          jsonEncode(
+            List.generate(
+              offset == 5 ? 500 : 1,
+              (i) => {
+                'id': 'close:${offset + i}',
+                'c_name': 'SGTM',
+                'pa': 524,
+                'date': '2026-11-03T19:23:21Z',
+                'origin_collection': 'verified_official_close_display/v1',
+                'raw_pdf': 'private-fixture',
+              },
+            ),
+          ),
+          200,
+        );
+      };
+      final result = await backend.listDocuments(
+        collectionId: 'latest_prices',
+        queries: [
+          Query.equal('c_name', 'SGTM'),
+          Query.orderDesc('date'),
+          Query.offset(5),
+          Query.limit(501),
+        ],
+      );
+      expect(result.documents, hasLength(501));
+      expect(calls.map((r) => r.url.queryParameters['offset']), ['5', '505']);
+      expect(result.documents.first.data.containsKey('raw_pdf'), isFalse);
+    },
+  );
+  test('reference failure never falls back to stale original table', () async {
+    await login();
+    respond = (_) async => jsonResponse('{}', 403);
+    await expectLater(
+      backend.listDocuments(collectionId: 'latest_prices'),
+      throwsA(isA<BackendFailure>()),
+    );
+    expect(calls, isNotEmpty);
+    expect(
+      calls.every(
+        (r) => r.url.path == '/rest/v1/rpc/read_latest_price_references_v1',
+      ),
+      isTrue,
+    );
+  });
+  test('reference RPC requires a session before any request', () async {
+    await expectLater(
+      backend.listDocuments(collectionId: 'latest_prices'),
+      throwsA(isA<BackendFailure>()),
+    );
+    expect(calls, isEmpty);
+  });
+  test(
+    'web and mobile share closing references across close expiry and morning',
+    () async {
+      await login();
+      final fixture =
+          jsonDecode(
+                File(
+                  '../tests/fixtures/portfolio/reference_price_parity.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>;
+      for (final enabled in [false, true]) {
+        backend = SupabaseBackend(
+          client,
+          storage,
+          recurringMarketFeed: enabled,
+        );
+        for (final scenario in fixture['scenarios'] as List) {
+          calls.clear();
+          respond = (_) async =>
+              jsonResponse(jsonEncode(fixture['references']), 200);
+          final result = await backend.listDocuments(
+            collectionId: 'latest_prices',
+          );
+          expect(
+            calls.single.url.path,
+            '/rest/v1/rpc/read_latest_price_references_v1',
+          );
+          final now = DateTime.parse(scenario['now'] as String);
+          final rows = <Map<String, dynamic>>[
+            {
+              'c_name': 'SGTM',
+              '_market_display': {
+                'asset_key': 'company:fixture',
+                'available': true,
+                'price_basis': 'REPORTED_QUOTE',
+                'reported_day': scenario['day'],
+                'price_decimal': '526',
+                'captured_at': scenario['captured'],
+                'expires_at': scenario['expires'],
+              },
+            },
+          ];
+          final prices = portfolioDisplayPrices(
+            result.documents.map((d) => d.data).toList(),
+            rows,
+            now: now,
+          );
+          expect(
+            prices['SGTM']!.price,
+            scenario['expected'],
+            reason: scenario['name'] as String,
+          );
+          expect(prices['SGTM']!.price, isNot(580));
+        }
+      }
+    },
+  );
   test(
     'authenticated display selects the explicit recurring reader without financial writes',
     () async {

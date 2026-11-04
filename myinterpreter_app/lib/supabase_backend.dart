@@ -311,7 +311,8 @@ class SupabaseBackend
     if (fields == null) {
       throw const BackendFailure('Unsupported data collection.');
     }
-    if (_privateColumns.containsKey(collectionId) &&
+    if ((_privateColumns.containsKey(collectionId) ||
+            collectionId == 'latest_prices') &&
         client.auth.currentSession == null) {
       throw const BackendFailure('Please sign in again.');
     }
@@ -323,7 +324,14 @@ class SupabaseBackend
       final rows = <AppDocument>[];
       while (rows.length < plan.limit) {
         final count = min(500, plan.limit - rows.length);
-        var filter = client.from(collectionId).select(fields.join(','));
+        final verifiedReferences = collectionId == 'latest_prices';
+        var filter = verifiedReferences
+            ? client.rpc<List<Map<String, dynamic>>>(
+                'read_latest_price_references_v1',
+                params: const {},
+                get: true,
+              )
+            : client.from(collectionId).select(fields.join(','));
         for (final entry in plan.filters) {
           filter = switch (entry.method) {
             'equal' =>
@@ -335,7 +343,8 @@ class SupabaseBackend
             _ => throw const BackendFailure('Unsupported data filter.'),
           };
         }
-        PostgrestTransformBuilder<List<Map<String, dynamic>>> request = filter;
+        PostgrestTransformBuilder<List<Map<String, dynamic>>> request =
+            verifiedReferences ? filter.select(fields.join(',')) : filter;
         for (final entry in plan.orders.entries) {
           request = request.order(entry.key, ascending: entry.value);
         }

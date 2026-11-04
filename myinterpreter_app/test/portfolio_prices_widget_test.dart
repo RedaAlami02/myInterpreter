@@ -48,6 +48,32 @@ class CurrentPortfolioFixture extends PortfolioFixture
   Future<Object?> readMarketDisplay() async => payload;
 }
 
+class AdvancingReferenceFixture extends CurrentPortfolioFixture {
+  int referenceReads = 0;
+  @override
+  Future<DocumentPage> listDocuments({
+    required String collectionId,
+    List<String> queries = const [],
+  }) async {
+    if (collectionId == 'latest_prices') {
+      referenceReads++;
+      return DocumentPage([
+        AppDocument(
+          id: 'reference',
+          data: {
+            'c_name': 'Alpha',
+            'pa': referenceReads == 1 ? 530 : 524,
+            'date': referenceReads == 1
+                ? '2030-01-02T18:00:00Z'
+                : '2030-01-03T18:00:00Z',
+          },
+        ),
+      ]);
+    }
+    return super.listDocuments(collectionId: collectionId, queries: queries);
+  }
+}
+
 void main() {
   late AppBackend previous;
   late PortfolioFixture fixture;
@@ -72,6 +98,62 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets(
+    'expiry and next-morning resume fetch newly approved references',
+    (tester) async {
+      var now = DateTime.utc(2030, 1, 3, 18);
+      final payload =
+          jsonDecode(
+                File(
+                  '../tests/fixtures/shadow_market_preview_v3.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>;
+      final row = Map<String, dynamic>.from(
+        (payload['rows'] as List).first as Map,
+      );
+      final expiry = now.add(const Duration(seconds: 1)).toIso8601String();
+      row.addAll({
+        'c_name': 'Alpha',
+        'price_decimal': '526',
+        'captured_at': now.toIso8601String(),
+        'expires_at': expiry,
+        'application_expires_at': expiry,
+        'reported_day': '2030-01-03',
+      });
+      (row['application_fields'] as Map<String, dynamic>).addAll(
+        <String, dynamic>{
+          'c_name': 'Alpha',
+          'pa': 526,
+          'date': now.toIso8601String(),
+        },
+      );
+      payload.addAll({
+        'as_of': now.toIso8601String(),
+        'captured_at': now.toIso8601String(),
+        'rows': [row],
+      });
+      final current = AdvancingReferenceFixture()
+        ..signedIn = true
+        ..payload = payload;
+      backend = current;
+      await render(tester, clock: () => now);
+      expect(find.textContaining('→ 526.00 MAD'), findsOneWidget);
+      expect(current.referenceReads, 1);
+      now = now.add(const Duration(seconds: 2));
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
+      expect(current.referenceReads, 2);
+      expect(find.textContaining('→ 524.00 MAD'), findsOneWidget);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      now = DateTime.utc(2030, 1, 4, 7);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(current.referenceReads, 3);
+      expect(find.textContaining('→ 524.00 MAD'), findsOneWidget);
+      expect(current.trades, isEmpty);
+    },
+  );
   testWidgets(
     'fresh portfolio quote expires back to its dated reference without financial writes',
     (tester) async {
@@ -116,6 +198,7 @@ void main() {
       expect(find.textContaining('→ 20.00 MAD'), findsOneWidget);
       now = now.add(const Duration(seconds: 2));
       await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
       expect(find.textContaining('Reported 2030-01-03'), findsNothing);
       expect(find.textContaining('Recorded 2000-01-03'), findsOneWidget);
       expect(find.textContaining('→ 10.00 MAD'), findsOneWidget);
