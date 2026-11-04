@@ -62,8 +62,8 @@ class AdvancingReferenceFixture extends CurrentPortfolioFixture {
           id: 'reference',
           data: {
             'c_name': 'Alpha',
-            'pa': referenceReads == 1 ? 530 : 524,
-            'date': referenceReads == 1
+            'pa': referenceReads < 3 ? 530 : 524,
+            'date': referenceReads < 3
                 ? '2030-01-02T18:00:00Z'
                 : '2030-01-03T18:00:00Z',
           },
@@ -144,12 +144,18 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       await tester.pumpAndSettle();
       expect(current.referenceReads, 2);
+      expect(find.textContaining('→ 530.00 MAD'), findsOneWidget);
+      // The verified closing batch arrives after the live quote expired.
+      now = now.add(const Duration(minutes: 15));
+      await tester.pump(const Duration(minutes: 15));
+      await tester.pumpAndSettle();
+      expect(current.referenceReads, 3);
       expect(find.textContaining('→ 524.00 MAD'), findsOneWidget);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       now = DateTime.utc(2030, 1, 4, 7);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pumpAndSettle();
-      expect(current.referenceReads, 3);
+      expect(current.referenceReads, 4);
       expect(find.textContaining('→ 524.00 MAD'), findsOneWidget);
       expect(current.trades, isEmpty);
     },

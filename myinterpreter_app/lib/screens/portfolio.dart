@@ -73,10 +73,13 @@ class _PortfolioScreenState extends State<PortfolioScreen>
             .where((expiry) => expiry.isAfter(now))
             .toList()
           ..sort();
-    if (expiries.isNotEmpty) {
-      // One read at expiry; an already expired response cannot create a retry loop.
-      _quoteRefreshTimer = Timer(expiries.first.difference(now), _reload);
+    // Continue bounded reads after all quotes expire: the closing batch may
+    // arrive later while this screen stays open. Never retry in a tight loop.
+    var delay = const Duration(minutes: 15);
+    if (expiries.isNotEmpty && expiries.first.difference(now) < delay) {
+      delay = expiries.first.difference(now);
     }
+    _quoteRefreshTimer = Timer(delay, _reload);
   }
 
   @override
