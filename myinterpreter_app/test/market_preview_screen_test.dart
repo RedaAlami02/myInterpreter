@@ -156,7 +156,7 @@ void main() {
   });
 
   testWidgets(
-    'detail keeps reference separate from historical chart and trade forms',
+    'stock detail allows manual trades without adopting reference prices',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -168,7 +168,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Historique enregistré'), findsOneWidget);
       expect(find.textContaining('Prix de référence'), findsOneWidget);
-      expect(find.byType(FloatingActionButton), findsNothing);
+      expect(find.byType(FloatingActionButton), findsNWidgets(2));
+      await tester.tap(find.byTooltip('Buy'));
+      await tester.pumpAndSettle();
+      final price = tester.widget<TextField>(
+        find.widgetWithText(TextField, 'Price (MAD)'),
+      );
+      expect(price.controller!.text, '0.00');
       expect(fixture.historyReads, ['data']);
       expect(fixture.trades, isEmpty);
     },

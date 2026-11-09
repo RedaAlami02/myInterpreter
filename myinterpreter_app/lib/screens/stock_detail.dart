@@ -217,7 +217,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   Future<void> _openSheet(List<Map<String, dynamic>> rows, bool isBuy) async {
-    final price = rows.isNotEmpty && rows.first['pa'] != null
+    final price =
+        widget.previewQuote == null &&
+            rows.isNotEmpty &&
+            rows.first['pa'] != null
         ? (rows.first['pa'] as num).toDouble()
         : 0.0;
     final result = await showBuySellSheet(
@@ -263,16 +266,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         final rows = snap.data ?? [];
         return Scaffold(
           appBar: AppBar(title: Text(widget.name)),
-          floatingActionButton:
-              !_isIndex &&
-                  widget.previewQuote == null &&
-                  snap.hasData &&
-                  rows.isNotEmpty
+          floatingActionButton: !_isIndex && snap.hasData && !snap.hasError
               ? Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     FloatingActionButton.small(
                       heroTag: 'sell',
+                      tooltip: 'Sell',
                       backgroundColor: kNegative,
                       foregroundColor: Colors.white,
                       onPressed: () => _openSheet(rows, false),
@@ -281,6 +281,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     const SizedBox(height: 8),
                     FloatingActionButton.small(
                       heroTag: 'buy',
+                      tooltip: 'Buy',
                       backgroundColor: kPositive,
                       foregroundColor: Colors.white,
                       onPressed: () => _openSheet(rows, true),
