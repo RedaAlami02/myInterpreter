@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../query.dart';
 import '../backend.dart';
 import '../dividends.dart';
@@ -276,7 +278,11 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                               )
                               ? 'Reported prices for ${estimate.day}. Indicative estimate; not an official closing valuation.'
                               : 'Recorded prices from ${estimate.day} (UTC). Estimates are not live quotes.'
-                        : 'Recorded prices only. Totals need complete positions and prices from the same recorded date.',
+                        : 'Totals unavailable: every holding needs a price from the same date.\n${holdings.map((holding) {
+                            final name = holding['c_name'] as String? ?? '?';
+                            final quote = quotes[name];
+                            return "$name: ${quote?.day ?? 'date unavailable'}${quote?.price == null ? ' · price unavailable' : ''}";
+                          }).join('\n')}',
                     style: const TextStyle(color: kTextMuted, fontSize: 12),
                   ),
                 ),
