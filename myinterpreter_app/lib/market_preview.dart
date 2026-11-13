@@ -1,3 +1,4 @@
+import 'recorded_market_list.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'backend_contract.dart';
@@ -209,6 +210,12 @@ class _MarketPreviewListState extends State<MarketPreviewList> {
       if (state.hasError ||
           state.data?.status != 'AVAILABLE' ||
           state.data!.rows.isEmpty) {
+        if (widget.source is AppBackend) {
+          return RecordedMarketList(
+            source: widget.source as AppBackend,
+            onRefresh: _refresh,
+          );
+        }
         return Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -235,6 +242,18 @@ class _MarketPreviewListState extends State<MarketPreviewList> {
         quotes: snapshot.rows,
         clock: widget.clock,
         builder: (context, rows) {
+          if (widget.source is AppBackend &&
+              !rows.any(
+                (row) =>
+                    (row['_market_display']
+                        as Map<String, dynamic>)['available'] ==
+                    true,
+              )) {
+            return RecordedMarketList(
+              source: widget.source as AppBackend,
+              onRefresh: _refresh,
+            );
+          }
           final visible = rows.asMap().entries.where(
             (entry) => '${entry.value['c_name']} ${entry.value['symbol']}'
                 .toLowerCase()

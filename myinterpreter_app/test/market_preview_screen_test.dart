@@ -96,7 +96,7 @@ void main() {
   });
 
   testWidgets(
-    'disabled, missing and failed feeds remain explicit without stale fallback',
+    'unavailable feeds use dated reference reads without history replay',
     (tester) async {
       fixture.value = {...payload(), 'status': 'DISABLED', 'rows': <Object>[]};
       await tester.pumpWidget(
@@ -106,16 +106,18 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(
-        find.textContaining('Les cours récents sont indisponibles.'),
+        find.textContaining('Cours récents indisponibles.'),
         findsOneWidget,
       );
-      expect(fixture.historyReads, isEmpty);
+      expect(fixture.historyReads, isNotEmpty);
+      expect(fixture.historyReads.every((name) => name == 'latest_prices'), isTrue);
       fixture.fail = true;
       await tester.tap(find.text('Actualiser'));
       await tester.pumpAndSettle();
       expect(find.textContaining('private-fixture-diagnostic'), findsNothing);
       expect(find.text('21.25 MAD'), findsNothing);
-      expect(fixture.historyReads, isEmpty);
+      expect(fixture.historyReads, isNotEmpty);
+      expect(fixture.historyReads.every((name) => name == 'latest_prices'), isTrue);
     },
   );
 
