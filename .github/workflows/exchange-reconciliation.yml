@@ -33,7 +33,6 @@ jobs:
     timeout-minutes: 30
     env:
       PYTHONUNBUFFERED: "1"
-      RUN_DIR: ${{ runner.temp }}/exchange-reconciliation
       SYMBOLS: ${{ github.event.inputs.symbols }}
     steps:
       - name: Check out
@@ -47,22 +46,22 @@ jobs:
       - name: Capture exchange universe and pages
         run: |
           python3 tools/capture_exchange_pages.py \
-            --out-dir "$RUN_DIR/capture" \
+            --out-dir "$RUNNER_TEMP/exchange-reconciliation/capture" \
             --symbols "$SYMBOLS" \
             --delay 0.7
 
       - name: Reconcile against exchange evidence
         run: |
           python3 tools/reconcile_exchange.py \
-            --snapshot "$RUN_DIR/capture/snapshot.json" \
-            --pages-dir "$RUN_DIR/capture/pages" \
-            --out-dir "$RUN_DIR/report"
+            --snapshot "$RUNNER_TEMP/exchange-reconciliation/capture/snapshot.json" \
+            --pages-dir "$RUNNER_TEMP/exchange-reconciliation/capture/pages" \
+            --out-dir "$RUNNER_TEMP/exchange-reconciliation/report"
 
       - name: Publish job summary
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json, os
-          report = json.load(open(os.path.join(os.environ["RUN_DIR"], "report", "reconciliation.json")))
+          report = json.load(open(os.path.join(os.environ["RUNNER_TEMP"] + "/exchange-reconciliation", "report", "reconciliation.json")))
           summary = report.get("summary", {})
           print("## Exchange reconciliation")
           print()
@@ -98,7 +97,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           python3 tools/apply_reconciliation_cloud.py \
-            --report "$RUN_DIR/report/reconciliation.json" \
+            --report "$RUNNER_TEMP/exchange-reconciliation/report/reconciliation.json" \
             --apply-shares
 
       - name: Stage annual candidates
@@ -111,5 +110,5 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           python3 tools/apply_reconciliation_cloud.py \
-            --report "$RUN_DIR/report/reconciliation.json" \
+            --report "$RUNNER_TEMP/exchange-reconciliation/report/reconciliation.json" \
             --stage-annual

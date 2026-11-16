@@ -24,7 +24,6 @@ jobs:
     timeout-minutes: 10
     env:
       PYTHONUNBUFFERED: "1"
-      RUN_DIR: ${{ runner.temp }}/market-health
       MAX_AGE_DAYS: ${{ github.event.inputs.max_age_days || '7' }}
     steps:
       - name: Check out
@@ -41,14 +40,14 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           python3 tools/audit_market_freshness.py \
-            --out-dir "$RUN_DIR" \
+            --out-dir "$RUNNER_TEMP/market-health" \
             --max-age-days "$MAX_AGE_DAYS"
 
       - name: Publish job summary
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json, os
-          report = json.load(open(os.path.join(os.environ["RUN_DIR"], "market_health.json")))
+          report = json.load(open(os.path.join(os.environ["RUNNER_TEMP"] + "/market-health", "market_health.json")))
           summary = report.get("summary", {})
           print("## Market data health")
           print()
