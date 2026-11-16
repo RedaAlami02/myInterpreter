@@ -152,7 +152,11 @@ function aw_count_docs(string $collectionId, array $queries = [], ?string $sessi
  */
 function aw_multi_list_docs(array $requests): array
 {
-    if (!function_exists('curl_multi_init')) {
+    $multiAvailable = true;
+    foreach (['init', 'add_handle', 'exec', 'select', 'getcontent', 'remove_handle', 'close'] as $operation) {
+        if (!function_exists('curl_multi_' . $operation)) $multiAvailable = false;
+    }
+    if (!$multiAvailable) {
         $results = [];
         foreach ($requests as $key => [$collection, $queries, $session]) {
             $results[$key] = aw_list_docs($collection, $queries, $session);

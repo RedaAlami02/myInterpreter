@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/core/i18n.php';
 /**
  * FIFO statistics partial — included by portfolio.php.
  * session_start() and Appwrite are assumed to be active.
@@ -83,16 +84,12 @@ function stats(): void
     $session = aw_session();
 
     // Fetch all achats and ventes for this user
-    $achatDocs = aw_list_docs('achats', [
-        q_equal('user_id', $uid),
-        q_order_asc('date'),
-        q_limit(500),
-    ], $session);
-    $venteDocs = aw_list_docs('ventes', [
-        q_equal('user_id', $uid),
-        q_order_asc('date'),
-        q_limit(500),
-    ], $session);
+    $transactions = aw_multi_list_docs([
+        'buys' => ['achats', [q_equal('user_id', $uid), q_order_asc('date'), q_limit(500)], $session],
+        'sells' => ['ventes', [q_equal('user_id', $uid), q_order_asc('date'), q_limit(500)], $session],
+    ]);
+    $achatDocs = $transactions['buys'];
+    $venteDocs = $transactions['sells'];
 
     // Get distinct stocks that have been sold
     $soldStocks = [];
@@ -103,7 +100,7 @@ function stats(): void
     sort($soldStocks);
 
     if (empty($soldStocks)) {
-        echo '<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>Aucune vente enregistrée.</div>';
+        echo '<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>' . te('Aucune vente enregistrée.') . '</div>';
         return;
     }
 
@@ -140,22 +137,22 @@ function stats(): void
         }
         #histoTbl thead th.h-name { z-index: 3; }
       </style>
-      <h2><i class="fas fa-chart-bar me-2 t-amber"></i>Statistiques P&L</h2>
-      <p class="sub">Correspondance FIFO des achats et des ventes par valeur.</p>
+      <h2><i class="fas fa-chart-bar me-2 t-amber"></i><?= te('Statistiques P&L') ?></h2>
+      <p class="sub"><?= te('Correspondance FIFO des achats et des ventes par valeur.') ?></p>
 
       <div class="overflow-x-auto">
         <table class="tbl" id="histoTbl">
           <thead>
             <tr>
-              <th class="h-name"  rowspan="2">Valeur</th>
-              <th class="h-buy"   colspan="4">Achat</th>
-              <th style="text-align:center;color:var(--text-mute)" rowspan="2">Durée</th>
-              <th class="h-sell"  colspan="4">Vente</th>
-              <th class="h-profit" rowspan="2">Bénéfice</th>
+              <th class="h-name"  rowspan="2"><?= te('Valeur') ?></th>
+              <th class="h-buy"   colspan="4"><?= te('Achat') ?></th>
+              <th style="text-align:center;color:var(--text-mute)" rowspan="2"><?= te('Durée') ?></th>
+              <th class="h-sell"  colspan="4"><?= te('Vente') ?></th>
+              <th class="h-profit" rowspan="2"><?= te('Bénéfice') ?></th>
             </tr>
             <tr>
-              <th>Date</th><th class="num">Qté</th><th class="num">Prix</th><th class="num">Montant</th>
-              <th>Date</th><th class="num">Qté</th><th class="num">Prix</th><th class="num">Montant</th>
+              <th><?= te('Date') ?></th><th class="num"><?= te('Qté') ?></th><th class="num"><?= te('Prix') ?></th><th class="num"><?= te('Montant') ?></th>
+              <th><?= te('Date') ?></th><th class="num"><?= te('Qté') ?></th><th class="num"><?= te('Prix') ?></th><th class="num"><?= te('Montant') ?></th>
             </tr>
           </thead>
           <tbody>
@@ -183,7 +180,7 @@ function stats(): void
                     <td class="num mono"><?= monofmt($r['achat_nombre'], 0) ?><?= $r['is_split'] ? ' <span class="badge-split">S</span>' : '' ?></td>
                     <td class="num mono"><?= monofmt($r['achat_prix']) ?></td>
                     <td class="num montant-buy"><?= monofmt($r['achat_montant']) ?></td>
-                    <td class="dur"><?= $r['duree_days'] ?>j</td>
+                    <td class="dur"><?= $r['duree_days'] ?><?= te('j') ?></td>
                     <td class="date"><?= fmt_date($r['vente_date']) ?></td>
                     <td class="num mono"><?= monofmt($r['vente_nombre'], 0) ?></td>
                     <td class="num mono"><?= monofmt($r['vente_prix']) ?></td>
@@ -204,22 +201,22 @@ function stats(): void
               $netCls  = $netAmt   >= 0 ? 'total-pos' : 'total-neg';
             ?>
             <tr>
-              <td class="lbl foot-lbl">Bénéfice brut</td>
+              <td class="lbl foot-lbl"><?= te('Bénéfice brut') ?></td>
               <td colspan="9"></td>
               <td class="num foot-val <?= $grossCls ?>"><?= ($grandTotal>=0?'+':'') . monofmt($grandTotal) ?></td>
             </tr>
             <tr>
-              <td class="lbl foot-lbl">Taxe (<?= (TAX_RATE*100) ?>%)</td>
+              <td class="lbl foot-lbl"><?= te('Taxe (') ?><?= (TAX_RATE*100) ?>%)</td>
               <td colspan="9"></td>
               <td class="num foot-val tax-cell">−<?= monofmt($taxAmt) ?></td>
             </tr>
             <tr>
-              <td class="lbl foot-lbl">Frais de courtage (<?= (COMMISSION_RATE*100) ?>% achat + vente)</td>
+              <td class="lbl foot-lbl"><?= te('Frais de courtage (') ?><?= (COMMISSION_RATE*100) ?><?= te('% achat + vente)') ?></td>
               <td colspan="9"></td>
               <td class="num foot-val tax-cell">−<?= monofmt($grandFrais) ?></td>
             </tr>
             <tr>
-              <td class="lbl foot-lbl">Bénéfice net</td>
+              <td class="lbl foot-lbl"><?= te('Bénéfice net') ?></td>
               <td colspan="9"></td>
               <td class="num foot-val <?= $netCls ?>"><?= ($netAmt>=0?'+':'') . monofmt($netAmt) ?></td>
             </tr>

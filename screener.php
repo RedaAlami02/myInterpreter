@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/core/i18n.php';
 require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/Action.php';
@@ -137,18 +138,19 @@ $defaultBelow22 = count(array_filter($rows, fn($r) => $r['PER'] > 0 && $r['PER']
 $noPER          = $totalCompanies - count($rated);
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="<?= ui_locale() ?>" dir="<?= ui_direction() ?>">
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>myInterpreter | Screener</title>
+  <title><?= te('myInterpreter | Screener') ?></title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link href="assets/css/global.css?v=4" rel="stylesheet">
+  <link href="assets/css/global.css?v=5" rel="stylesheet">
   <link href="assets/css/screener.css?v=4" rel="stylesheet">
+  <?php require 'core/theme.php'; ?>
 </head>
-<body>
+<body class="workspace workspace-screener">
 <div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
 <div class="app">
   <?php $screenerCount = $totalCompanies; include 'core/sidebar.php'; ?>
@@ -157,24 +159,17 @@ $noPER          = $totalCompanies - count($rated);
   <div class="screener-wrap animate-up">
 
     <!-- Header -->
+    <div class="screener-kicker"><?= te('Marché') ?> <span>/</span> <?= te('Sélection') ?></div>
     <div class="screener-hero">
-      <h1><i class="fas fa-filter t-cyan me-2"></i>Stock Screener</h1>
-      <p>Filtrez les sociétés par seuil de PER et qualité des ratios. Cliquez sur un en-tête pour trier.</p>
-      <p class="data-source">
-        <i class="fas fa-clock me-1"></i>
-        Dernière mise à jour :
-        <strong><?= fmt_datetime($lastUpdate) ?></strong>
-        <span class="muted">(heure de Casablanca)</span>
-        &nbsp;·&nbsp;
-        <i class="fas fa-database me-1"></i>
-        Cours différés d’environ 15 minutes,
-        actualisés toutes les 15 min de 09:00 à 16:45, du lundi au vendredi.
-      </p>
+      <div>
+        <h1><?= te('Sélection d’actions') ?></h1>
+        <p><?= te('Comparez les sociétés par valorisation et qualité des ratios, sans perdre le contexte du marché.') ?></p>
+      </div>
     </div>
 
     <?php if ($dbError): ?>
       <div class="alert alert-danger">
-        <i class="fas fa-bug me-2"></i><strong>Erreur DB :</strong> <?= htmlspecialchars($dbError) ?>
+        <i class="fas fa-bug me-2"></i><strong><?= te('Erreur DB :') ?></strong> <?= htmlspecialchars($dbError) ?>
       </div>
     <?php else: ?>
 
@@ -182,23 +177,23 @@ $noPER          = $totalCompanies - count($rated);
     <div class="summary-row stagger-children">
       <div class="stat-chip">
         <span class="stat-chip__value t-cyan" id="visibleCount"><?= $defaultBelow22 ?></span>
-        <span class="stat-chip__label">Sélectionnées (PER &lt; 22)</span>
+        <span class="stat-chip__label"><?= te('Résultats avec PER &lt; 22') ?></span>
       </div>
       <div class="stat-chip">
         <span class="stat-chip__value mono" style="font-size:1.3rem"><?= $totalCompanies ?></span>
-        <span class="stat-chip__label">Sociétés au total</span>
+        <span class="stat-chip__label"><?= te('Sociétés suivies') ?></span>
       </div>
       <div class="stat-chip">
         <span class="stat-chip__value mono t-violet" style="font-size:1.3rem"><?= number_format($avgPER, 2) ?></span>
-        <span class="stat-chip__label">PER moyen global</span>
+        <span class="stat-chip__label"><?= te('PER moyen') ?></span>
       </div>
       <div class="stat-chip">
         <span class="stat-chip__value t-emerald"><?= $allGreen ?></span>
-        <span class="stat-chip__label">Score 4/4 (tous verts)</span>
+        <span class="stat-chip__label"><?= te('Score complet') ?></span>
       </div>
       <div class="stat-chip">
         <span class="stat-chip__value mono muted" style="font-size:1.3rem"><?= $noPER ?></span>
-        <span class="stat-chip__label">Sans PER (pertes / données manquantes)</span>
+        <span class="stat-chip__label"><?= te('Sans PER') ?></span>
       </div>
     </div>
 
@@ -206,27 +201,27 @@ $noPER          = $totalCompanies - count($rated);
     <div class="filter-bar">
 
       <div class="filter-group">
-        <div class="filter-label"><i class="fas fa-sliders-h me-1"></i>PER max</div>
+        <label class="filter-label" for="perInput"><?= te('PER maximum') ?></label>
         <input type="number" id="perInput" class="filter-input" value="22" min="1" max="999" step="1">
       </div>
 
       <div class="filter-group">
-        <div class="filter-label">Préréglages rapides</div>
+        <div class="filter-label"><?= te('Seuil rapide') ?></div>
         <div class="filter-presets">
           <button class="preset-btn" onclick="setPreset(10)">≤ 10</button>
           <button class="preset-btn" onclick="setPreset(15)">≤ 15</button>
           <button class="preset-btn active" onclick="setPreset(22)">≤ 22</button>
           <button class="preset-btn" onclick="setPreset(25)">≤ 25</button>
-          <button class="preset-btn" onclick="setPreset(999)">Tout</button>
+          <button class="preset-btn" onclick="setPreset(999)"><?= te('Tout') ?></button>
         </div>
       </div>
 
       <div class="filter-divider"></div>
 
       <div class="filter-group">
-        <div class="filter-label"><i class="fas fa-star me-1"></i>Score min</div>
+        <div class="filter-label"><?= te('Score minimum') ?></div>
         <div class="filter-presets">
-          <button class="preset-btn active" id="score-0" onclick="setScore(0)">Tous</button>
+          <button class="preset-btn active" id="score-0" onclick="setScore(0)"><?= te('Tous') ?></button>
           <button class="preset-btn" id="score-2" onclick="setScore(2)">≥ 2 <i class="fas fa-circle t-emerald" style="font-size:0.5rem"></i></button>
           <button class="preset-btn" id="score-3" onclick="setScore(3)">≥ 3 <i class="fas fa-circle t-emerald" style="font-size:0.5rem"></i></button>
           <button class="preset-btn" id="score-4" onclick="setScore(4)">4/4 <i class="fas fa-check-circle t-emerald" style="font-size:0.7rem"></i></button>
@@ -234,44 +229,77 @@ $noPER          = $totalCompanies - count($rated);
       </div>
 
       <div class="topbar-spacer"></div>
-      <span class="active-count"><i class="fas fa-table me-1"></i><span id="activeCount"><?= $defaultBelow22 ?></span> résultats</span>
+      <span class="active-count"><span id="activeCount"><?= $defaultBelow22 ?></span> <?= te('résultats') ?></span>
     </div>
 
     <!-- Table -->
+    <div class="screener-table-intro">
+      <div>
+        <h2><?= te('Sociétés correspondant aux critères') ?></h2>
+        <p><?= te('Triées par PER croissant') ?></p>
+      </div>
+      <div class="ratio-key" aria-label="<?= te('Légende des ratios') ?>">
+        <span><i class="key-dot key-good"></i> <?= te('favorable') ?></span>
+        <span><i class="key-dot key-watch"></i> <?= te('à surveiller') ?></span>
+        <span><i class="key-dot key-risk"></i> <?= te('élevé') ?></span>
+      </div>
+    </div>
+    <p class="table-scroll-hint"><i class="fas fa-arrows-left-right" aria-hidden="true"></i> <?= te('Faites glisser pour comparer tous les ratios') ?></p>
     <div class="screener-table-wrap">
       <div class="overflow-x-auto">
         <table class="tbl screener-tbl" id="screenerTable">
+          <caption class="visually-hidden"><?= te('Sociétés filtrées avec leurs cours, variations, scores et ratios de valorisation') ?></caption>
           <thead>
             <tr>
-              <th onclick="sortTable(0,'str')" title="Nom de la société et symbole boursier">
-                Société <span class="sort-icon">↕</span>
+              <th data-column="0" aria-sort="none">
+                <button type="button" class="sort-btn" onclick="sortTable(0,'str')" title="<?= te('Trier par société') ?>">
+                  <?= te('Société') ?> <span class="sort-icon" aria-hidden="true">↕</span>
+                </button>
               </th>
-              <th onclick="sortTable(1,'str')" title="Secteur d'activité">
-                Secteur <span class="sort-icon">↕</span>
+              <th data-column="1" aria-sort="none">
+                <button type="button" class="sort-btn" onclick="sortTable(1,'str')" title="<?= te('Trier par secteur') ?>">
+                  <?= te('Secteur') ?> <span class="sort-icon" aria-hidden="true">↕</span>
+                </button>
               </th>
-              <th onclick="sortTable(2,'num')" title="Dernier prix connu" class="num">
-                PA <span class="sort-icon">↕</span>
+              <th data-column="2" aria-sort="none" class="num">
+                <button type="button" class="sort-btn" onclick="sortTable(2,'num')" title="<?= te('Trier par dernier cours connu') ?>">
+                  <?= te('Cours (MAD)') ?> <span class="sort-icon" aria-hidden="true">↕</span>
+                </button>
               </th>
-              <th onclick="sortTable(3,'num')" title="Variation depuis le cours de référence" class="num">
-                Δ% <span class="sort-icon">↕</span>
+              <th data-column="3" aria-sort="none" class="num">
+                <button type="button" class="sort-btn" onclick="sortTable(3,'num')" title="<?= te('Trier par variation de séance') ?>">
+                  <?= te('Séance') ?> <span class="sort-icon" aria-hidden="true">↕</span>
+                </button>
               </th>
-              <th onclick="sortTable(4,'num')" title="Score : nombre de ratios verts (0-4)" style="text-align:center">
-                Score <span class="sort-icon">↕</span>
+              <th data-column="4" aria-sort="none" class="num">
+                <button type="button" class="sort-btn" onclick="sortTable(4,'num')" title="<?= te('Trier par score, sur quatre ratios') ?>">
+                  <?= te('Score') ?> <span class="sort-icon" aria-hidden="true">↕</span>
+                </button>
               </th>
-              <th onclick="sortTable(5,'num')" title="Price Earning Ratio — seuil vert : <?= PER_GREEN ?> · orange : <?= PER_ORANGE ?>" style="text-align:center">
-                PER <span class="sort-icon">↕</span>
+              <th data-column="5" aria-sort="none" class="num">
+                <button type="button" class="sort-btn" onclick="sortTable(5,'num')" title="Price Earning Ratio — seuil favorable : <?= PER_GREEN ?> <?= te('· à surveiller :') ?> <?= PER_ORANGE ?>">
+                  <abbr title="<?= te('Price Earning Ratio') ?>">PER</abbr> <span class="sort-icon" aria-hidden="true">↕</span>
+                </button>
               </th>
-              <th onclick="sortTable(6,'num')" title="Price/Earnings to Growth — seuil vert : <?= PEG_GREEN ?> · orange : <?= PEG_ORANGE ?>" style="text-align:center">
-                PEG <span class="sort-icon">↕</span>
+              <th data-column="6" aria-sort="none" class="num">
+                <button type="button" class="sort-btn" onclick="sortTable(6,'num')" title="Price/Earnings to Growth — seuil favorable : <?= PEG_GREEN ?> <?= te('· à surveiller :') ?> <?= PEG_ORANGE ?>">
+                  <abbr title="<?= te('Price/Earnings to Growth') ?>">PEG</abbr> <span class="sort-icon" aria-hidden="true">↕</span>
+                </button>
               </th>
-              <th onclick="sortTable(7,'num')" title="Price / ROE — seuil vert : <?= PR_GREEN ?> · orange : <?= PR_ORANGE ?>" style="text-align:center">
-                P/R <span class="sort-icon">↕</span>
+              <th data-column="7" aria-sort="none" class="num">
+                <button type="button" class="sort-btn" onclick="sortTable(7,'num')" title="Price / ROE — seuil favorable : <?= PR_GREEN ?> <?= te('· à surveiller :') ?> <?= PR_ORANGE ?>">
+                  <abbr title="<?= te('Price / ROE') ?>">P/R</abbr> <span class="sort-icon" aria-hidden="true">↕</span>
+                </button>
               </th>
-              <th onclick="sortTable(8,'num')" title="Price to Book — seuil vert : <?= PB_GREEN ?> · orange : <?= PB_ORANGE ?>" style="text-align:center">
-                P/B <span class="sort-icon">↕</span>
+              <th data-column="8" aria-sort="none" class="num">
+                <button type="button" class="sort-btn" onclick="sortTable(8,'num')" title="Price to Book — seuil favorable : <?= PB_GREEN ?> <?= te('· à surveiller :') ?> <?= PB_ORANGE ?>">
+                  <abbr title="<?= te('Price to Book') ?>">P/B</abbr> <span class="sort-icon" aria-hidden="true">↕</span>
+                </button>
               </th>
-              <th onclick="sortTable(9,'str')" title="Horodatage du dernier snapshot (heure de Casablanca)" class="num">
-                Mise à jour <span class="sort-icon">↕</span>
+              <th data-column="9" aria-sort="none" class="num">
+                <button type="button" class="sort-btn" onclick="sortTable(9,'str')" title="<?= te('Trier par heure du dernier snapshot, heure de Casablanca') ?>">
+                  <?= te('Heure') ?> <span class="sort-icon" aria-hidden="true">↕</span>
+                </button>
               </th>
             </tr>
           </thead>
@@ -279,7 +307,7 @@ $noPER          = $totalCompanies - count($rated);
             <?php if (empty($rows)): ?>
               <tr class="no-results"><td colspan="10">
                 <i class="fas fa-inbox fa-2x d-block mb-3 muted"></i>
-                Aucune donnée. Ajoutez des sociétés via <a href="Update.php" class="t-cyan">Update Stock</a>.
+                <?= te('Aucune donnée. Ajoutez des sociétés via') ?> <a href="Update.php" class="t-cyan"><?= te('Update Stock') ?></a>.
               </td></tr>
             <?php else: ?>
               <?php foreach ($rows as $r):
@@ -321,8 +349,8 @@ $noPER          = $totalCompanies - count($rated);
                   <?php endif; ?>
                 </td>
                 <!-- 1: Sector -->
-                <td class="sector-cell" data-val="<?= htmlspecialchars($r['sector']) ?>">
-                  <?= $r['sector'] !== '' ? htmlspecialchars($r['sector']) : '—' ?>
+                <td class="sector-cell" data-val="<?= te($r['sector']) ?>">
+                  <?= $r['sector'] !== '' ? te($r['sector']) : '—' ?>
                 </td>
                 <!-- 2: PA -->
                 <td class="pa-cell num" data-val="<?= $r['PA'] ?>">
@@ -371,7 +399,7 @@ $noPER          = $totalCompanies - count($rated);
   </main>
 </div>
 
-<script src="assets/js/app.js"></script>
+<script src="assets/js/app.js?v=2"></script>
 <script>
 // ── State ────────────────────────────────────────────────
 const PER_COL    = 5;   // index of the PER column
@@ -405,7 +433,7 @@ function setPreset(val) {
   currentPER = val;
   document.getElementById('perInput').value = val === 999 ? '' : val;
   document.querySelectorAll('.preset-btn[onclick^="setPreset"]').forEach(b => {
-    b.classList.toggle('active', b.textContent.trim().includes(val === 999 ? 'Tout' : val));
+    b.classList.toggle('active', b.getAttribute('onclick') === 'setPreset(' + val + ')');
   });
   applyFilters();
 }
@@ -465,10 +493,12 @@ function sortTable(colIdx, type) {
   // Update header indicators
   document.querySelectorAll('#screenerTable thead th').forEach((th, i) => {
     th.classList.remove('sort-asc', 'sort-desc');
+    th.setAttribute('aria-sort', 'none');
     const icon = th.querySelector('.sort-icon');
     if (icon) icon.textContent = '↕';
     if (i === colIdx) {
       th.classList.add(sortAsc ? 'sort-asc' : 'sort-desc');
+      th.setAttribute('aria-sort', sortAsc ? 'ascending' : 'descending');
       if (icon) icon.textContent = sortAsc ? '↑' : '↓';
     }
   });

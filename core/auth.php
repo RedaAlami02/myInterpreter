@@ -34,10 +34,11 @@ function requireLogin(): void {
 }
 
 function requireAdmin(): void {
+    require_once __DIR__ . '/i18n.php';
     requireLogin();
     if (aw_user_id() !== ADMIN_USER_ID) {
         http_response_code(403);
-        die('<div style="font-family:sans-serif;padding:3rem;text-align:center;color:#f43f5e"><h2>403 — Accès refusé</h2><p>Cette page est réservée à l\'administrateur.</p><a href="' . BASE_URL . '/index.php">Retour</a></div>');
+        die('<div lang="' . ui_locale() . '" dir="' . ui_direction() . '" style="font-family:sans-serif;padding:3rem;text-align:center;color:#f43f5e"><h2>403 — ' . te('Accès refusé') . '</h2><p>' . te('Cette page est réservée à l\'administrateur.') . '</p><a href="' . BASE_URL . '/index.php">' . te('Retour') . '</a></div>');
     }
 }
 

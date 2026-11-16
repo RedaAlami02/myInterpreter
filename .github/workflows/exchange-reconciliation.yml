@@ -1,0 +1,114 @@
+name: Exchange reconciliation
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_shares:
+        description: Apply VERIFIED share counts through the service-role RPC
+        type: boolean
+        default: false
+      stage_annual:
+        description: Stage AUTO_ANNUAL_CANDIDATE annual rows for admin approval
+        type: boolean
+        default: false
+      symbols:
+        description: Optional comma-separated symbols (empty = entire universe)
+        type: string
+        default: ""
+  schedule:
+    # First of each month, 06:17 UTC. Best-effort; GitHub may delay it.
+    - cron: "17 6 1 * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exchange-reconciliation
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.event_name == 'workflow_dispatch' || vars.EXCHANGE_RECONCILIATION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUNBUFFERED: "1"
+      SYMBOLS: ${{ github.event.inputs.symbols }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Capture exchange universe and pages
+        run: |
+          python3 tools/capture_exchange_pages.py \
+            --out-dir "$RUNNER_TEMP/exchange-reconciliation/capture" \
+            --symbols "$SYMBOLS" \
+            --delay 0.7
+
+      - name: Reconcile against exchange evidence
+        run: |
+          python3 tools/reconcile_exchange.py \
+            --snapshot "$RUNNER_TEMP/exchange-reconciliation/capture/snapshot.json" \
+            --pages-dir "$RUNNER_TEMP/exchange-reconciliation/capture/pages" \
+            --out-dir "$RUNNER_TEMP/exchange-reconciliation/report"
+
+      - name: Publish job summary
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          report = json.load(open(os.path.join(os.environ["RUNNER_TEMP"] + "/exchange-reconciliation", "report", "reconciliation.json")))
+          summary = report.get("summary", {})
+          print("## Exchange reconciliation")
+          print()
+          print(f"Report: `{summary.get('generated_at', '')}`")
+          print()
+          print("| Metric | Count |")
+          print("|---|---:|")
+          for key in ("companies", "shares_verified", "shares_conflict",
+                      "share_updates", "annual_ok", "annual_stale",
+                      "auto_annual_candidate", "bank_review", "insurer_review",
+                      "standalone_review", "stale_review", "conflict_review"):
+              print(f"| {key.replace('_', ' ')} | {summary.get(key, 0)} |")
+          PY
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: exchange-reconciliation-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/exchange-reconciliation/report
+            ${{ runner.temp }}/exchange-reconciliation/capture/snapshot.json
+            ${{ runner.temp }}/exchange-reconciliation/capture/actions.json
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Apply verified shares
+        if: >-
+          vars.EXCHANGE_WRITES_ENABLED == 'true' &&
+          ((github.event_name == 'workflow_dispatch' && github.event.inputs.apply_shares == 'true') ||
+           (github.event_name == 'schedule' && vars.EXCHANGE_APPLY_SHARES == 'true'))
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 tools/apply_reconciliation_cloud.py \
+            --report "$RUNNER_TEMP/exchange-reconciliation/report/reconciliation.json" \
+            --apply-shares
+
+      - name: Stage annual candidates
+        if: >-
+          vars.EXCHANGE_WRITES_ENABLED == 'true' &&
+          ((github.event_name == 'workflow_dispatch' && github.event.inputs.stage_annual == 'true') ||
+           (github.event_name == 'schedule' && vars.EXCHANGE_STAGE_ANNUAL == 'true'))
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 tools/apply_reconciliation_cloud.py \
+            --report "$RUNNER_TEMP/exchange-reconciliation/report/reconciliation.json" \
+            --stage-annual
