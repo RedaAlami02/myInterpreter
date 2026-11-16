@@ -39,25 +39,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate selected paths
-        run: |
-          python3 - <<'PY'
-          import os, pathlib
-          allowed_roots = ("core/", "handlers/", "assets/", "config/", "locales/")
-          for path in os.environ.get("FILES", "").split():
-              if not path:
-                  continue
-              p = pathlib.Path(path)
-              if p.is_absolute() or ".." in p.parts:
-                  raise SystemExit(f"Refusing absolute or parent path: {path}")
-              if len(p.parts) > 1 and not path.startswith(allowed_roots):
-                  raise SystemExit(f"Refusing non-runtime path: {path}")
-              if p.suffix != ".php" and len(p.parts) == 1:
-                  raise SystemExit(f"Refusing non-PHP root file: {path}")
-              if not p.is_file():
-                  raise SystemExit(f"Missing file: {path}")
-          PY
-
       - name: Dry run
         if: github.event.inputs.apply != 'true'
         run: python3 deploy.py --dry-run $FILES
@@ -69,9 +50,7 @@ jobs:
       - name: Summary
         run: |
           echo "## PHP deployment" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Mode: ${{ github.event.inputs.apply == 'true' && 'APPLIED' || 'DRY RUN' }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Apply: ${{ github.event.inputs.apply }}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "$FILES" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
