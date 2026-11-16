@@ -1,0 +1,143 @@
+<?php
+require_once __DIR__ . '/core/session.php';
+app_session_start();
+require_once __DIR__ . '/core/i18n.php';
+require_once 'config/config.php';
+require_once 'core/auth.php';
+requireAdmin();
+
+$message = null;
+$error = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        csrf_verify();
+        $action = $_POST['action'] ?? '';
+        $sha = $_POST['report_sha256'] ?? '';
+        $symbols = array_values(array_filter(
+            array_map(static fn($s) => is_string($s) ? trim($s) : '', (array)($_POST['symbols'] ?? [])),
+            static fn($s) => $s !== ''
+        ));
+        if (!is_string($sha) || !preg_match('/^[a-f0-9]{64}$/', $sha) || $symbols === []) {
+            throw new InvalidArgumentException('Select at least one company.');
+        }
+        $admin = sb_admin();
+        $token = sb_access_token();
+        if ($action === 'approve') {
+            $result = $admin->applyExchangeAnnualCandidates($token, $sha, $symbols);
+            $message = 'Applied ' . (int)($result['applied'] ?? 0) . ' candidate(s); '
+                . (int)($result['skipped'] ?? 0) . ' skipped.';
+        } elseif ($action === 'reject') {
+            $result = $admin->rejectExchangeAnnualCandidates($token, $sha, $symbols);
+            $message = 'Rejected ' . (int)($result['rejected'] ?? 0) . ' candidate(s).';
+        } else {
+            throw new InvalidArgumentException('Unknown action.');
+        }
+    } catch (Throwable $failure) {
+        $error = 'The review action was not applied. Check the selected companies and try again.';
+    }
+}
+
+$candidates = [];
+try {
+    $candidates = sb_admin()->readExchangeAnnualCandidates(sb_access_token());
+} catch (Throwable $failure) {
+    $error = $error ?? 'Pending annual candidates are unavailable. Apply the reconciliation migration first.';
+}
+$groups = [];
+foreach ($candidates as $candidate) {
+    if (!is_array($candidate)) continue;
+    $groups[(string)$candidate['report_sha256']][] = $candidate;
+}
+?>
+<!DOCTYPE html>
+<html lang="<?= ui_locale() ?>" dir="<?= ui_direction() ?>">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><?= te('myInterpreter | Annual review') ?></title>
+  <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/css/global.css?v=5" rel="stylesheet">
+  <link href="assets/css/update.css?v=3" rel="stylesheet">
+  <?php require 'core/theme.php'; ?>
+</head>
+<body class="workspace workspace-update">
+<div class="ambient" aria-hidden="true"><div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div></div>
+<div class="app">
+  <?php include 'core/sidebar.php'; ?>
+  <main class="main">
+    <div class="update-wrap animate-up">
+      <?php if ($message): ?><div class="alert alert-success"><?= htmlspecialchars($message) ?></div><?php endif; ?>
+      <?php if ($error): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
+
+      <h2 class="mb-1" style="font-family:var(--font-display);font-weight:700;font-size:1.5rem;">
+        Exchange annual review
+      </h2>
+      <p class="muted" style="font-size:0.85rem;">
+        Consolidated, non-financial companies with a current 2025 exchange row. These are
+        exchange proposals, not primary-document verification. Approve only after checking
+        the fields and the source evidence.
+      </p>
+
+      <?php if (!$groups): ?>
+        <div class="alert alert-info">No pending candidates. The monthly cloud job stages them here.</div>
+      <?php endif; ?>
+
+      <?php foreach ($groups as $sha => $rows): ?>
+        <form method="POST" class="mb-4" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+          <?= csrf_field() ?>
+          <input type="hidden" name="report_sha256" value="<?= htmlspecialchars($sha) ?>">
+          <div class="d-flex justify-content-between align-items-center mb-2" style="gap:12px;flex-wrap:wrap">
+            <div>
+              <strong>Report <?= htmlspecialchars(substr($sha, 0, 12)) ?>…</strong>
+              <div class="muted" style="font-size:0.75rem;">
+                Generated <?= htmlspecialchars((string)($rows[0]['report_generated_at'] ?? '')) ?>
+              </div>
+            </div>
+            <div>
+              <button class="btn btn-success btn-sm" name="action" value="approve">Approve selected</button>
+              <button class="btn btn-outline-danger btn-sm" name="action" value="reject">Reject selected</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="table table-sm align-middle" style="font-size:0.82rem">
+              <thead>
+                <tr>
+                  <th></th><th>Symbol</th><th>Company</th><th>FY</th>
+                  <th>Fields</th><th>Warnings</th><th>Evidence</th>
+                </tr>
+              </thead>
+              <tbody>
+              <?php foreach ($rows as $row): ?>
+                <?php
+                  $fields = is_array($row['fields'] ?? null)
+                      ? $row['fields']
+                      : json_decode((string)($row['fields'] ?? '{}'), true);
+                  $warnings = is_array($row['warnings'] ?? null)
+                      ? $row['warnings']
+                      : json_decode((string)($row['warnings'] ?? '[]'), true);
+                  $fieldText = [];
+                  foreach ((array)$fields as $key => $value) {
+                      $fieldText[] = $key . '=' . (is_scalar($value) ? (string)$value : json_encode($value));
+                  }
+                ?>
+                <tr>
+                  <td><input type="checkbox" name="symbols[]" value="<?= htmlspecialchars((string)$row['symbol']) ?>"></td>
+                  <td><strong><?= htmlspecialchars((string)$row['symbol']) ?></strong></td>
+                  <td><?= htmlspecialchars((string)$row['company_name']) ?></td>
+                  <td><?= (int)$row['fiscal_year'] ?></td>
+                  <td style="max-width:420px"><?= htmlspecialchars(implode(' · ', $fieldText)) ?></td>
+                  <td><?= htmlspecialchars(implode(' · ', array_map('strval', (array)$warnings))) ?></td>
+                  <td title="<?= htmlspecialchars((string)$row['page_sha256']) ?>"><?= htmlspecialchars(substr((string)$row['page_sha256'], 0, 10)) ?>…</td>
+                </tr>
+              <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        </form>
+      <?php endforeach; ?>
+    </div>
+  </main>
+</div>
+</body>
+</html>

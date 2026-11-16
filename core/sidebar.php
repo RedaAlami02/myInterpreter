@@ -26,12 +26,6 @@ function _sb_active(string $page): string {
       <span class="nav-icon">◆</span>
       <span><?= te('Marché') ?></span>
     </a>
-    <?php if ($_sbIsAdmin): ?>
-    <a class="nav-item<?= _sb_active('Update.php') ?>" href="Update.php">
-      <span class="nav-icon">+</span>
-      <span><?= te('Société / MAJ') ?></span>
-    </a>
-    <?php endif; ?>
     <a class="nav-item<?= _sb_active('infoAction.php') ?>" href="infoAction.php">
       <span class="nav-icon">⌕</span>
       <span><?= te('Sociétés') ?></span>
@@ -52,6 +46,16 @@ function _sb_active(string $page): string {
       <span class="nav-icon">◈</span>
       <span><?= te('Dividendes') ?></span>
     </a>
+    <?php if ($_sbIsAdmin): ?>
+    <a class="nav-item<?= _sb_active('Update.php') ?>" href="Update.php">
+      <span class="nav-icon">+</span>
+      <span><?= te('Société / MAJ') ?></span>
+    </a>
+    <a class="nav-item<?= _sb_active('reconciliation.php') ?>" href="reconciliation.php">
+      <span class="nav-icon">✓</span>
+      <span><?= te('Revue annuelle') ?></span>
+    </a>
+    <?php endif; ?>
   </nav>
 
   <div class="workspace-actions">

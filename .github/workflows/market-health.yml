@@ -1,0 +1,72 @@
+name: Market data health
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_age_days:
+        description: Price age threshold in calendar days
+        type: number
+        default: 7
+  schedule:
+    - cron: "30 6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: market-health
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    if: github.event_name == 'workflow_dispatch' || vars.MARKET_HEALTH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONUNBUFFERED: "1"
+      RUN_DIR: ${{ runner.temp }}/market-health
+      MAX_AGE_DAYS: ${{ github.event.inputs.max_age_days || '7' }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Audit market data freshness
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 tools/audit_market_freshness.py \
+            --out-dir "$RUN_DIR" \
+            --max-age-days "$MAX_AGE_DAYS"
+
+      - name: Publish job summary
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          report = json.load(open(os.path.join(os.environ["RUN_DIR"], "market_health.json")))
+          summary = report.get("summary", {})
+          print("## Market data health")
+          print()
+          print(f"As of: `{report.get('as_of', '')}`")
+          print()
+          print("| Metric | Count |")
+          print("|---|---:|")
+          for key in ("companies", "price_ok", "price_stale", "price_missing",
+                      "price_zero", "fiscal_stale", "fiscal_missing", "fiscal_current",
+                      "shares_missing", "dividend_recent", "dividend_stale",
+                      "dividend_missing", "shareholders_missing", "needs_attention"):
+              print(f"| {key.replace('_', ' ')} | {summary.get(key, 0)} |")
+          PY
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-health-${{ github.run_id }}
+          path: ${{ runner.temp }}/market-health
+          retention-days: 30
+          if-no-files-found: error

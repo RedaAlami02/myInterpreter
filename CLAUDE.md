@@ -122,6 +122,31 @@ unzip app-release.zip
 adb install app-release.apk   # use -r to update without uninstalling
 ```
 
+## Cloud reconciliation (2026-11-16)
+
+The live backend is Supabase (`core/backend.php`); the older Appwrite descriptions
+below are historical. Exchange reconciliation runs entirely in GitHub Actions:
+
+- `.github/workflows/exchange-reconciliation.yml` — monthly/manual capture,
+  reconciliation and optional service-role writes.
+- `.github/workflows/market-health.yml` — daily read-only price/fiscal/dividend/
+  shareholder freshness audit; requires `MARKET_HEALTH_ENABLED` for the schedule.
+- `.github/workflows/deploy-php.yml` — manual, dry-run-by-default upload of the
+  selected runtime files over FTPS; secrets are `FTP_HOST`, `FTP_USER`, `FTP_PASS`.
+- `tools/capture_exchange_pages.py` — portable capture, including AIA TLS-chain
+  completion when the exchange serves only its leaf certificate.
+- `tools/reconcile_exchange.py` — report; `tools/apply_reconciliation_cloud.py` —
+  service-role RPC caller. Local execution is optional.
+- `migrations/supabase/20261116_cloud_exchange_reconciliation.sql` — audited share
+  RPC and annual candidate staging/approval RPCs.
+- `reconciliation.php` — administrator-only annual approval page.
+- Anonymous market reads are opt-in: `20261116_public_market_anon_read.sql` plus
+  `allow_anonymous_market => true`. Default remains login-gated.
+
+Writes are gated by repository variables (`EXCHANGE_RECONCILIATION_ENABLED`,
+`EXCHANGE_WRITES_ENABLED`, `EXCHANGE_APPLY_SHARES`, `EXCHANGE_STAGE_ANNUAL`) and the
+`SUPABASE_SERVICE_ROLE_KEY` secret. See `docs/EXCHANGE_RECONCILIATION_20261116.md`.
+
 ## Important rules
 - **Never use `--release` build locally** — crashes the laptop. Use CI.
 - **All collection names lowercase** in Appwrite queries.
