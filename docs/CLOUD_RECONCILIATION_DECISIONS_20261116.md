@@ -191,3 +191,31 @@ signed-in account is not in `market_admin.admins`.
 6. Map the new NRJ listing before its shares/annual row can be applied.
 7. Do not apply the anonymous-read migration unless public no-login pages become a
    deliberate product decision.
+
+
+## Merge and admin access (2026-11-16)
+
+- PR #1 merged `feat/cloud-reconciliation` into `master` at merge commit
+  `2a7ad1ce78cf6549f0fa83e7227b075eff10464a`.
+- `reconciliation.php` now authorizes through `market_admin.admins`, not the
+  config `ADMIN_USER_ID`. This removes the config/deploy mismatch.
+- Add the administrator in the Supabase SQL editor:
+
+```sql
+insert into market_admin.admins(user_id)
+select id from auth.users
+where lower(email) = lower('redaalami022@gmail.com')
+on conflict (user_id) do nothing;
+```
+
+- Verify:
+
+```sql
+select a.user_id, u.email
+from market_admin.admins a
+join auth.users u on u.id = a.user_id;
+```
+
+- The updated page was deployed in run `43974269699`.
+- The monthly exchange schedule and daily health schedule now exist on the default
+  branch. The health schedule will fail until `SUPABASE_SERVICE_ROLE_KEY` is valid.
