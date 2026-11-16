@@ -4,10 +4,12 @@ app_session_start();
 require_once __DIR__ . '/core/i18n.php';
 require_once 'config/config.php';
 require_once 'core/auth.php';
-requireAdmin();
+require_once 'core/SupabaseApp.php';
+requireLogin();
 
 $message = null;
 $error = null;
+$adminDenied = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         csrf_verify();
@@ -32,6 +34,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             throw new InvalidArgumentException('Unknown action.');
         }
+    } catch (SupabaseRequestException $failure) {
+        if (in_array($failure->httpStatus, [401, 403], true)) {
+            $adminDenied = true;
+            $error = 'Administrator access required. Add this account to market_admin.admins.';
+        } else {
+            $error = 'The review action was not applied. Check the selected companies and try again.';
+        }
     } catch (Throwable $failure) {
         $error = 'The review action was not applied. Check the selected companies and try again.';
     }
@@ -40,8 +49,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $candidates = [];
 try {
     $candidates = sb_admin()->readExchangeAnnualCandidates(sb_access_token());
+} catch (SupabaseRequestException $failure) {
+    if (in_array($failure->httpStatus, [401, 403], true)) {
+        $adminDenied = true;
+        $error = $error ?? 'Administrator access required. Add this account to market_admin.admins.';
+    } else {
+        $error = $error ?? 'Pending annual candidates are unavailable. Check the reconciliation migration.';
+    }
 } catch (Throwable $failure) {
-    $error = $error ?? 'Pending annual candidates are unavailable. Apply the reconciliation migration first.';
+    $error = $error ?? 'Pending annual candidates are unavailable. Check the reconciliation migration.';
 }
 $groups = [];
 foreach ($candidates as $candidate) {
@@ -76,8 +92,16 @@ foreach ($candidates as $candidate) {
       <p class="muted" style="font-size:0.85rem;">
         Consolidated, non-financial companies with a current 2025 exchange row. These are
         exchange proposals, not primary-document verification. Approve only after checking
-        the fields and the source evidence.
+        the fields and the source evidence. Access is checked by the database against
+        <code>market_admin.admins</code>.
       </p>
+
+      <?php if ($adminDenied): ?>
+        <div class="alert alert-warning">
+          This account is signed in but is not in <code>market_admin.admins</code>, so the
+          annual review data is hidden. Add the account in Supabase before retrying.
+        </div>
+      <?php endif; ?>
 
       <?php if (!$groups): ?>
         <div class="alert alert-info">No pending candidates. The monthly cloud job stages them here.</div>
