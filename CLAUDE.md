@@ -145,7 +145,8 @@ below are historical. Exchange reconciliation runs entirely in GitHub Actions:
 
 Writes are gated by repository variables (`EXCHANGE_RECONCILIATION_ENABLED`,
 `EXCHANGE_WRITES_ENABLED`, `EXCHANGE_APPLY_SHARES`, `EXCHANGE_STAGE_ANNUAL`) and the
-`SUPABASE_SERVICE_ROLE_KEY` secret. See `docs/EXCHANGE_RECONCILIATION_20261116.md`.
+`SUPABASE_SERVICE_ROLE_KEY` secret. Decisions, cloud resources, run IDs and the
+rollback runbook are in `docs/CLOUD_RECONCILIATION_DECISIONS_20261116.md`.
 
 ## Important rules
 - **Never use `--release` build locally** — crashes the laptop. Use CI.
