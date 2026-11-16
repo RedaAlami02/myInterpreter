@@ -19,6 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'automation/managed'))
 import market_health
+import cloud_auth
 
 URL_RE = re.compile(r"^https://[a-z0-9]{10,40}\.supabase\.co/?$")
 
@@ -29,10 +30,9 @@ def fetch(base, key, table, select):
     while True:
         url = (f"{base}/rest/v1/{table}?select={select}"
                f"&limit=1000&offset={offset}")
-        request = urllib.request.Request(url, headers={
-            "apikey": key, "Authorization": "Bearer " + key,
-            "Accept": "application/json",
-        })
+        headers = cloud_auth.service_headers(key)
+        headers["Accept"] = "application/json"
+        request = urllib.request.Request(url, headers=headers)
         try:
             with urllib.request.urlopen(request, timeout=45) as response:
                 page = json.loads(response.read().decode("utf-8"))
@@ -66,6 +66,11 @@ def main():
         return 1
     if not key:
         print(json.dumps({"status": "FAILED", "code": "MISSING_SERVICE_ROLE_KEY"}))
+        return 1
+    try:
+        cloud_auth.service_headers(key)
+    except cloud_auth.ServiceKeyError as error:
+        print(json.dumps({"status": "FAILED", "code": str(error)}))
         return 1
     try:
         moment = (datetime.fromisoformat(args.as_of.replace("Z", "+00:00"))

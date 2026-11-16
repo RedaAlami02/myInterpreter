@@ -19,6 +19,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import cloud_auth
+
 URL_RE = re.compile(r"^https://[a-z0-9]{10,40}\.supabase\.co/?$")
 CONTRACT = "exchange-reconciliation/v1"
 
@@ -26,12 +28,9 @@ CONTRACT = "exchange-reconciliation/v1"
 def post_rpc(base, key, name, payload):
     url = f"{base}/rest/v1/rpc/{name}"
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    request = urllib.request.Request(url, data=body, method="POST", headers={
-        "apikey": key,
-        "Authorization": "Bearer " + key,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    })
+    headers = cloud_auth.service_headers(key)
+    headers.update({"Content-Type": "application/json", "Accept": "application/json"})
+    request = urllib.request.Request(url, data=body, method="POST", headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
             return response.status, json.loads(response.read().decode("utf-8"))
@@ -91,6 +90,11 @@ def main():
         return 1
     if not key:
         print(json.dumps({"status": "FAILED", "code": "MISSING_SERVICE_ROLE_KEY"}))
+        return 1
+    try:
+        cloud_auth.service_headers(key)
+    except cloud_auth.ServiceKeyError as error:
+        print(json.dumps({"status": "FAILED", "code": str(error)}))
         return 1
     results = {}
     try:

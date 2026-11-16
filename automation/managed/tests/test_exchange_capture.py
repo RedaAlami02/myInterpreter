@@ -2,11 +2,13 @@ import json
 import sys
 import unittest
 from pathlib import Path
+import base64
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "tools"))
 import capture_exchange_pages as capture
 import apply_reconciliation_cloud as apply_cloud
+import cloud_auth
 
 
 def settings_page(payload):
@@ -47,6 +49,34 @@ class CaptureParserTests(unittest.TestCase):
         self.assertEqual(result["with_annual_rows"], 1)
         self.assertEqual(result["without_annual_rows"], 1)
         self.assertEqual(result["latest_year_counts"], {"2025": 1})
+
+
+class ServiceKeyTests(unittest.TestCase):
+    def test_new_secret_key_is_apikey_only(self):
+        headers = cloud_auth.service_headers("sb_secret_example")
+        self.assertEqual(headers, {"apikey": "sb_secret_example"})
+
+    def test_legacy_service_role_jwt_gets_bearer(self):
+        header = base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).rstrip(b"=").decode()
+        payload = base64.urlsafe_b64encode(
+            json.dumps({"role": "service_role"}).encode()).rstrip(b"=").decode()
+        key = header + "." + payload + ".signature"
+        headers = cloud_auth.service_headers(key)
+        self.assertEqual(headers["apikey"], key)
+        self.assertEqual(headers["Authorization"], "Bearer " + key)
+
+    def test_publishable_and_anon_are_rejected(self):
+        with self.assertRaises(cloud_auth.ServiceKeyError):
+            cloud_auth.service_headers("sb_publishable_example")
+        header = base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).rstrip(b"=").decode()
+        anon = header + "." + base64.urlsafe_b64encode(
+            json.dumps({"role": "anon"}).encode()).rstrip(b"=").decode() + ".signature"
+        with self.assertRaises(cloud_auth.ServiceKeyError):
+            cloud_auth.service_headers(anon)
+
+    def test_junk_is_rejected(self):
+        with self.assertRaises(cloud_auth.ServiceKeyError):
+            cloud_auth.service_headers("not-a-key")
 
 
 class CloudEligibilityTests(unittest.TestCase):
