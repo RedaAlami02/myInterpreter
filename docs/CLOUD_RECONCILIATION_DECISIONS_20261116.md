@@ -2,8 +2,9 @@
 
 Date: 2026-11-16
 Branch: `feat/cloud-reconciliation`
-Status: report-only cloud acceptance passed; share/annual writes enabled and first
-write run in progress; PHP deploy dry-run passed.
+Status: report-only cloud acceptance passed; share/annual writes enabled; the first
+write attempt is blocked on a malformed `SUPABASE_SERVICE_ROLE_KEY`; the admin page
+is deployed.
 
 ## Decisions
 
@@ -67,7 +68,46 @@ The anonymous-read migration was **not** applied.
 |---|---|---|
 | `43963698404` | Full capture + reconcile, writes off | Success; 82 companies, 80 verified, 2 conflicts, 47 auto-candidates |
 | `43965622668` | PHP deploy dry-run | Success; listed the five intended files |
-| `43969311408` | Share apply + annual staging | In progress when this note was written |
+| `43969311408` | Full capture + write | Cancelled; exchange capture stalled |
+| `43971188197` | Apply existing report | Failed: `401 Invalid API key` |
+| `43971466241` | Apply existing report after header fix | Failed: `INVALID_SERVICE_KEY_FORMAT` |
+| `43971548526` | PHP deploy | Success; uploaded 5 files, remote backup created |
+
+The apply-only workflow is `.github/workflows/apply-reconciliation.yml`; it
+downloads the artifact from a prior report run and does not recapture.
+
+### Service-key troubleshooting
+
+The write RPC expects a **service-role** credential, not the publishable/anon key
+and not the database password.
+
+| Accepted form | How it is sent |
+|---|---|
+| New secret key `sb_secret_...` | `apikey` header only |
+| Legacy `service_role` JWT `eyJ...` (three dot-separated parts, payload `"role":"service_role"`) | `apikey` and `Authorization: Bearer` |
+
+The scripts reject with a precise code:
+
+- `PUBLISHABLE_KEY_IS_NOT_A_SERVICE_KEY` — anon/publishable key was pasted.
+- `SERVICE_KEY_ROLE_IS_NOT_SERVICE_ROLE` — a JWT for `anon`, not `service_role`.
+- `INVALID_SERVICE_KEY_FORMAT` — truncated value, quotes/prefix, database password,
+  or a different project's value.
+- `401 Invalid API key` — value is malformed, revoked, or from another project.
+
+Re-set it without printing it in chat:
+
+```bash
+gh secret set SUPABASE_SERVICE_ROLE_KEY \
+  --repo RedaAlami02/myInterpreter
+```
+
+Paste only the key; no quotes, no `Bearer ` prefix, no trailing text. Then rerun:
+
+```bash
+gh workflow run apply-reconciliation.yml \
+  --repo RedaAlami02/myInterpreter --ref feat/cloud-reconciliation \
+  -f report_run_id=43963698404 -f apply_shares=true -f stage_annual=true
+```
 
 ## Runbook
 
@@ -138,10 +178,16 @@ signed-in account is not in `market_admin.admins`.
 
 ## Open items
 
-1. Complete the first share/annual run and inspect the RPC result.
-2. Run market health and review stale-price/fiscal/dividend findings.
-3. Publish the admin page and approve the annual batch.
-4. Merge the branch to `master` so the monthly schedule runs on the default branch.
-5. Map the new NRJ listing before its shares/annual row can be applied.
-6. Do not apply the anonymous-read migration unless public no-login pages become a
+1. Re-set `SUPABASE_SERVICE_ROLE_KEY` with a valid service-role value, then rerun
+   `apply-reconciliation.yml`.
+2. Inspect the first share/annual RPC result and approve the annual batch.
+3. Run market health and review stale-price/fiscal/dividend findings.
+4. The admin page is deployed. Open it as administrator and confirm the staged
+   candidates appear after item 1.
+5. Merge the branch to `master` so the monthly schedule runs on the default
+   branch. The local `master` is ahead of `origin/master`; merging the feature
+   branch will also publish earlier local commits. Review that scope before
+   merging, or ask for a clean feature-only branch.
+6. Map the new NRJ listing before its shares/annual row can be applied.
+7. Do not apply the anonymous-read migration unless public no-login pages become a
    deliberate product decision.
