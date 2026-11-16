@@ -1,0 +1,63 @@
+name: Apply reconciliation report
+
+on:
+  workflow_dispatch:
+    inputs:
+      report_run_id:
+        description: Run ID that contains the exchange-reconciliation artifact
+        type: string
+        required: true
+      apply_shares:
+        description: Apply VERIFIED share counts
+        type: boolean
+        default: false
+      stage_annual:
+        description: Stage annual candidates
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: apply-reconciliation
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: vars.EXCHANGE_WRITES_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download existing report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: exchange-reconciliation-${{ github.event.inputs.report_run_id }}
+          path: ${{ runner.temp }}/report-evidence
+          run-id: ${{ github.event.inputs.report_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply or stage
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APPLY_SHARES: ${{ github.event.inputs.apply_shares }}
+          STAGE_ANNUAL: ${{ github.event.inputs.stage_annual }}
+        run: |
+          REPORT=$(find "$RUNNER_TEMP/report-evidence" -name reconciliation.json -print -quit)
+          test -n "$REPORT"
+          ARGS=""
+          if [ "$APPLY_SHARES" = "true" ]; then ARGS="$ARGS --apply-shares"; fi
+          if [ "$STAGE_ANNUAL" = "true" ]; then ARGS="$ARGS --stage-annual"; fi
+          python3 tools/apply_reconciliation_cloud.py --report "$REPORT" $ARGS
