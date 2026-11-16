@@ -219,3 +219,33 @@ join auth.users u on u.id = a.user_id;
 - The updated page was deployed in run `43974269699`.
 - The monthly exchange schedule and daily health schedule now exist on the default
   branch. The health schedule will fail until `SUPABASE_SERVICE_ROLE_KEY` is valid.
+
+## Live health finding and price publication (2026-11-16)
+
+- Apply run `43976007884` succeeded after the service key was fixed:
+  16 share counts applied, 64 unchanged, 0 missing; 47 annual candidates staged.
+- Health run `43976023261` audited 81 companies and found:
+  - **all 81 prices dated 2026-10-21**, 26 days stale;
+  - 55 companies at fiscal year 2024, 21 missing, 2 at 2021, 2 at 2023, 1 at 2025;
+  - 16 recent dividends unconfirmed, 4 stale, 17 missing;
+  - 7 companies with no shareholder list.
+- Conclusion: the Supabase `latest_prices`/`company` tables are still the October
+  migration snapshot, not a live-fed dataset. The private managed runner is not
+  updating this database, or is writing elsewhere.
+- New `migrations/supabase/20261116_exchange_price_publication.sql` adds an
+  audited service-role RPC that updates `latest_prices` from the official exchange
+  capture snapshot. It checks snapshot freshness, symbol mapping, share-count
+  consistency and an older-than-current guard.
+- `tools/publish_exchange_prices.py` and the `publish_prices` input on
+  `apply-reconciliation.yml` call it.
+- This updates current prices only. Historical `data` rows and ratios remain a
+  separate publication task.
+- After applying the migration, run:
+
+```bash
+gh workflow run apply-reconciliation.yml \
+  --repo RedaAlami02/myInterpreter --ref master \
+  -f report_run_id=43963698404 -f publish_prices=true
+```
+
+- Then rerun market health and confirm `price_stale` drops from 81.
