@@ -22,6 +22,12 @@ adjustment, with no later capital action, is quarantined.
 
 ## Live baseline (82 actions on 2026-11-16; 81 in the October comparison)
 
+**Cloud acceptance:** GitHub Actions run `43963698404` completed on the
+`feat/cloud-reconciliation` branch with writes off. It captured 82/82 pages and
+produced 80 verified share counts, 2 conflicts, 47 annual auto-candidates and 5
+stale annual rows. The PHP deploy workflow dry-run (`43965622668`) listed exactly
+the five intended runtime files.
+
 Snapshot: 82/82 pages parsed. The saved-baseline comparison below uses the
 81-company October export; the live capture found one new listing, NRJ.
 
