@@ -71,7 +71,9 @@ def clean_levels(rows, side, limit=MAX_LEVELS):
         quantity = number(row.get("quantity"))
         if price is None or price <= 0 or price >= 1_000_000_000:
             continue
-        if quantity is None or quantity < 0:
+        # The detail page rejects a whole book if one level is fractional or
+        # zero, so such levels never enter the snapshot.
+        if quantity is None or quantity <= 0 or quantity != int(quantity):
             continue
         if price in seen:
             continue

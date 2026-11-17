@@ -31,6 +31,12 @@ class CleanLevelsTests(unittest.TestCase):
         self.assertEqual([level["price"] for level in levels], [10.5, 9.9])
         self.assertEqual(levels[0]["quantity"], 100)
 
+    def test_zero_and_fractional_quantities_are_dropped(self):
+        levels = books.clean_levels([{"price": 10, "quantity": 0},
+                                     {"price": 9.9, "quantity": 1.5},
+                                     {"price": 9.8, "quantity": 7}], "bids")
+        self.assertEqual([level["price"] for level in levels], [9.8])
+
     def test_duplicate_prices_keep_the_first_level(self):
         levels = books.clean_levels([{"price": 5, "quantity": 1},
                                      {"price": 5, "quantity": 9}], "asks")
