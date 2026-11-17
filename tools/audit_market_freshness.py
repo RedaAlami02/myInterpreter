@@ -121,8 +121,9 @@ def main():
                           "production_writes": 0}, sort_keys=True))
         return 0
     except Exception as error:
-        print(json.dumps({"status": "FAILED",
-                          "code": str(error)[:200] if isinstance(error, RuntimeError) else "AUDIT_FAILED"}))
+        detail = (str(error)[:200] if isinstance(error, RuntimeError)
+                  else f"{type(error).__name__}: {str(error)[:180]}")
+        print(json.dumps({"status": "FAILED", "code": detail or "AUDIT_FAILED"}))
         return 1
 
 
