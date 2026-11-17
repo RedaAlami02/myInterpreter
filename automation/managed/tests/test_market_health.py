@@ -92,5 +92,30 @@ class BookHealthTests(unittest.TestCase):
         self.assertEqual(summary["book_fresh"], 1)
 
 
+class HistoryHealthTests(unittest.TestCase):
+    def test_history_ages_and_missing_companies(self):
+        summary, statuses, ages = market_health.history_health(
+            [{"c_name": "FRESH CO", "date": "2026-11-17T10:00:00Z"},
+             {"c_name": "FRESH CO", "date": "2026-11-16T10:00:00Z"},
+             {"c_name": "OLD CO", "date": "2026-10-21T10:00:00Z"}],
+            [{"name": "FRESH CO", "symbol": "FRS"},
+             {"name": "OLD CO", "symbol": "OLD"},
+             {"name": "NEVER CO", "symbol": "NVR"}],
+            as_of=datetime(2026, 11, 17, 18, 0, tzinfo=timezone.utc))
+        self.assertEqual(statuses, {"FRS": "FRESH", "OLD": "STALE", "NVR": "MISSING"})
+        self.assertEqual(ages["OLD"], 27)
+        self.assertEqual(summary["history_fresh"], 1)
+        self.assertEqual(summary["history_stale"], 1)
+        self.assertEqual(summary["history_missing"], 1)
+        self.assertEqual(summary["history_latest_age_days"], 0)
+
+    def test_empty_history_does_not_crash(self):
+        summary, statuses, _ages = market_health.history_health(
+            [], [{"name": "A", "symbol": "A"}],
+            as_of=datetime(2026, 11, 17, 18, 0, tzinfo=timezone.utc))
+        self.assertIsNone(summary["history_latest_age_days"])
+        self.assertEqual(statuses, {"A": "MISSING"})
+
+
 if __name__ == "__main__":
     unittest.main()

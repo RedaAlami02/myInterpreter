@@ -24,12 +24,12 @@ import cloud_auth
 URL_RE = re.compile(r"^https://[a-z0-9]{10,40}\.supabase\.co/?$")
 
 
-def fetch(base, key, table, select):
+def fetch(base, key, table, select, query=""):
     rows = []
     offset = 0
     while True:
         url = (f"{base}/rest/v1/{table}?select={select}"
-               f"&limit=1000&offset={offset}")
+               f"{query}&limit=1000&offset={offset}")
         headers = cloud_auth.service_headers(key)
         headers["Accept"] = "application/json"
         request = urllib.request.Request(url, headers=headers)
@@ -87,6 +87,11 @@ def main():
             formats,
             as_of=moment, max_age_days=args.max_age_days)
         books = fetch(base, key, "market_orderbooks", "symbol,captured_at")
+        history = fetch(base, key, "data", "c_name,date",
+                        "&order=date.desc&limit=2000")
+        history_summary, history_status, history_ages = market_health.history_health(
+            history, formats, as_of=moment, max_age_days=args.max_age_days)
+        report["summary"].update(history_summary)
         book_summary, book_status, book_ages = market_health.book_health(
             books, formats, as_of=moment)
         report["summary"].update(book_summary)
@@ -101,9 +106,18 @@ def main():
                 row["flags"].append("BOOK_MISSING")
             elif status == "STALE":
                 row["flags"].append("BOOK_STALE_%dH" % (book_ages.get(symbol) or 0))
+            history_status_value = history_status.get(symbol)
+            row["history_status"] = history_status_value
+            row["history_age_days"] = history_ages.get(symbol)
+            if history_status_value == "MISSING":
+                row["flags"].append("HISTORY_MISSING")
+            elif history_status_value == "STALE":
+                row["flags"].append("HISTORY_STALE_%dD" % (history_ages.get(symbol) or 0))
         args.out_dir.mkdir(parents=True, exist_ok=True)
         (args.out_dir / "books.json").write_text(
             json.dumps(book_status, ensure_ascii=False, indent=1), encoding="utf-8")
+        (args.out_dir / "history.json").write_text(
+            json.dumps(history_status, ensure_ascii=False, indent=1), encoding="utf-8")
         (args.out_dir / "market_health.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
         (args.out_dir / "dividends.json").write_text(
@@ -117,7 +131,7 @@ def main():
             market_health.to_markdown(report), encoding="utf-8")
         print(json.dumps({"status": "OK", "summary": report["summary"],
                           "outputs": ["market_health.json", "market_health.csv",
-                                      "market_health.md", "dividends.json", "books.json"],
+                                      "market_health.md", "dividends.json", "books.json", "history.json"],
                           "production_writes": 0}, sort_keys=True))
         return 0
     except Exception as error:
