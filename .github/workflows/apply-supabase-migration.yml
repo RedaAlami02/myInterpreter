@@ -81,14 +81,20 @@ jobs:
         if: github.event.inputs.apply != 'true'
         run: |
           test -n "$SUPABASE_DB_URL"
-          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c 'select 1;' >/dev/null
+          if ! psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c 'select 1;' >/dev/null; then
+            echo "::error::Database login failed. Reset the database password in Supabase, copy the Session pooler URI from Connect, and update SUPABASE_DB_URL. An alphanumeric-only password avoids URL-encoding errors."
+            exit 1
+          fi
           echo "Connection OK; migration not applied."
 
       - name: Apply migration
         if: github.event.inputs.apply == 'true'
         run: |
           test -n "$SUPABASE_DB_URL"
-          psql "$SUPABASE_DB_URL" --single-transaction -v ON_ERROR_STOP=1 -f "$MIGRATION_FILE"
+          if ! psql "$SUPABASE_DB_URL" --single-transaction -v ON_ERROR_STOP=1 -f "$MIGRATION_FILE"; then
+            echo "::error::Migration failed. A login error means the database password in SUPABASE_DB_URL is wrong; a SQL error names the failing statement."
+            exit 1
+          fi
           if [ "$MIGRATION_FILE" = "migrations/supabase/20261116_exchange_price_publication.sql" ]; then
             psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -At -c \
               "select count(*) from pg_proc where proname = 'apply_exchange_latest_prices'" | grep -qx 1
