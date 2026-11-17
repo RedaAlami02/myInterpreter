@@ -19,58 +19,30 @@ marked **open** were confirmed by reading the code but are not yet changed.
 | 9 | Zero/negative ratios scored as "Attractif" | Missing or loss-making companies were badged green on the results page | `Action::test()` returns `none`; page renders "non applicable" |
 | 10 | Order-book levels with zero/fractional quantity | The detail page rejects a whole book on one invalid level | Dropped at capture; sorted, capped at 10 |
 | 11 | Repo did not match production | `master` held the Appwrite client; the live site ran an uncommitted Supabase rewrite | Migration work committed and merged (`e3d885e`), 451 tests pass |
+| 12 | Company-page PER used `price × reported shares` | A split made reported PER wrong by the split factor | Market cap taken from the newest `data` row; implied share count survives splits |
+| 13 | Dividend yield ignored the price date | Footer promised a yield on today's price; a stale or suspended price was presented as current | Yield shown only when the price is from today (Casablanca); otherwise "—" with the price date as a tooltip |
+| 14 | Annual approval could overwrite reviewed financials | A re-staged report for an already-reviewed year replaced `roe/cp/revenue/net_profit` | `20261118_annual_review_guard.sql`: same-year candidates are skipped with `FINANCIAL_PERIOD_REVIEWED` when a review receipt exists |
+| 15 | Malformed dividend dates aborted the whole batch | One bad `paiement`/`detachement` rejected every company and year | `20261118_dividend_hardening.sql`: safe cast, unparseable components dropped, rows without a payment date skipped |
+| 16 | Dividend dedupe deleted components the snapshot did not mention | A partial capture erased a stored exceptional dividend | Groups whose stored types are not fully covered are left untouched and reported as `skipped_partial` |
 
 ## Open — worth fixing next
 
 Severity is impact on displayed data. Line numbers refer to the working tree at
 the time of the audit.
 
-1. **Company-page PER uses the reported share count** (`infoAction.php`),
-   `$mcap = $price × $company['na']`. After a split the share count is stale and
-   PER is wrong by the split factor (MANAGEM 10:1, SOTHEMA, CASH PLUS were hit
-   before the same bug was fixed in the scraper). Use the exchange
-   capitalisation from the latest `data` row, as the screener does.
-2. **Dividend yield has no price-date check** (`dividendes.php`). The footer
-   says yields use the day's price; a stale or suspended price is presented as
-   today's. Carry `latest_prices.date` and suppress or label old yields.
-3. **Annual approval can overwrite reviewed financials**
-   (`20261117_roe_guard_and_isolation.sql`). It checks the fiscal year but not
-   `market_admin.financial_review_receipts`, which the protection migration uses
-   to block later writes. A re-staged stale report can roll corrections back.
-4. **One malformed dividend date aborts the batch**
-   (`20261117_dividend_reconciliation.sql`). `('' )::timestamptz` or
-   `'2025-13-01'` raises and rejects every company and year. Use the existing
-   `try_timestamptz` helper and drop unparseable components.
-5. **Dividend dedupe deletes components the snapshot never mentions.** A
-   partial capture (ordinary only) deletes a stored exceptional row. Delete only
-   types present in the snapshot, or merge per type.
-6. **Dividend identity mismatch.** `20261117_dividend_constraints.sql` adds
-   `UNIQUE (c_name, year)` while the projection publisher keys on
-   `(c_name, year, type)`. Either drop per-type rows before writing or index the
-   three columns.
-7. **Share RPC falls back to a free-text company name**
-   (`20261116_cloud_exchange_reconciliation.sql`). A symbol missing from
-   `format` updates whichever company matches the string. Require the mapping.
-8. **Replaying an old share report can revert `na`.** There is no
-   generated-at guard; the audit insert happens after the update.
-9. **Price rows are stamped at fetch time**, so a suspended instrument (whose
-   quote never changes) is restamped as fresh every publication.
-10. **Dashboard swallows a failed load** (`index.php`) and renders "0 sociétés",
-    "— PER". A transient outage looks like an empty market.
-11. **Screener "previous session"** is the second row of a newest-first window —
-    the previous 15-minute run, not the previous session (`screener.php`).
-12. **Shareholder names injected into `innerHTML` unescaped**
-    (`infoAction.php`) — stored XSS in a signed-in page.
-13. **No unique constraints on `company.name` / `format.symbol`**, while updates
-    and price mapping select by them.
-14. **Order-book receipt counts a replay as applied** (insert uses
-    `ON CONFLICT DO NOTHING`, then increments unconditionally).
-15. **Suspended symbols have no book** (DIS, DLM, SAM). This is correct data,
-    but the health report lists them as `book_stale`; the page shows no book.
+1. **Dividend identity mismatch.** `20261117_dividend_constraints.sql` adds `UNIQUE (c_name, year)` while the projection publisher keys on `(c_name, year, type)`. Either drop per-type rows before writing or index the three columns.
+2. **Share RPC falls back to a free-text company name** (`20261116_cloud_exchange_reconciliation.sql`). A symbol missing from `format` updates whichever company matches the string. Require the mapping.
+3. **Replaying an old share report can revert `na`.** There is no generated-at guard; the audit insert happens after the update.
+4. **Price rows are stamped at fetch time**, so a suspended instrument (whose quote never changes) is restamped as fresh every publication.
+5. **Dashboard swallows a failed load** (`index.php`) and renders "0 sociétés", "— PER". A transient outage looks like an empty market.
+6. **Screener "previous session"** is the second row of a newest-first window — the previous 15-minute run, not the previous session (`screener.php`).
+7. **Shareholder names injected into `innerHTML` unescaped** (`infoAction.php`) — stored XSS in a signed-in page.
+8. **No unique constraints on `company.name` / `format.symbol`**, while updates and price mapping select by them.
+9. **Order-book receipt counts a replay as applied** (insert uses `ON CONFLICT DO NOTHING`, then increments unconditionally).
 
 ## Not a bug, but worth knowing
 
-- The 3 order-book-free symbols above are suspended, not missing.
+- Three order-book-free symbols (DIS, DLM, SAM) are suspended, not missing.
 - NRJ has no `format` row, so its price and book are skipped at publish (same
   mapping gap).
 - Medias24 rejects CI egress; CDG serves cloud order books with the same depth.
