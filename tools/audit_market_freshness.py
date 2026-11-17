@@ -24,7 +24,7 @@ import cloud_auth
 URL_RE = re.compile(r"^https://[a-z0-9]{10,40}\.supabase\.co/?$")
 
 
-def fetch(base, key, table, select, query=""):
+def fetch(base, key, table, select, query="", max_rows=None):
     rows = []
     offset = 0
     while True:
@@ -43,6 +43,8 @@ def fetch(base, key, table, select, query=""):
         if not isinstance(page, list):
             raise RuntimeError(f"{table} returned a non-list page")
         rows.extend(page)
+        if max_rows is not None and len(rows) >= max_rows:
+            return rows[:max_rows]
         if len(page) < 1000:
             return rows
         offset += 1000
@@ -88,7 +90,7 @@ def main():
             as_of=moment, max_age_days=args.max_age_days)
         books = fetch(base, key, "market_orderbooks", "symbol,captured_at")
         history = fetch(base, key, "data", "c_name,date",
-                        "&order=date.desc&limit=2000")
+                        "&order=date.desc", max_rows=4000)
         history_summary, history_status, history_ages = market_health.history_health(
             history, formats, as_of=moment, max_age_days=args.max_age_days)
         report["summary"].update(history_summary)
