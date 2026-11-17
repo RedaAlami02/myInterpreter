@@ -903,9 +903,20 @@ if ($awSession && !empty($name ?? '')) {
         }
       });
       const list = document.getElementById('holders-list');
-      list.innerHTML = d.shareholders.map((h, i) =>
-        `<div class="holder-row"><span class="holder-dot" style="background:${colors[i % colors.length]}"></span><span class="holder-name">${h.name}</span><span class="holder-pct">${h.pct.toFixed(1)}%</span></div>`
-      ).join('');
+      // Build nodes and use textContent: a stored shareholder name must never
+      // be interpreted as markup.
+      list.innerHTML = '';
+      (Array.isArray(d.shareholders) ? d.shareholders : []).forEach((h, i) => {
+        const row = document.createElement('div'); row.className = 'holder-row';
+        const dot = document.createElement('span'); dot.className = 'holder-dot';
+        dot.style.background = colors[i % colors.length];
+        const name = document.createElement('span'); name.className = 'holder-name';
+        name.textContent = String(h.name ?? '');
+        const pct = document.createElement('span'); pct.className = 'holder-pct';
+        pct.textContent = (Number(h.pct) || 0).toFixed(1) + '%';
+        row.append(dot, name, pct);
+        list.appendChild(row);
+      });
     }
 
   } catch (e) {

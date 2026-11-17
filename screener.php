@@ -49,14 +49,18 @@ try {
     }
 
     $latest = [];  // c_name => doc
-    $prev   = [];  // c_name => doc (second occurrence)
+    $prev   = [];  // c_name => previous *day* doc
+    $latestDay = [];
 
     foreach ($docs as $d) {
         $n = trim($d['c_name'] ?? '');
         if (!$n) continue;
+        $day = substr($d['date'] ?? '', 0, 10);
         if (!isset($latest[$n])) {
             $latest[$n] = $d;
-        } elseif (!isset($prev[$n])) {
+            $latestDay[$n] = $day;
+        } elseif (!isset($prev[$n]) && $day !== $latestDay[$n]) {
+            // Intraday rows made "second occurrence" a fifteen-minute-old run.
             $prev[$n] = $d;
         }
     }
@@ -377,7 +381,7 @@ $noPER          = $totalCompanies - count($rated);
                 </td>
                 <!-- 9: Date -->
                 <td class="date-cell" data-val="<?= $r['date'] ?>">
-                  <?= fmt_time($r['date']) ?>
+                  <?= fmt_datetime($r['date']) ?>
                 </td>
               </tr>
               <?php endforeach; ?>

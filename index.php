@@ -75,6 +75,7 @@ $topScored      = [];
 $screenerCount  = null;
 $isMarketOpen   = null;
 $sessionLabel   = '';
+$dashboardError = null;
 
 if ($isLoggedIn) {
     try {
@@ -84,14 +85,16 @@ if ($isLoggedIn) {
         ]);
         $docs = $dashboardData['recent'];
 
-        $latest = []; $prev = []; $byDate = [];
+        $latest = []; $prev = []; $byDate = []; $latestDay = [];
         foreach ($docs as $d) {
             $n  = trim($d['c_name'] ?? '');
             $pa = (float)($d['pa'] ?? 0);
             $dt = $d['date'] ?? '';
             if (!$n || !$pa) continue;
-            if (!isset($latest[$n])) { $latest[$n] = $d; }
-            elseif (!isset($prev[$n])) { $prev[$n] = $d; }
+            // "Previous" means the previous trading day, not the previous
+            // capture: with intraday history the second row was minutes older.
+            if (!isset($latest[$n])) { $latest[$n] = $d; $latestDay[$n] = substr($dt, 0, 10); }
+            elseif (!isset($prev[$n]) && substr($dt, 0, 10) !== $latestDay[$n]) { $prev[$n] = $d; }
             if ($dt) { $byDate[$dt][] = $pa; }
         }
 
@@ -250,7 +253,8 @@ if ($isLoggedIn) {
         }
 
     } catch (Throwable $e) {
-        // fail silently
+        $dashboardError = $e->getMessage();
+        error_log('[myInterpreter] dashboard load failed: ' . $e->getMessage());
     }
 }
 
@@ -557,6 +561,13 @@ $dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j
     </div>
 
 
+
+    <?php if ($isLoggedIn && $dashboardError !== null): ?>
+    <section class="card-glass mb-4" role="alert" style="padding:1rem 1.25rem;">
+      <strong><?= te('Données de marché indisponibles') ?></strong> —
+      <?= te('les indicateurs ci-dessous peuvent être vides. Réessayez dans un instant.') ?>
+    </section>
+    <?php endif; ?>
 
     <!-- Metrics -->
     <section class="metrics">

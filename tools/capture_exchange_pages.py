@@ -145,6 +145,13 @@ def actions(html):
     return rows
 
 
+def _positive(value):
+    try:
+        return float(str(value).replace("\u00a0", "").replace(" ", "").replace(",", ".")) > 0
+    except (TypeError, ValueError):
+        return False
+
+
 def instrument(html, status, sha):
     data = (settings(html).get("live_market") or {}).get("action_data") or {}
     inst = data.get("instrument_details") or {}
@@ -165,6 +172,9 @@ def instrument(html, status, sha):
         "dividends": data.get("dividend_details") or [],
         "http_status": status,
         "page_sha256": sha,
+        # A suspended or untraded instrument still shows its last price; the
+        # publisher must not restamp it as today's quote.
+        "traded": _positive(data.get("quantite")) or _positive(data.get("nbTransactions")),
     }
 
 
