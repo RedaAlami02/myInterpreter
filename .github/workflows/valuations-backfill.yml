@@ -1,0 +1,41 @@
+name: Valuations backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: First day (YYYY-MM-DD)
+        type: string
+        required: true
+      to:
+        description: Last day (YYYY-MM-DD, empty = today)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: valuations-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FROM: ${{ github.event.inputs.from }}
+      TO: ${{ github.event.inputs.to }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Recompute missing valuations
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 tools/record_daily_valuations.py --from "$FROM" --to "$TO" --backfill --apply

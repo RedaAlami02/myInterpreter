@@ -73,7 +73,7 @@ if (isset($_POST['record_valuation'])) {
     csrf_verify();
     try {
         $valuationResult = MYINTERPRETER_PORTFOLIO_VALUATION
-            ? sb_app()->recordDailyValuation(sb_access_token()) : ['status' => 'DISABLED'];
+            ? sb_app()->recordHistoryValuation(sb_access_token()) : ['status' => 'DISABLED'];
         $valuationStatus = $valuationResult['status'];
         if ($valuationStatus === 'EXISTING' && ($valuationResult['basis'] ?? '') === 'PREEXISTING_UNVERIFIED') {
             $valuationStatus = 'EXISTING_UNVERIFIED';
@@ -94,6 +94,22 @@ $valuationLabels = [
     'RECOVERY_REQUIRED' => 'La récupération du portefeuille doit être terminée avant la valorisation.',
     'FAILED' => 'Valorisation indisponible pour le moment.',
 ];
+
+// Once a day, record the valuation without being asked. It is idempotent and
+// skipped entirely when the close for a holding is missing.
+$valuationAuto = null;
+if ($uid && MYINTERPRETER_PORTFOLIO_VALUATION) {
+    $valuationDay = (new DateTimeImmutable('now', new DateTimeZone('Africa/Casablanca')))->format('Y-m-d');
+    if (($_SESSION['valuation_history_day'] ?? null) !== $valuationDay) {
+        try {
+            $auto = sb_app()->recordHistoryValuation(sb_access_token());
+            $valuationAuto = $auto['status'];
+            $_SESSION['valuation_history_day'] = $valuationDay;
+        } catch (Throwable $e) {
+            error_log('[myInterpreter] automatic valuation failed');
+        }
+    }
+}
 
 // Load portfolio data; the daily P&L writer runs separately from page requests.
 $holdingsDocs = [];
@@ -444,7 +460,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
           <i class="fas fa-info-circle me-1"></i>
           <?= $divPaying ?> <?= te('de vos') ?> <?= count($divQty) ?> <?= te('positions versent un dividende cette année.') ?>
           <?php if ($divNonPayers): ?>
-            <span class="muted"><?= $divPaying === 0 ? '' : te('Sans dividende cette année :') ?> <?= htmlspecialchars(implode(', ', $divNonPayers)) ?>.</span>
+            <span class="muted"><?= $divPaying === 0 ? '' : te('Sans dividende cette année :') ?> <strong><?= htmlspecialchars(implode(', ', $divNonPayers)) ?></strong>.</span>
           <?php endif; ?>
           <span class="muted"><?= te('Montants bruts, avant retenue à la source · les lignes « prévu » n\'ont pas encore été votées en assemblée générale') ?></span>
         </p>

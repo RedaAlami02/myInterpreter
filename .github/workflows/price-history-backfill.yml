@@ -1,0 +1,35 @@
+name: Price history backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: Comma-separated symbols (empty = every mapped company)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: price-history-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SYMBOLS: ${{ github.event.inputs.symbols }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Backfill daily closes
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 tools/backfill_price_history.py --symbols "$SYMBOLS" --apply

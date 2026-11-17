@@ -174,6 +174,27 @@ final class SupabaseAppClient
         return $result;
     }
 
+    /** Daily valuation from the published close history (no close batch needed). */
+    public function recordHistoryValuation(string $accessToken): array
+    {
+        $result = $this->request('POST', '/rest/v1/rpc/record_daily_valuation_from_history', [], $accessToken);
+        if (!is_array($result)
+            || !in_array($result['status'] ?? null,
+                          ['CREATED', 'EXISTING', 'EMPTY', 'PRICE_UNAVAILABLE'], true)) {
+            throw new RuntimeException('Invalid valuation receipt.');
+        }
+        if (!is_string($result['date'] ?? null) || !preg_match('/^\d{4}-\d{2}-\d{2}$/D', $result['date'])) {
+            throw new RuntimeException('Invalid valuation receipt.');
+        }
+        if (($result['status'] ?? '') === 'CREATED') {
+            if (!isset($result['value']) || !is_finite((float)$result['value'])
+                || ($result['basis'] ?? null) !== 'HISTORY_CLOSE') {
+                throw new RuntimeException('History valuation receipt required.');
+            }
+        }
+        return $result;
+    }
+
     /** RLS enforces ownership even if the caller omits a user_id filter. */    public function listDocuments(string $collection, array $queries, string $accessToken): array
     {
         $fields = match ($collection) {
