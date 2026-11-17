@@ -25,22 +25,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $admin = sb_admin();
         $token = sb_access_token();
         if ($action === 'approve') {
-            $result = $admin->applyExchangeAnnualCandidates($token, $sha, $symbols);
-            $message = 'Applied ' . (int)($result['applied'] ?? 0) . ' candidate(s); '
-                . (int)($result['skipped'] ?? 0) . ' skipped.';
+            $applied = 0;
+            $skipped = 0;
             $failed = [];
-            foreach ((array)($result['results'] ?? []) as $entry) {
-                if (($entry['status'] ?? '') === 'FAILED') {
-                    $failed[] = (string)($entry['symbol'] ?? '?')
-                        . ' (' . (string)($entry['reason'] ?? 'failed') . ')';
+            foreach (array_chunk($symbols, 50) as $chunk) {
+                $result = $admin->applyExchangeAnnualCandidates($token, $sha, $chunk);
+                $applied += (int)($result['applied'] ?? 0);
+                $skipped += (int)($result['skipped'] ?? 0);
+                foreach ((array)($result['results'] ?? []) as $entry) {
+                    if (($entry['status'] ?? '') === 'FAILED') {
+                        $failed[] = (string)($entry['symbol'] ?? '?')
+                            . ' (' . (string)($entry['reason'] ?? 'failed') . ')';
+                    }
                 }
             }
+            $message = 'Applied ' . $applied . ' candidate(s); ' . $skipped . ' skipped.';
             if ($failed) {
                 $error = 'Not applied: ' . implode(', ', $failed);
             }
         } elseif ($action === 'reject') {
-            $result = $admin->rejectExchangeAnnualCandidates($token, $sha, $symbols);
-            $message = 'Rejected ' . (int)($result['rejected'] ?? 0) . ' candidate(s).';
+            $rejected = 0;
+            foreach (array_chunk($symbols, 50) as $chunk) {
+                $result = $admin->rejectExchangeAnnualCandidates($token, $sha, $chunk);
+                $rejected += (int)($result['rejected'] ?? 0);
+            }
+            $message = 'Rejected ' . $rejected . ' candidate(s).';
         } else {
             throw new InvalidArgumentException('Unknown action.');
         }
