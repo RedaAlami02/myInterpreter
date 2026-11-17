@@ -28,6 +28,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $result = $admin->applyExchangeAnnualCandidates($token, $sha, $symbols);
             $message = 'Applied ' . (int)($result['applied'] ?? 0) . ' candidate(s); '
                 . (int)($result['skipped'] ?? 0) . ' skipped.';
+            $failed = [];
+            foreach ((array)($result['results'] ?? []) as $entry) {
+                if (($entry['status'] ?? '') === 'FAILED') {
+                    $failed[] = (string)($entry['symbol'] ?? '?')
+                        . ' (' . (string)($entry['reason'] ?? 'failed') . ')';
+                }
+            }
+            if ($failed) {
+                $error = 'Not applied: ' . implode(', ', $failed);
+            }
         } elseif ($action === 'reject') {
             $result = $admin->rejectExchangeAnnualCandidates($token, $sha, $symbols);
             $message = 'Rejected ' . (int)($result['rejected'] ?? 0) . ' candidate(s).';
@@ -94,6 +104,12 @@ foreach ($candidates as $candidate) {
         banks, insurers and standalone-account issuers. These are exchange proposals, not
         primary-document verification. Approve only after checking the fields and the source
         evidence. Access is checked by the database against <code>market_admin.admins</code>.
+      </p>
+      <p class="muted" style="font-size:0.78rem;">
+        <strong>cp</strong> equity, MAD · <strong>bpa</strong> earnings per share, MAD ·
+        <strong>roe</strong> percent · <strong>revenue</strong> and
+        <strong>net_profit</strong> millions MAD · <strong>profit_margin</strong> percent.
+        Approval writes annual fields only and recomputes BPA from the current share count.
       </p>
 
       <?php if ($adminDenied): ?>
