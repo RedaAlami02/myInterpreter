@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>myInterpreter — Company Midday prototype</title>
+  <link rel="stylesheet" href="company-midday.css">
+</head>
+<body>
+  <aside class="rail" aria-label="Navigation principale">
+    <a class="mark" href="#" aria-label="myInterpreter">mi</a>
+    <nav>
+      <a href="#" aria-label="Tableau de bord"><span>⌁</span></a>
+      <a class="active" href="#" aria-label="Sociétés"><span>⌕</span></a>
+      <a href="#" aria-label="Screener"><span>▦</span></a>
+      <a href="#" aria-label="Portefeuille"><span>□</span></a>
+      <a href="#" aria-label="Dividendes"><span>◷</span></a>
+    </nav>
+    <a class="settings" href="#" aria-label="Réglages">⚙</a>
+  </aside>
+
+  <div class="workspace">
+    <header class="topbar">
+      <label class="global-search">
+        <span aria-hidden="true">⌕</span>
+        <input type="search" placeholder="Rechercher une société, un ticker…">
+        <kbd>⌘ K</kbd>
+      </label>
+      <div class="top-actions">
+        <span class="market-state"><i></i> Marché fermé</span>
+        <button aria-label="Notifications">○</button>
+        <span class="avatar">RC</span>
+      </div>
+    </header>
+
+    <main>
+      <div class="breadcrumb"><a href="#">Sociétés</a><span>/</span> Maroc Telecom</div>
+
+      <section class="company-heading">
+        <div>
+          <div class="eyebrow">IAM · Télécommunications</div>
+          <h1>Maroc Telecom</h1>
+          <p>Itissalat Al-Maghrib · Bourse de Casablanca</p>
+        </div>
+        <div class="quote">
+          <div class="quote-label">Dernier cours</div>
+          <strong>99,40 <small>MAD</small></strong>
+          <span class="negative">−0,60 · −0,60 %</span>
+        </div>
+      </section>
+
+      <nav class="tabs" aria-label="Sections de la société">
+        <a class="active" href="#overview">Vue d’ensemble</a>
+        <a href="#financials">Finances</a>
+        <a href="#valuation">Valorisation</a>
+        <a href="#dividends">Dividendes</a>
+        <a href="#history">Historique</a>
+      </nav>
+
+      <section class="metrics" aria-label="Indicateurs clés">
+        <article><span>Capitalisation</span><strong>87,38 Md</strong><small>MAD</small></article>
+        <article><span>Chiffre d’affaires</span><strong>36,70 Md</strong><small>Exercice 2024</small></article>
+        <article><span>RNPG</span><strong>1,80 Md</strong><small>Exercice 2024</small></article>
+        <article><span>Rendement</span><strong>4,22 %</strong><small>Dividende 4,20 MAD</small></article>
+      </section>
+
+      <div class="content-grid" id="overview">
+        <section class="panel chart-panel">
+          <div class="panel-head">
+            <div><p>Évolution du prix</p><strong>99,40 MAD</strong></div>
+            <div class="periods" aria-label="Période du graphique">
+              <button>1M</button><button>3M</button><button>6M</button><button class="active">1A</button><button>5A</button>
+            </div>
+          </div>
+          <div class="legend"><span><i class="solid"></i> IAM</span><span><i></i> MASI</span></div>
+          <svg class="chart" viewBox="0 0 760 260" role="img" aria-label="Évolution du cours de Maroc Telecom sur un an">
+            <g class="grid">
+              <line x1="52" y1="30" x2="740" y2="30"/><line x1="52" y1="80" x2="740" y2="80"/>
+              <line x1="52" y1="130" x2="740" y2="130"/><line x1="52" y1="180" x2="740" y2="180"/>
+              <line x1="52" y1="230" x2="740" y2="230"/>
+            </g>
+            <g class="axis"><text x="8" y="35">130</text><text x="8" y="85">120</text><text x="8" y="135">110</text><text x="8" y="185">100</text><text x="16" y="235">90</text></g>
+            <path class="area" d="M52 52 L83 68 L110 55 L145 91 L176 72 L214 113 L250 95 L290 124 L328 119 L366 182 L402 174 L443 166 L485 178 L523 175 L565 188 L606 183 L646 188 L680 145 L712 135 L740 151 L740 230 L52 230 Z"/>
+            <path class="line" d="M52 52 L83 68 L110 55 L145 91 L176 72 L214 113 L250 95 L290 124 L328 119 L366 182 L402 174 L443 166 L485 178 L523 175 L565 188 L606 183 L646 188 L680 145 L712 135 L740 151"/>
+            <g class="dates"><text x="52" y="255">Sep</text><text x="211" y="255">Dec</text><text x="378" y="255">Mar</text><text x="545" y="255">Jun</text><text x="710" y="255">Sep</text></g>
+          </svg>
+        </section>
+
+        <aside class="panel snapshot" id="valuation">
+          <div class="panel-head"><p>Valorisation</p><button aria-label="Plus d’informations">ⓘ</button></div>
+          <div class="valuation-primary"><span>PER publié 2024</span><strong>48,7×</strong></div>
+          <div class="valuation-row"><span>PER prévision 2025</span><strong>12,6×</strong></div>
+          <div class="valuation-row"><span>Price / Book</span><strong>2,04×</strong></div>
+          <div class="valuation-row"><span>ROE</span><strong>12,08 %</strong></div>
+          <p class="note">La prévision 2025 est une estimation, pas un résultat publié.</p>
+        </aside>
+      </div>
+
+      <section class="panel table-panel" id="financials">
+        <div class="panel-head">
+          <div><p>Indicateurs financiers</p><span>Comptes publiés · Exercice 2024</span></div>
+          <button class="outline">Voir tous les exercices</button>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Indicateur</th><th>Valeur</th><th>Unité</th><th>Lecture</th></tr></thead>
+            <tbody>
+              <tr><td>Bénéfice par action</td><td>2,05</td><td>MAD</td><td><span class="neutral">Stable</span></td></tr>
+              <tr><td>Dividende par action</td><td>4,20</td><td>MAD</td><td><span class="positive">Confirmé</span></td></tr>
+              <tr><td>Marge nette</td><td>4,91</td><td>%</td><td><span class="neutral">À comparer</span></td></tr>
+              <tr><td>Dette nette</td><td>16,40</td><td>Md MAD</td><td><span class="neutral">Suivi</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

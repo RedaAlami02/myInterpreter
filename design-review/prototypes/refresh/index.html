@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr" data-direction="ledger" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>myInterpreter — deux directions</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="prototype.js" defer></script>
+</head>
+<body>
+  <div class="review-bar" aria-label="Options du prototype">
+    <span class="review-label">ÉTUDE DE DESIGN <span>· données fictives</span></span>
+    <div class="review-options"><div class="segmented" aria-label="Direction visuelle"><button data-direction="ledger" aria-pressed="true">01 Ledger</button><button data-direction="workspace" aria-pressed="false">02 Workspace</button></div><button id="theme" class="theme-button" aria-label="Passer au thème sombre">◐ <span>Thème sombre</span></button></div>
+  </div>
+  <div class="app-shell">
+    <aside class="navigation">
+      <a class="brand" href="?direction=ledger" aria-label="myInterpreter, accueil du prototype"><span class="brand-mark">mi<span>.</span></span><span>myInterpreter<small>Votre regard sur le marché</small></span></a>
+      <div class="nav-section">ESPACE PERSONNEL</div>
+      <nav aria-label="Navigation principale"><button data-view="overview"><span>01</span> Vue d’ensemble</button><button data-view="portfolio" class="selected" aria-current="page"><span>02</span> Portefeuille <i>6</i></button></nav>
+      <div class="nav-note"><span class="nav-note-rule"></span><p>Moins de bruit.<br>Plus de perspective.</p><small>Une étude d’interface.<br>Aucun compte connecté.</small></div>
+      <div class="profile"><span class="avatar">D</span><div>Compte de démonstration<small>Portefeuille fictif · MAD</small></div></div>
+    </aside>
+    <main>
+      <header class="page-heading"><div><div class="eyebrow" id="eyebrow">VOTRE CAPITAL, EN PERSPECTIVE</div><h1 id="page-title">Portefeuille<span>.</span></h1><p id="page-description">L’essentiel de vos positions, sans perdre la vue d’ensemble.</p></div><div class="date-note"><span class="status-dot"></span> Instantané de démonstration<small>18 octobre 2026 · montants en MAD</small></div></header>
+      <section class="daily-brief" aria-label="Bilan des sociétés fictives"><div><span>UNIVERS DE DÉMONSTRATION</span><strong>6 sociétés suivies</strong></div><div><span>EN HAUSSE</span><strong class="positive" id="gainers"></strong></div><div><span>EN BAISSE</span><strong class="negative" id="losers"></strong></div><div><span>PLUS FORTE HAUSSE</span><strong id="leader"></strong></div></section>
+      <div class="workspace-summary" aria-hidden="true"><span>PORTEFEUILLE DÉMO</span><span>6 positions</span><span>3 secteurs</span><span>Aucune connexion au marché</span></div>
+      <section class="overview-grid" aria-label="Synthèse du portefeuille">
+        <div class="capital"><div class="section-kicker" id="capital-label">VALEUR DU PORTEFEUILLE</div><div class="capital-value" id="total-value"></div><div class="capital-change"><span class="positive" id="total-return"></span><span>depuis l’achat · hors frais</span></div><div class="capital-details"><div><span>Capital investi</span><strong id="invested"></strong></div><div><span>Variation du jour</span><strong class="positive" id="daily-change"></strong></div></div><p class="capital-footnote">Les cours et les sociétés de cette étude sont inventés.</p></div>
+        <div class="chart-panel"><div class="section-heading"><h2 id="chart-title">Évolution de la valeur</h2><div class="periods" aria-label="Période du graphique"><button data-period="1M">1M</button><button data-period="3M" aria-pressed="true" class="active">3M</button><button data-period="1A">1A</button></div></div><div class="chart-wrap"><div class="chart-axis"><span id="axis-max"></span><span id="axis-mid"></span><span id="axis-min"></span></div><svg id="chart" viewBox="0 0 600 175" role="img" aria-label="Évolution fictive de la valeur du portefeuille"><path class="chart-grid" d="M0 20H600 M0 85H600 M0 150H600"/><path id="chart-fill"/><path id="chart-line"/><circle id="chart-dot" r="4"/></svg></div><div class="chart-months" id="chart-months"></div><div class="chart-caption"><span><i></i> Valeur du portefeuille</span><span>Série illustrative · aucune prévision</span></div></div>
+      </section>
+      <div class="content-grid">
+        <section class="positions-panel" aria-labelledby="positions-title"><div class="section-heading"><div><div class="section-kicker" id="positions-kicker">LE DÉTAIL QUI COMPTE</div><h2 id="positions-title">Vos positions <span class="count">06</span></h2></div><button class="text-button" id="export">Exporter CSV <span aria-hidden="true">↗</span></button></div><div class="table-tools"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Rechercher une société" aria-label="Rechercher une société fictive"></label><span id="result-count" role="status">6 sociétés</span></div><div class="table-scroll" tabindex="0" role="region" aria-label="Positions fictives, tableau défilant"><table><thead><tr><th scope="col" aria-sort="none"><button data-sort="name">Société <span>↕</span></button></th><th scope="col">Qté</th><th scope="col">Cours <small>MAD</small></th><th scope="col" aria-sort="descending"><button data-sort="value">Valeur <span>↓</span></button></th><th scope="col">Jour</th><th scope="col">Depuis l’achat</th><th scope="col" class="weight-col">Poids</th></tr></thead><tbody id="positions"></tbody></table><p id="empty" hidden>Aucune société ne correspond à votre recherche.</p></div><div class="table-footer"><span id="table-note">6 positions · 3 secteurs</span><span>Montants bruts, hors frais et fiscalité</span></div></section>
+        <aside class="context-panel"><section><div class="section-kicker">L’ÉQUILIBRE DU PORTEFEUILLE</div><h2>Répartition</h2><div class="allocation-bar" aria-hidden="true"></div><div id="allocation"></div><div class="allocation-note"><strong id="largest-weight"></strong><p>dans votre première position.<br>Un point à garder en perspective.</p></div></section><section class="notebook"><div class="section-kicker">CARNET PERSONNEL</div><h2>Votre prochaine lecture</h2><p>Avant de regarder le cours, relire la raison de votre investissement.</p><label for="note">Une note pour vous</label><textarea id="note" rows="2" placeholder="Ex. Revoir la répartition par secteur…"></textarea><small>Note éphémère · non enregistrée</small></section></aside>
+      </div>
+      <footer class="page-footer"><span>myInterpreter <span class="footer-divider">/</span> Un espace pour comprendre, puis décider.</span><span>PROTOTYPE · AUCUNE DONNÉE RÉELLE</span></footer>
+    </main>
+  </div>
+  <div id="announcement" class="sr-only" role="status"></div>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>myInterpreter — Dashboard direction studies</title>
+  <link rel="stylesheet" href="dashboard-directions.css?v=2">
+</head>
+<body>
+  <div class="review-bar">
+    <div><strong>myInterpreter</strong><span>Études de direction · données illustratives</span></div>
+    <nav aria-label="Choisir une direction">
+      <button class="active" data-show="temastock">01 Market Grid</button>
+      <button data-show="night">02 Night Signals</button>
+      <button data-show="fundcy">03 Lime Flow</button>
+      <button data-show="acru">04 Research Desk</button>
+      <button data-show="ember">05 Ember Noir</button>
+    </nav>
+  </div>
+
+  <section class="study active theme-temastock" data-study="temastock" aria-label="Market Grid prototype">
+    <div class="app-shell">
+      <aside class="side wide">
+        <div class="brand"><i>m</i><b>myInterpreter</b></div>
+        <nav><a>⌂ <span>Accueil</span></a><a>⌁ <span>Marché</span></a><a>▢ <span>Portefeuille</span></a><a class="active">▥ <span>Screener</span></a><a>◉ <span>Recherche</span></a><a>⚙ <span>Réglages</span></a></nav>
+        <div class="side-note"><i>↗</i><b>Analyse locale</b><span>Casablanca en un coup d’œil.</span><button>Ouvrir le screener</button></div>
+      </aside>
+      <header class="top"><label>⌕ <input placeholder="Rechercher une société"></label><div class="indices"><span>MASI <b>19 574,60</b></span><span>MADEX <b>15 812,20</b></span><span>MASI 20 <b>1 586,44</b></span></div><button class="primary">Mon portefeuille</button><span class="avatar">RA</span></header>
+      <main class="board market-grid">
+        <article class="card mini"><p>Marché</p><h2>19 574,60</h2><em class="up">+0,42 % aujourd’hui</em><svg viewBox="0 0 260 70"><path d="M2 53 L28 46 L50 52 L78 30 L105 37 L130 19 L159 28 L187 12 L213 22 L258 8"/></svg></article>
+        <article class="card hero-chart"><div class="card-title"><div><p>Indice MASI</p><h2>19 574,60</h2></div><div class="range"><b>1J</b><span>1S</span><span>1M</span><span>1A</span></div></div><svg viewBox="0 0 680 300"><g class="grid"><path d="M0 50H680M0 110H680M0 170H680M0 230H680"/></g><path class="area" d="M0 230 L50 205 L92 218 L136 170 L185 182 L230 135 L280 151 L325 91 L370 120 L420 72 L463 93 L515 50 L560 66 L610 29 L680 45 L680 280 L0 280Z"/><path class="series" d="M0 230 L50 205 L92 218 L136 170 L185 182 L230 135 L280 151 L325 91 L370 120 L420 72 L463 93 L515 50 L560 66 L610 29 L680 45"/></svg></article>
+        <article class="card list"><div class="card-title"><b>Sociétés suivies</b><span>81 au total</span></div><div class="row head"><span>Ticker</span><span>Cours</span><span>Variation</span></div><div class="row"><b>IAM</b><span>99,40</span><em class="down">−0,60 %</em></div><div class="row"><b>ATW</b><span>726,00</span><em class="up">+0,83 %</em></div><div class="row"><b>BCP</b><span>243,00</span><em>0,00 %</em></div><div class="row"><b>TMA</b><span>1 500,00</span><em class="up">+0,07 %</em></div><div class="row"><b>MLE</b><span>389,55</span><em>—</em></div></article>
+        <article class="card table-card"><div class="card-title"><div><b>Opportunités de valorisation</b><span>Filtres fondamentaux</span></div><button>PER ▾</button></div><table><thead><tr><th>Société</th><th>Cours</th><th>PER</th><th>P/B</th><th>Signal</th></tr></thead><tbody><tr><td>ENNAKL</td><td>49,00</td><td>9,60</td><td>1,91</td><td><i class="pill good">3 / 4</i></td></tr><tr><td>MAGHREBAIL</td><td>902,00</td><td>9,75</td><td>1,08</td><td><i class="pill good">3 / 4</i></td></tr><tr><td>MAROC LEASING</td><td>389,55</td><td>10,39</td><td>0,85</td><td><i class="pill good">4 / 4</i></td></tr><tr><td>BCP</td><td>243,00</td><td>14,21</td><td>0,86</td><td><i class="pill good">4 / 4</i></td></tr></tbody></table></article>
+        <article class="card sectors"><div class="card-title"><b>Secteurs</b><span>Poids observé</span></div><div class="donut"></div><ul><li><i></i>Banques <b>34 %</b></li><li><i></i>Télécoms <b>22 %</b></li><li><i></i>Industrie <b>18 %</b></li><li><i></i>Autres <b>26 %</b></li></ul></article>
+      </main>
+    </div>
+  </section>
+
+  <section class="study theme-night" data-study="night" aria-label="Night Signals prototype">
+    <div class="app-shell">
+      <aside class="side compact"><div class="brand"><i>m</i></div><nav><a>⌂</a><a>⌁</a><a class="active">▥</a><a>◉</a><a>⚙</a></nav></aside>
+      <header class="top"><div><small>Vue marché</small><b>Casablanca · Clôture</b></div><label>⌕ <input placeholder="Ticker ou société"></label><span class="avatar">RA</span></header>
+      <main class="board night-grid">
+        <div class="night-intro"><small>MASI · 02 SEP 2026</small><h1>Market signals</h1><p>Une lecture compacte de la force, de la valeur et du mouvement.</p></div>
+        <article class="card night-chart"><div class="card-title"><div><b>MASI</b><h2>19 574,60</h2></div><em class="mint">↗ +82,13</em></div><svg viewBox="0 0 660 220"><path class="area" d="M0 180L55 155L102 166L158 125L212 137L268 82L320 105L377 70L430 92L485 49L536 65L590 31L660 48V220H0Z"/><path class="series" d="M0 180L55 155L102 166L158 125L212 137L268 82L320 105L377 70L430 92L485 49L536 65L590 31L660 48"/></svg><div class="triplet"><span><b>19 438</b>Ouverture</span><span><b>19 612</b>Plus haut</span><span><b>19 315</b>Plus bas</span></div></article>
+        <article class="card gauge-card"><div class="card-title"><b>Force du marché</b><span>ⓘ</span></div><div class="gauge"><div><b>72</b><span>Positive</span></div></div><div class="triplet"><span><b class="mint">28</b>Hausses</span><span><b class="coral">14</b>Baisses</span><span><b>9</b>Stables</span></div></article>
+        <article class="card sector-night"><div class="card-title"><b>Performance sectorielle</b><span>7 jours</span></div><div class="night-donut"></div><ul><li><i></i>Banques <b>31%</b></li><li><i></i>Industrie <b>24%</b></li><li><i></i>Télécoms <b>18%</b></li><li><i></i>Autres <b>27%</b></li></ul></article>
+        <article class="card dark-table"><div class="card-title"><b>Signaux fondamentaux</b><button>Score ▾</button></div><div class="row head"><span>Société</span><span>PER</span><span>Score</span></div><div class="row"><b>MAROC LEASING</b><span>10,39×</span><em class="mint">4 / 4</em></div><div class="row"><b>BCP</b><span>14,21×</span><em class="mint">4 / 4</em></div><div class="row"><b>ENNAKL</b><span>9,60×</span><em class="violet">3 / 4</em></div></article>
+      </main>
+    </div>
+  </section>
+
+  <section class="study theme-fundcy" data-study="fundcy" aria-label="Lime Flow prototype">
+    <div class="app-shell">
+      <aside class="side wide"><div class="brand"><i>m</i><b>myInterpreter</b></div><label class="side-search">⌕ <input placeholder="Recherche…"><kbd>⌘S</kbd></label><small>MENU</small><nav><a class="active">◆ <span>Tableau de bord</span></a><a>▧ <span>Analyse</span></a><a>▤ <span>Screener</span></a><a>◷ <span>Dividendes</span></a></nav><small class="tools-label">OUTILS</small><nav><a>⚙ <span>Réglages</span></a><a>ⓘ <span>Aide</span></a></nav></aside>
+      <main class="board fund-grid">
+        <article class="card fund-hero"><div class="card-title"><b>Indice MASI</b><span>1 an ▾</span></div><small>Dernière clôture</small><h1>19 574<span>,60</span></h1><p>↗ Performance annuelle <em>+14,53 %</em></p></article>
+        <article class="card fund-stat"><div class="card-title"><b>Volume du marché</b><span>02 Sep</span></div><small>Volume total</small><h2>168,4<span> M MAD</span></h2><div class="pixel-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="triplet"><span><b>28</b>Hausses</span><span><b>14</b>Baisses</span><span><b>9</b>Stables</span></div></article>
+        <article class="card breadth"><div class="card-title"><b>Avance du marché</b><span>Objectif 75%</span></div><h2>67<span>%</span></h2><div class="meter"><i></i></div><p>La participation reste constructive, menée par les banques et l’industrie.</p></article>
+        <article class="card flow-chart"><div class="card-title"><b>Flux mensuel</b><div><i></i>Volume <i></i>Amplitude</div><span>Mensuel ▾</span></div><div class="bars"><i style="--a:42%;--b:18%"></i><i style="--a:55%;--b:32%"></i><i style="--a:35%;--b:14%"></i><i style="--a:62%;--b:38%"></i><i style="--a:48%;--b:19%"></i><i style="--a:78%;--b:46%"></i><i style="--a:68%;--b:32%"></i><i style="--a:84%;--b:51%"></i><i style="--a:73%;--b:37%"></i><i style="--a:91%;--b:58%"></i><i style="--a:80%;--b:47%"></i><i style="--a:66%;--b:29%"></i></div><div class="months"><span>Oct</span><span>Nov</span><span>Dec</span><span>Jan</span><span>Fév</span><span>Mar</span><span>Avr</span><span>Mai</span><span>Jun</span><span>Jul</span><span>Aoû</span><span>Sep</span></div></article>
+        <article class="card sector-blocks"><div class="card-title"><b>Répartition sectorielle</b><span>Budget de risque →</span></div><div class="block-row"><div style="--w:36%"><b>36%</b><span>Banques</span></div><div style="--w:27%"><b>27%</b><span>Industrie</span></div><div style="--w:21%"><b>21%</b><span>Télécoms</span></div><div style="--w:16%"><b>16%</b><span>Autres</span></div></div></article>
+      </main>
+    </div>
+  </section>
+
+  <section class="study theme-acru" data-study="acru" aria-label="Research Desk prototype">
+    <div class="app-shell">
+      <aside class="side wide"><div class="brand"><b>MYI</b></div><nav><a class="active">▦ <span>Tableau de bord</span></a><a>♙ <span>Sociétés</span></a><a>⇄ <span>Transactions</span></a><a>▣ <span>Portefeuille</span></a><a>⌁ <span>Marché</span></a><a>◫ <span>Dividendes</span></a></nav><div class="side-note"><i>✦</i><b>Mode recherche</b><span>Ratios, historique et signaux au même endroit.</span><button>Consulter une action</button></div></aside>
+      <header class="top"><label>⌕ <input placeholder="Recherche rapide"></label><div class="top-actions"><button>♧</button><button>⚙</button><span class="avatar">RA</span><button class="outline">＋ Ajouter un widget</button></div></header>
+      <main class="board acru-grid">
+        <article class="card acru-hero"><div class="card-title"><div><small>MASI · Vue générale</small><h1>19 574,60</h1></div><div class="range"><b>7j⌄</b><span>▥</span><span>⌁</span></div></div><svg viewBox="0 0 760 250"><g class="grid"><path d="M0 45H760M0 105H760M0 165H760M0 225H760"/></g><path class="series" d="M0 195L68 182L135 198L205 138L273 158L345 105L411 125L480 75L548 102L620 48L690 69L760 38"/></svg><div class="months"><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span><span>Lun</span><span>Mar</span><span>Mer</span></div></article>
+        <article class="card stack-stats"><div><small>Variation du jour</small><h2 class="up">+0,42 %</h2><span>↗ depuis la clôture</span></div><div><small>Volume</small><h2>168,4 M</h2><span>MAD échangés</span></div><div><small>Sociétés actives</small><h2>51</h2><span>81 suivies</span></div></article>
+        <article class="card callout"><div><b>Affinez les opportunités avec le screener</b><p>Filtrez les sociétés par valorisation et solidité fondamentale.</p><a>Voir les résultats →</a></div><div class="tiles"><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+        <article class="card analysis"><div class="card-title"><div><b>Analyse des coûts</b><span>Ratios du marché</span></div><button>PER ▾</button></div><h2>14,8×</h2><div class="segments"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><ul><li><i></i>PER médian <b>14,8×</b></li><li><i></i>P/B médian <b>1,7×</b></li><li><i></i>Rendement médian <b>3,9%</b></li></ul></article>
+        <article class="card health"><div class="card-title"><div><b>Santé du marché</b><span>30 jours</span></div><button>30j ▾</button></div><div class="semi"><b>72%</b><span>constructif</span></div><p>Basé sur la participation, le volume et la tendance agrégée.</p></article>
+        <article class="card watch"><div class="card-title"><b>Liste de suivi</b><button>＋ Ajouter</button></div><div class="row"><b>ATW</b><span>726,00</span><em class="up">+0,83%</em></div><div class="row"><b>IAM</b><span>99,40</span><em class="down">−0,60%</em></div><div class="row"><b>BCP</b><span>243,00</span><em>0,00%</em></div><div class="row"><b>TMA</b><span>1 500,00</span><em class="up">+0,07%</em></div></article>
+      </main>
+    </div>
+  </section>
+
+  <section class="study theme-ember" data-study="ember" aria-label="Ember Noir prototype">
+    <div class="app-shell ember-shell">
+      <header class="top"><div class="brand"><i>m</i><b>myInterpreter</b></div><nav><a class="active">Vue marché</a><a>Screener</a><a>Dividendes</a><a>Portefeuille</a></nav><label>⌕ <input placeholder="Rechercher"></label><span class="avatar">RA</span></header>
+      <main class="board ember-grid">
+        <article class="card ember-flow"><div class="card-title"><div><b>Flux du marché</b><span><i class="orange-dot"></i> Volume <i class="purple-dot"></i> Amplitude</span></div><button>Calendrier ▾</button></div><div class="ember-bars"><i style="--h:42%"></i><i style="--h:69%"></i><i style="--h:48%"></i><i style="--h:65%"></i><i style="--h:40%"></i><i class="purple" style="--h:56%"></i><i class="hot" style="--h:84%"></i><i style="--h:38%"></i><i style="--h:24%"></i></div><div class="week-labels"><span>S1</span><span>S2</span><span>S3</span><span>S4</span></div><div class="tooltip"><b>Semaine 3 · Août</b><span><i class="orange-dot"></i>Volume&nbsp;&nbsp;168,4 M</span><span><i class="purple-dot"></i>Amplitude&nbsp;&nbsp;2,40 %</span></div></article>
+        <article class="card ember-sectors"><div class="card-title"><b>Poids sectoriel</b><span>↗</span></div><div class="ember-donut"><b>81</b><span>sociétés</span></div><ul><li><i></i>Banques <b>34%</b></li><li><i></i>Industrie <b>22%</b></li><li><i></i>Télécoms <b>18%</b></li><li><i></i>Immobilier <b>14%</b></li><li><i></i>Autres <b>12%</b></li></ul></article>
+        <article class="card ember-table"><div class="card-title"><b>Mouvements récents</b><span>↗</span></div><div class="row head"><span>Société</span><span>Secteur</span><span>Cours</span><span>Variation</span></div><div class="row"><b>ATW</b><span>Banques</span><span>726,00</span><em class="ember-up">+0,83%</em></div><div class="row"><b>IAM</b><span>Télécoms</span><span>99,40</span><em class="ember-down">−0,60%</em></div><div class="row"><b>TMA</b><span>Distribution</span><span>1 500,00</span><em class="ember-up">+0,07%</em></div><div class="row"><b>BCP</b><span>Banques</span><span>243,00</span><em>0,00%</em></div></article>
+        <article class="card ember-goals"><div class="card-title"><b>Seuils de suivi</b><span>↗</span></div><div class="goal"><div><b>Participation positive</b><span>67%</span></div><div class="ticks"><i style="--fill:67%"></i></div><small>34 / 51 valeurs actives</small></div><div class="goal"><div><b>Valorisations revues</b><span>42%</span></div><div class="ticks"><i style="--fill:42%"></i></div><small>34 / 81 sociétés</small></div><button class="new-goal">＋ Nouveau suivi</button></article>
+        <article class="card ember-kpi"><small>Indice MASI</small><h2>19 574,60</h2><em>↗ +0,42%</em><svg viewBox="0 0 230 70"><path d="M0 52L34 36L66 43L100 28L132 49L168 21L198 31L230 10"/></svg></article>
+        <article class="card ember-kpi"><small>Volume</small><h2>168,4 M</h2><em>↗ +12%</em><svg viewBox="0 0 230 70"><path d="M0 48L30 32L60 46L93 51L126 38L160 18L195 13L230 25"/></svg></article>
+        <article class="card ember-kpi selected"><small>Sociétés actives</small><h2>51</h2><em>↘ −3 vs veille</em><svg class="violet-line" viewBox="0 0 230 70"><path d="M0 35L35 18L67 48L99 22L133 51L165 29L198 40L230 32"/></svg></article>
+        <article class="card ember-kpi"><small>Rendement médian</small><h2>3,9%</h2><em>↗ +0,2 pt</em><div class="mini-columns"><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+      </main>
+    </div>
+  </section>
+
+  <script>
+    const buttons = [...document.querySelectorAll('[data-show]')];
+    const studies = [...document.querySelectorAll('[data-study]')];
+    function show(id) {
+      buttons.forEach(button => button.classList.toggle('active', button.dataset.show === id));
+      studies.forEach(study => study.classList.toggle('active', study.dataset.study === id));
+      history.replaceState(null, '', `#${id}`);
+    }
+    buttons.forEach(button => button.addEventListener('click', () => show(button.dataset.show)));
+    show(location.hash.slice(1) || 'temastock');
+  </script>
+</body>
+</html>
