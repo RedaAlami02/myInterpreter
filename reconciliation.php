@@ -127,7 +127,7 @@ foreach ($candidates as $candidate) {
             <table class="table table-sm align-middle" style="font-size:0.82rem">
               <thead>
                 <tr>
-                  <th></th><th>Symbol</th><th>Company</th><th>FY</th>
+                  <th><input type="checkbox" class="js-select-all" aria-label="Select all"></th><th>Symbol</th><th>Company</th><th>FY</th>
                   <th>Fields</th><th>Warnings</th><th>Evidence</th>
                 </tr>
               </thead>
@@ -163,5 +163,14 @@ foreach ($candidates as $candidate) {
     </div>
   </main>
 </div>
+<script>
+document.querySelectorAll('.js-select-all').forEach(function (box) {
+  box.addEventListener('change', function () {
+    box.closest('form').querySelectorAll('input[name="symbols[]"]').forEach(function (item) {
+      item.checked = box.checked;
+    });
+  });
+});
+</script>
 </body>
 </html>
