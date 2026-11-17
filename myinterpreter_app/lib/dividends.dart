@@ -14,20 +14,57 @@ library;
 ///  * The dividend paid in calendar year Y comes out of fiscal year Y-1, so the
 ///    year on a row is the year of payment, not of the accounts.
 
-import 'package:appwrite/appwrite.dart';
-import 'appwrite_client.dart';
+import 'query.dart';
+import 'backend.dart';
+
+/// Identical period checks to div_verification_issue in core/dividends.php.
+String? dividendVerificationIssue(Map<String, dynamic> row) {
+  final year = (row['year'] as num?)?.toInt() ?? 0;
+  if (year < 1900 || year > 9999) return 'invalid_payment_year';
+  for (final key in ['ex_date', 'pay_date', 'pay_date_end']) {
+    final value = (row[key] as String?)?.trim() ?? '';
+    if (value.isEmpty) continue;
+    final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(value);
+    final parsed = DateTime.tryParse(value);
+    if (match == null ||
+        parsed == null ||
+        parsed.year != int.parse(match[1]!) ||
+        parsed.month != int.parse(match[2]!) ||
+        parsed.day != int.parse(match[3]!)) {
+      return 'invalid_calendar_date';
+    }
+    if (key != 'ex_date' && parsed.year != year) return 'payment_year_mismatch';
+  }
+  final ex = (row['ex_date'] as String?)?.trim() ?? '';
+  final pay = (row['pay_date'] as String?)?.trim() ?? '';
+  final end = (row['pay_date_end'] as String?)?.trim() ?? '';
+  if (ex.isNotEmpty &&
+      int.parse(ex.substring(0, 4)) != year &&
+      !(pay.isNotEmpty && int.parse(ex.substring(0, 4)) == year - 1)) {
+    return 'payment_year_mismatch';
+  }
+  if ((ex.isNotEmpty && pay.isNotEmpty && pay.compareTo(ex) < 0) ||
+      (end.isNotEmpty && (pay.isEmpty || end.compareTo(pay) < 0))) {
+    return 'invalid_date_order';
+  }
+  if (row['confirmed'] == true && ex.isEmpty) {
+    return 'missing_confirmation_date';
+  }
+  return null;
+}
 
 class Dividend {
   final String cName;
   final String? issuer;
   final int year;
   final double? amount;
-  final String? exDate;       // yyyy-MM-dd
+  final String? exDate; // yyyy-MM-dd
   final String? payDate;
-  final String? payDateEnd;   // set when the source gave a window, not a day
+  final String? payDateEnd; // set when the source gave a window, not a day
   final bool confirmed;
   final String? type;
   final String? frequency;
+  final String? verificationIssue;
 
   const Dividend({
     required this.cName,
@@ -40,20 +77,32 @@ class Dividend {
     this.confirmed = false,
     this.type,
     this.frequency,
+    this.verificationIssue,
   });
 
-  factory Dividend.fromDoc(Map<String, dynamic> d) => Dividend(
-        cName: d['c_name'] as String? ?? '',
-        issuer: d['issuer'] as String?,
-        year: (d['year'] as num?)?.toInt() ?? 0,
-        amount: (d['amount'] as num?)?.toDouble(),
-        exDate: _s(d['ex_date']),
-        payDate: _s(d['pay_date']),
-        payDateEnd: _s(d['pay_date_end']),
-        confirmed: d['confirmed'] == true,
-        type: d['type'] as String?,
-        frequency: d['frequency'] as String?,
-      );
+  factory Dividend.fromDoc(Map<String, dynamic> original) {
+    final issue = dividendVerificationIssue(original);
+    final d = Map<String, dynamic>.of(original);
+    if (issue != null) {
+      d['confirmed'] = false;
+      for (final key in ['amount', 'ex_date', 'pay_date', 'pay_date_end']) {
+        d[key] = null;
+      }
+    }
+    return Dividend(
+      cName: d['c_name'] as String? ?? '',
+      issuer: d['issuer'] as String?,
+      year: (d['year'] as num?)?.toInt() ?? 0,
+      amount: (d['amount'] as num?)?.toDouble(),
+      exDate: _s(d['ex_date']),
+      payDate: _s(d['pay_date']),
+      payDateEnd: _s(d['pay_date_end']),
+      confirmed: d['confirmed'] == true,
+      type: d['type'] as String?,
+      frequency: d['frequency'] as String?,
+      verificationIssue: issue,
+    );
+  }
 
   static String? _s(dynamic v) {
     final s = (v as String?)?.trim();
@@ -82,8 +131,7 @@ class Dividend {
 // ── Fetching ────────────────────────────────────────────────────────────────
 
 Future<List<Dividend>> dividendsForYear(int year) async {
-  final res = await databases.listDocuments(
-    databaseId: dbId,
+  final res = await backend.listDocuments(
     collectionId: 'dividends',
     queries: [Query.equal('year', year), Query.limit(200)],
   );
@@ -91,10 +139,13 @@ Future<List<Dividend>> dividendsForYear(int year) async {
 }
 
 Future<List<Dividend>> dividendsForCompany(String cName) async {
-  final res = await databases.listDocuments(
-    databaseId: dbId,
+  final res = await backend.listDocuments(
     collectionId: 'dividends',
-    queries: [Query.equal('c_name', cName), Query.orderDesc('year'), Query.limit(50)],
+    queries: [
+      Query.equal('c_name', cName),
+      Query.orderDesc('year'),
+      Query.limit(50),
+    ],
   );
   return res.documents.map((d) => Dividend.fromDoc(d.data)).toList();
 }
@@ -103,24 +154,32 @@ Future<List<Dividend>> dividendsForCompany(String cName) async {
 
 /// A predicted ex-date window for a company that pays on a regular rhythm.
 class DividendForecast {
-  final DateTime date;    // the median day itself
-  final DateTime from;    // window start
-  final DateTime to;      // window end
-  final DateTime pay;     // expected payment, ~10 days after detachment
-  final int window;       // days either side
-  final int spread;       // observed historical spread
-  final int years;        // how many years it was computed from
-  const DividendForecast(this.date, this.from, this.to, this.pay,
-      this.window, this.spread, this.years);
+  final DateTime date; // the median day itself
+  final DateTime from; // window start
+  final DateTime to; // window end
+  final DateTime pay; // expected payment, ~10 days after detachment
+  final int window; // days either side
+  final int spread; // observed historical spread
+  final int years; // how many years it was computed from
+  const DividendForecast(
+    this.date,
+    this.from,
+    this.to,
+    this.pay,
+    this.window,
+    this.spread,
+    this.years,
+  );
 
   bool get tight => spread <= 7;
 }
 
-const _predYears = 4;      // how far back to look
-const _predMinYears = 3;   // below this there is no rhythm to speak of
+const _predYears = 4; // how far back to look
+const _predMinYears = 3; // below this there is no rhythm to speak of
 const _predMaxSpread = 14; // days; beyond this the company is not regular
-const _predMinWindow = 7;  // never claim tighter than this, whatever history says
-const _exToPayDays = 10;   // median gap, measured over 268 paired dates
+const _predMinWindow =
+    7; // never claim tighter than this, whatever history says
+const _exToPayDays = 10; // median gap, measured over 268 paired dates
 
 /// Estimate this year's ex-date from a company's own history, or null when the
 /// history does not justify a guess.
@@ -133,8 +192,9 @@ const _exToPayDays = 10;   // median gap, measured over 268 paired dates
 DividendForecast? forecastExDate(List<Dividend> rows, int year) {
   final byYear = <int, String>{};
   for (final r in rows) {
+    if (r.verificationIssue != null) continue;
     if (r.year >= year || r.exDate == null) continue;
-    byYear[r.year] = r.exDate!;      // one ex-date per year is enough
+    byYear[r.year] = r.exDate!; // one ex-date per year is enough
   }
   if (byYear.length < _predMinYears) return null;
 
@@ -150,7 +210,7 @@ DividendForecast? forecastExDate(List<Dividend> rows, int year) {
 
   days.sort();
   final spread = days.last - days.first;
-  if (spread > _predMaxSpread) return null;   // not regular enough to claim
+  if (spread > _predMaxSpread) return null; // not regular enough to claim
 
   final n = days.length;
   final median = n.isOdd
@@ -178,12 +238,34 @@ int _dayOfYear(DateTime d) => d.difference(DateTime(d.year, 1, 1)).inDays;
 // ── Formatting ──────────────────────────────────────────────────────────────
 
 const _monthsFr = [
-  '', 'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
+  '',
+  'janvier',
+  'février',
+  'mars',
+  'avril',
+  'mai',
+  'juin',
+  'juillet',
+  'août',
+  'septembre',
+  'octobre',
+  'novembre',
+  'décembre',
 ];
 const _monthsShort = [
-  '', 'janv', 'févr', 'mars', 'avr', 'mai', 'juin',
-  'juil', 'août', 'sept', 'oct', 'nov', 'déc'
+  '',
+  'janv',
+  'févr',
+  'mars',
+  'avr',
+  'mai',
+  'juin',
+  'juil',
+  'août',
+  'sept',
+  'oct',
+  'nov',
+  'déc',
 ];
 
 String fmtDate(String? iso, {String fallback = '—'}) {

@@ -1,0 +1,24 @@
+{
+  "contract": "app-market-preview/v1",
+  "mode": "SHADOW_ONLY",
+  "status": "AVAILABLE",
+  "as_of": "2026-10-28T12:05:00+00:00",
+  "captured_at": "2026-10-28T12:00:00+00:00",
+  "acquisition_completeness": "INCOMPLETE",
+  "market_session_state": "UNKNOWN",
+  "rows": [
+    {
+      "asset_key": "company:fixture-a", "company_id": "fixture-a", "c_name": "Company A", "symbol": "A",
+      "instrument_type": "STOCK", "status": "REPORTED_DATE_ONLY", "price_decimal": "10.50000000000000000001",
+      "captured_at": "2026-10-28T12:00:00+00:00", "expires_at": "2026-10-28T12:20:00+00:00",
+      "reported_time_text": "28/10/2026 12:00:00", "reported_day": "2026-10-28", "reported_time_timezone": "UNKNOWN",
+      "source_event_at": null, "price_basis": "REPORTED_QUOTE", "portfolio_valuation_eligible": false, "prediction_eligible": false
+    },
+    {
+      "asset_key": "company:fixture-b", "company_id": "fixture-b", "c_name": "Company B", "symbol": "B",
+      "instrument_type": "STOCK", "status": "MISSING_QUOTE", "price_decimal": null,
+      "captured_at": null, "expires_at": null, "reported_time_text": null, "reported_day": null, "reported_time_timezone": "UNKNOWN",
+      "source_event_at": null, "price_basis": "REPORTED_QUOTE", "portfolio_valuation_eligible": false, "prediction_eligible": false
+    }
+  ]
+}

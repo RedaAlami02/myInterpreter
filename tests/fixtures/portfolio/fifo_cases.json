@@ -1,0 +1,277 @@
+{
+  "contract": "realized-fifo-estimate-v1",
+  "commission_rate": 0.01,
+  "tax_rate": 0.1,
+  "cases": [
+    {
+      "name": "future_buys_do_not_change_an_earlier_realized_gain",
+      "buys": [
+        {
+          "ID": "b1",
+          "DATE": "2026-01-01T10:00:00Z",
+          "NUMBER": 10,
+          "PRIX_ACHAT": 100
+        },
+        {
+          "ID": "b2",
+          "DATE": "2026-01-03T10:00:00Z",
+          "NUMBER": 10,
+          "PRIX_ACHAT": 200
+        }
+      ],
+      "sells": [
+        {
+          "ID": "s1",
+          "DATE": "2026-01-02T10:00:00Z",
+          "NUMBER": 5,
+          "PRIX_VENTE": 150
+        }
+      ],
+      "expected": {
+        "gross": 250,
+        "fees": 12.5,
+        "tax": 25,
+        "net": 212.5,
+        "unresolved_sales": 0
+      }
+    },
+    {
+      "name": "successive_sales_consume_lots_once",
+      "buys": [
+        {
+          "ID": "b1",
+          "DATE": "2026-01-01T10:00:00Z",
+          "NUMBER": 10,
+          "PRIX_ACHAT": 100
+        },
+        {
+          "ID": "b2",
+          "DATE": "2026-01-02T10:00:00Z",
+          "NUMBER": 10,
+          "PRIX_ACHAT": 200
+        }
+      ],
+      "sells": [
+        {
+          "ID": "s1",
+          "DATE": "2026-01-03T10:00:00Z",
+          "NUMBER": 15,
+          "PRIX_VENTE": 150
+        },
+        {
+          "ID": "s2",
+          "DATE": "2026-01-04T10:00:00Z",
+          "NUMBER": 5,
+          "PRIX_VENTE": 250
+        }
+      ],
+      "expected": {
+        "gross": 500,
+        "fees": 65,
+        "tax": 50,
+        "net": 385,
+        "unresolved_sales": 0
+      }
+    },
+    {
+      "name": "negative_gain_never_creates_tax_refund",
+      "buys": [
+        {
+          "ID": "b1",
+          "DATE": "2026-01-01T10:00:00Z",
+          "NUMBER": 10,
+          "PRIX_ACHAT": 100
+        }
+      ],
+      "sells": [
+        {
+          "ID": "s1",
+          "DATE": "2026-01-02T10:00:00Z",
+          "NUMBER": 10,
+          "PRIX_VENTE": 80
+        }
+      ],
+      "expected": {
+        "gross": -200,
+        "fees": 18,
+        "tax": 0,
+        "net": -218,
+        "unresolved_sales": 0
+      }
+    },
+    {
+      "name": "fractional_quantity_retains_cost",
+      "buys": [
+        {
+          "ID": "b1",
+          "DATE": "2026-01-01T10:00:00Z",
+          "NUMBER": 2.5,
+          "PRIX_ACHAT": 100
+        }
+      ],
+      "sells": [
+        {
+          "ID": "s1",
+          "DATE": "2026-01-02T10:00:00Z",
+          "NUMBER": 1.25,
+          "PRIX_VENTE": 120
+        }
+      ],
+      "expected": {
+        "gross": 25,
+        "fees": 2.75,
+        "tax": 2.5,
+        "net": 19.75,
+        "unresolved_sales": 0
+      }
+    },
+    {
+      "name": "missing_opening_history_is_unknown_not_free_stock",
+      "buys": [
+        {
+          "ID": "b1",
+          "DATE": "2026-01-03T10:00:00Z",
+          "NUMBER": 10,
+          "PRIX_ACHAT": 100
+        }
+      ],
+      "sells": [
+        {
+          "ID": "s1",
+          "DATE": "2026-01-02T10:00:00Z",
+          "NUMBER": 5,
+          "PRIX_VENTE": 150
+        }
+      ],
+      "expected": {
+        "gross": 0,
+        "fees": 0,
+        "tax": 0,
+        "net": 0,
+        "unresolved_sales": 1
+      }
+    },
+    {
+      "name": "tied_lot_prices_are_ambiguous_for_partial_sales",
+      "buys": [
+        {
+          "ID": "b1",
+          "DATE": "2026-01-01T10:00:00Z",
+          "NUMBER": 10,
+          "PRIX_ACHAT": 100
+        },
+        {
+          "ID": "b2",
+          "DATE": "2026-01-01T10:00:00Z",
+          "NUMBER": 10,
+          "PRIX_ACHAT": 200
+        }
+      ],
+      "sells": [
+        {
+          "ID": "s1",
+          "DATE": "2026-01-02T10:00:00Z",
+          "NUMBER": 5,
+          "PRIX_VENTE": 150
+        }
+      ],
+      "expected": {
+        "gross": 0,
+        "fees": 0,
+        "tax": 0,
+        "net": 0,
+        "unresolved_sales": 1
+      }
+    },
+    {
+      "name": "all_tied_lots_have_known_total_cost",
+      "buys": [
+        {
+          "ID": "b1",
+          "DATE": "2026-01-01T10:00:00Z",
+          "NUMBER": 10,
+          "PRIX_ACHAT": 100
+        },
+        {
+          "ID": "b2",
+          "DATE": "2026-01-01T10:00:00Z",
+          "NUMBER": 10,
+          "PRIX_ACHAT": 200
+        }
+      ],
+      "sells": [
+        {
+          "ID": "s1",
+          "DATE": "2026-01-02T10:00:00Z",
+          "NUMBER": 20,
+          "PRIX_VENTE": 180
+        }
+      ],
+      "expected": {
+        "gross": 600,
+        "fees": 66,
+        "tax": 60,
+        "net": 474,
+        "unresolved_sales": 0
+      }
+    },
+    {
+      "name": "same_instant_buy_sale_not_assumed_ordered",
+      "buys": [
+        {
+          "ID": "b1",
+          "DATE": "2026-01-01T10:00:00Z",
+          "NUMBER": 10,
+          "PRIX_ACHAT": 100
+        }
+      ],
+      "sells": [
+        {
+          "ID": "s1",
+          "DATE": "2026-01-01T10:00:00Z",
+          "NUMBER": 5,
+          "PRIX_VENTE": 150
+        }
+      ],
+      "expected": {
+        "gross": 0,
+        "fees": 0,
+        "tax": 0,
+        "net": 0,
+        "unresolved_sales": 1
+      }
+    },
+    {
+      "name": "incomplete_sale_does_not_publish_partial_gain",
+      "buys": [
+        {
+          "ID": "b1",
+          "DATE": "2026-01-01T10:00:00Z",
+          "NUMBER": 2,
+          "PRIX_ACHAT": 100
+        }
+      ],
+      "sells": [
+        {
+          "ID": "s1",
+          "DATE": "2026-01-02T10:00:00Z",
+          "NUMBER": 5,
+          "PRIX_VENTE": 150
+        },
+        {
+          "ID": "s2",
+          "DATE": "2026-01-03T10:00:00Z",
+          "NUMBER": 1,
+          "PRIX_VENTE": 150
+        }
+      ],
+      "expected": {
+        "gross": 0,
+        "fees": 0,
+        "tax": 0,
+        "net": 0,
+        "unresolved_sales": 2
+      }
+    }
+  ]
+}

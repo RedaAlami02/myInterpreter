@@ -1,0 +1,65 @@
+name: Private collector verification
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: private-collector-verification
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install pinned dependencies
+        run: |
+          python3 -m pip install --disable-pip-version-check --target "$RUNNER_TEMP/worker-deps" -r requirements.txt
+          echo "PYTHONPATH=$RUNNER_TEMP/worker-deps" >> "$GITHUB_ENV"
+      - name: Verify official-report runtime dependency
+        run: |
+          sudo apt-get update -qq -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources -o Dir::Etc::sourceparts=-
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          pdftotext -v
+      - name: Verify synthetic isolated fixtures without collection credentials
+        run: python3 verify_worker.py
+      - name: Install pinned Deno for gateway tests
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
+        with:
+          deno-version: v2.9.6
+          cache: false
+      - name: Verify isolated gateway without network or environment permissions
+        run: deno test --no-config --no-remote --no-npm gateway/gateway_test.ts
+      - name: Verify isolated publication boundaries
+        run: deno test --no-config --no-remote --no-npm app-publisher/publisher_test.ts projection-publisher/publisher_test.ts official-close-publisher/handler_test.ts
+      - name: Prepare tiny synthetic retry checkpoint
+        id: synthetic
+        run: python3 checkpoint_smoke.py create --state "$RUNNER_TEMP/synthetic-state" --output "$RUNNER_TEMP/synthetic-checkpoint"
+      - name: Upload synthetic checkpoint only
+        id: uploaded
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ steps.synthetic.outputs.artifact_name }}
+          path: ${{ runner.temp }}/synthetic-checkpoint/*
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          overwrite: false
+      - name: Download exact synthetic artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ steps.uploaded.outputs.artifact-id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/synthetic-readback
+          merge-multiple: true
+      - name: Verify all restored bytes then remove this synthetic artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE_PIN: ${{ steps.synthetic.outputs.manifest_sha256 }}
+          ARTIFACT_ID: ${{ steps.uploaded.outputs.artifact-id }}
+        run: python3 checkpoint_smoke.py finish --checkpoint "$RUNNER_TEMP/synthetic-readback" --state "$RUNNER_TEMP/synthetic-restored" --sha256 "$STATE_PIN" --artifact-id "$ARTIFACT_ID"
+      - name: Verify isolated official review boundary
+        run: deno test --no-config --no-remote --no-npm official-close-publisher/handler_test.ts

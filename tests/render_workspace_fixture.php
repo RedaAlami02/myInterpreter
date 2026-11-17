@@ -10,7 +10,14 @@ $_SERVER['REQUEST_METHOD'] = 'GET';
 $_SESSION = ['logged_in' => $page !== 'login', 'USER_ID' => 'fixture-user', 'USER_EMAIL' => 'demo@example.invalid', 'csrf_token' => 'fictional-test-token'];
 // Load pure formatting/calculation helpers, explicitly excluding secret loading.
 $config = file_get_contents('config/config.php');
-$config = preg_replace('/^require_once[^\n]+secrets\.php[^\n]*\n/m', '', $config);
+$config = preg_replace('/^(?:if \(!app_uses_supabase\(\)\) )?require_once[^\n]+secrets\.php[^\n]*\n/m', '', $config);
+$config = preg_replace('/^require_once[^\n]+backend\.php[^\n]*\n/m', '', $config);
+define('MYINTERPRETER_BACKEND', 'supabase');
+define('MYINTERPRETER_MARKET_PREVIEW', false);
+define('MYINTERPRETER_PORTFOLIO_VALUATION', false);
+define('SUPABASE_ADMIN_USER_ID', 'fixture-user');
+function app_uses_supabase(): bool { return true; }
+function sb_trade_request_id(): string { return '11111111-1111-4111-8111-111111111111'; }
 $config = preg_replace("/^define\\('ADMIN_USER_ID'.*$/m", "define('ADMIN_USER_ID', 'fixture-user');", $config);
 eval('?>' . $config);
 function aw_user_id() { return 'fixture-user'; }
@@ -32,8 +39,22 @@ foreach ($names as $i => $name) {
 $allCompanies = $chartNames = $names;
 $totalCurrentVal = array_sum($chartValues); $totalBuyVal = array_sum($chartBuys);
 $diffDisplay = $totalCurrentVal - $totalBuyVal;
+$holdingsComplete = true;
+$currentQuoteCount = 0;
+$referenceTotals = ['complete' => true, 'day' => '2026-10-18'];
+$recordedPriceMap = [];
+if (($argv[3] ?? '') === 'incomplete-prices') {
+    $referenceTotals = ['complete' => false, 'day' => null];
+    $chartValues[0] = 0;
+    $totalCurrentVal = $diffDisplay = null;
+}
+if (($argv[3] ?? '') === 'incomplete-holdings') {
+    $holdingsComplete = false;
+    $referenceTotals = ['complete' => false, 'day' => null];
+    $totalBuyVal = $totalCurrentVal = $diffDisplay = null;
+}
 $flash = [['type' => 'info', 'msg' => 'APERÇU — données fictives, aucune opération réelle.']];
-$loadError = null; $lastSnapDate = $lastSync = '2026-10-18T12:00:00Z';
+$loadError = $valuationStatus = null; $lastSnapDate = $lastSync = '2026-10-18T12:00:00Z';
 $activeTab = 'portfolio'; $divLines = []; $divYear = 2026;
 $earnings = [['DATE' => '01/09/2026', 'VALUE' => 8000], ['DATE' => '18/10/2026', 'VALUE' => $diffDisplay]];
 $sectorRows = [
@@ -47,7 +68,8 @@ for ($i = 4; $i <= 14; $i++) {
 }
 $sectorAllocation = ['unclassified' => [], 'held_companies' => []];
 $sectorDirectory = [];
-$isLoggedIn = $page !== 'login'; $loginError = ''; $isSignUp = false;
+$isLoggedIn = $page !== 'login'; $loginError = ''; $loginNotice = ''; $isSignUp = false;
+$marketPreviewEnabled = false; $marketPreviewSnapshot = null;
 $dateLabel = 'Dimanche 18 octobre 2026 · démonstration'; $timeLabel = '12:00';
 $isMarketOpen = false; $sessionLabel = 'Données fictives';
 $companyCount = $ratedCount = $totalCompanies = 6; $snapshotDays = 365; $totalDataRows = 1500;
@@ -65,6 +87,7 @@ foreach ($names as $i => $name) {
 }
 $source = file_get_contents($page === 'portfolio' ? 'portfolio.php' : 'index.php');
 $template = substr($source, strpos($source, '<!DOCTYPE html>'));
+$template = str_replace('__DIR__', var_export(dirname(__DIR__), true), $template);
 // FIFO fetching belongs to integration tests with a safe account, not screenshots.
 $template = str_replace("<?php require_once 'statistics.php'; stats(); ?>", '<p class="p-3 muted">Historique fictif — aucune transaction chargée.</p>', $template);
 eval('?>' . $template);

@@ -6,10 +6,9 @@ keeping only the latest snapshot per company for today.
 Schedule (UTC): 0 16 * * 1-5   (deployed value — verify with `appwrite functions list`)
   → fires once at 16:00 UTC (17:00 Casablanca), Mon–Fri, after getprice's last run at 15:45.
 
-Environment variables (same as getprice):
-  APPWRITE_ENDPOINT   https://fra.cloud.appwrite.io/v1
-  APPWRITE_PROJECT_ID 6a12447800077d5113ae
-  APPWRITE_API_KEY    <server API key with documents.read/write>
+Authentication uses Appwrite's per-execution dynamic API key. Grant this
+function documents.read and documents.write; do not store a long-lived API key
+in the function environment.
 """
 
 import os
@@ -19,6 +18,8 @@ from appwrite.services.databases import Databases
 from appwrite.query import Query
 
 DB_ID = "myinterpreter"
+DEFAULT_ENDPOINT = "https://fra.cloud.appwrite.io/v1"
+DEFAULT_PROJECT = "6a12447800077d5113ae"
 
 
 def all_docs(db, col_id, queries=None):
@@ -34,11 +35,22 @@ def all_docs(db, col_id, queries=None):
     return docs
 
 
+def _execution_key(context):
+    """Return Appwrite's short-lived key injected for this execution."""
+    try:
+        key = (context.req.headers or {}).get('x-appwrite-key', '') or ''
+    except Exception:
+        key = ''
+    if not key:
+        raise RuntimeError("missing Appwrite dynamic execution key")
+    return key
+
+
 def main(context):
     client = Client()
-    client.set_endpoint(os.environ['APPWRITE_ENDPOINT']) \
-          .set_project(os.environ['APPWRITE_PROJECT_ID']) \
-          .set_key(os.environ['APPWRITE_API_KEY'])
+    client.set_endpoint(os.environ.get('APPWRITE_ENDPOINT', DEFAULT_ENDPOINT)) \
+          .set_project(os.environ.get('APPWRITE_PROJECT_ID', DEFAULT_PROJECT)) \
+          .set_key(_execution_key(context))
     db = Databases(client)
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")

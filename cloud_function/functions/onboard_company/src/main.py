@@ -13,10 +13,9 @@ Input (execution body JSON, or query string):
   { "symbol": "ATW", "name": "ATTIJARIWAFA BANK" }
   - symbol is required; name (canonical join key) is resolved from 'format' if absent.
 
-Environment variables:
-  APPWRITE_ENDPOINT   https://fra.cloud.appwrite.io/v1
-  APPWRITE_PROJECT_ID 6a12447800077d5113ae
-  APPWRITE_API_KEY    <server API key with documents.read/write>
+Authentication uses Appwrite's per-execution dynamic API key. Configure the
+function scopes in appwrite.config.json; do not store a long-lived API key in
+the function environment.
 """
 
 import os
@@ -46,8 +45,8 @@ except ImportError:  # no sources.py — copy sources.example.py, or set these i
 
 DB_ID = "myinterpreter"
 
-# Non-secret defaults (also present in the SDK/config); the API key comes from the
-# per-execution dynamic key (x-appwrite-key header) or a standard key env fallback.
+# Non-secret defaults (also present in the SDK/config). Authentication comes from
+# the per-execution dynamic key in the x-appwrite-key header.
 DEFAULT_ENDPOINT = "https://fra.cloud.appwrite.io/v1"
 DEFAULT_PROJECT  = "6a12447800077d5113ae"
 
@@ -496,14 +495,14 @@ def log_error(db, level, message, ctx=None, context=None):
             context.log(f"could not record error: {e}")
 
 def _api_key(context):
-    """Prefer Appwrite's per-execution dynamic key; fall back to a standard key env."""
+    """Return Appwrite's short-lived key injected for this execution."""
     try:
         k = (context.req.headers or {}).get('x-appwrite-key', '') or ''
         if k:
             return k
     except Exception:
         pass
-    return os.environ.get('APPWRITE_API_KEY', '')
+    raise RuntimeError("missing Appwrite dynamic execution key")
 
 def main(context):
     client = Client()

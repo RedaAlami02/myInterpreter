@@ -1,0 +1,140 @@
+name: Private durable acquisition
+# Recurring v1: explicit repository gates and server policy control execution.
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        type: choice
+        options: [auto, quotes, depth, dividends, fundamentals]
+        required: true
+      symbol:
+        type: string
+        default: ''
+      bootstrap:
+        description: First run only, explicitly start an empty retry chain
+        type: boolean
+        default: false
+env:
+  APP_SCHEDULE_CONTRACT: recurring-casablanca/v1
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: private-acquisition
+  cancel-in-progress: false
+jobs:
+  collect:
+    if: (github.event_name != 'schedule' || vars.APP_RECURRING_SCHEDULE_ENABLED == 'true') && vars.APP_DURABLE_COLLECTION_ENABLED == 'true' && vars.APP_CHECKPOINT_HEADROOM_VERIFIED == 'true' && github.event.repository.private && github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install pinned dependencies
+        run: |
+          python3 -m pip install --disable-pip-version-check --target "$RUNNER_TEMP/worker-deps" -r requirements.txt
+          echo "PYTHONPATH=$RUNNER_TEMP/worker-deps" >> "$GITHUB_ENV"
+      - name: Select exact preceding checkpoint
+        id: selected
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BOOTSTRAP: ${{ inputs.bootstrap }}
+        run: |
+          args=()
+          if [ "$BOOTSTRAP" = true ]; then args+=(--bootstrap); fi
+          python3 cloud_state.py select "${args[@]}"
+      - name: Download preceding checkpoint
+        if: steps.selected.outputs.bootstrap == 'false'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ steps.selected.outputs.artifact_id }}
+          run-id: ${{ steps.selected.outputs.previous_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/checkpoint-before
+          merge-multiple: true
+      - name: Restore or explicitly bootstrap private queues
+        id: state
+        env:
+          BOOTSTRAP: ${{ steps.selected.outputs.bootstrap }}
+          STATE_PIN: ${{ steps.selected.outputs.sha256 }}
+        run: |
+          if [ "$BOOTSTRAP" = true ]; then
+            install -d -m 700 "$RUNNER_TEMP/worker-state"
+          else
+            python3 cloud_state.py restore --checkpoint "$RUNNER_TEMP/checkpoint-before" --state "$RUNNER_TEMP/worker-state" --sha256 "$STATE_PIN"
+          fi
+      - name: Install official-report text dependency only when needed
+        env:
+          OFFICIAL_ENABLED: ${{ vars.APP_OFFICIAL_CLOSE_COLLECTION_ENABLED }}
+        run: |
+          if [ "$OFFICIAL_ENABLED" = true ] && python3 -c 'from datetime import datetime; from zoneinfo import ZoneInfo; import sys; t=datetime.now(ZoneInfo("Africa/Casablanca")); sys.exit(0 if t.weekday()<5 and 17<=t.hour<19 else 1)'; then
+            sudo apt-get update -qq -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources -o Dir::Etc::sourceparts=-
+            sudo apt-get install -y --no-install-recommends poppler-utils
+          fi
+      - name: Run existing collector with bounded execution
+        env:
+          JOB_KIND: ${{ inputs.kind || 'auto' }}
+          GH_TOKEN: ${{ github.token }}
+          APP_OFFICIAL_CLOSE_COLLECTION_ENABLED: ${{ vars.APP_OFFICIAL_CLOSE_COLLECTION_ENABLED }}
+          APP_OFFICIAL_CLOSE_CONFIG: ${{ secrets.APP_OFFICIAL_CLOSE_CONFIG }}
+          JOB_SYMBOL: ${{ inputs.symbol }}
+          APP_MARKET_CONFIG: ${{ secrets.APP_MARKET_CONFIG }}
+          APP_DEPTH_CONFIG: ${{ secrets.APP_DEPTH_CONFIG }}
+          APP_DIVIDEND_CONFIG: ${{ secrets.APP_DIVIDEND_CONFIG }}
+          APP_DIVIDEND_INDEX: ${{ secrets.APP_DIVIDEND_INDEX }}
+          APP_FUNDAMENTAL_CONFIG: ${{ secrets.APP_FUNDAMENTAL_CONFIG }}
+          APP_FUNDAMENTAL_INDEX: ${{ secrets.APP_FUNDAMENTAL_INDEX }}
+          APP_PUBLISH_PROFILE: ${{ secrets.APP_PUBLISH_PROFILE }}
+          APP_COMPANY_INDEX: ${{ secrets.APP_COMPANY_INDEX }}
+          APP_APPLICATION_BINDINGS: ${{ secrets.APP_APPLICATION_BINDINGS }}
+          APP_ENRICHMENT_CONFIG: ${{ secrets.APP_ENRICHMENT_CONFIG }}
+          APP_ARCHIVE_GATEWAY_URL: ${{ secrets.APP_ARCHIVE_GATEWAY_URL }}
+          APP_ARCHIVE_WRITE_TOKEN: ${{ secrets.APP_ARCHIVE_WRITE_TOKEN }}
+          APP_PUBLISHER_URL: ${{ secrets.APP_PUBLISHER_URL }}
+          APP_PUBLISHER_TOKEN: ${{ secrets.APP_PUBLISHER_TOKEN }}
+          APP_PROJECTION_URL: ${{ secrets.APP_PROJECTION_URL }}
+          APP_PROJECTION_TOKEN: ${{ secrets.APP_PROJECTION_TOKEN }}
+          APP_PROJECTION_PROJECT_REFERENCE: ${{ secrets.APP_PROJECTION_PROJECT_REFERENCE }}
+        run: |
+          args=()
+          if [ -n "$JOB_SYMBOL" ]; then args+=(--symbol "$JOB_SYMBOL"); fi
+          timeout --signal=TERM --kill-after=10s 300s python3 cloud_collect.py "$JOB_KIND" --state "$RUNNER_TEMP/worker-state" "${args[@]}"
+      - name: Checkpoint even after collector failure
+        id: packed
+        if: always() && !cancelled() && steps.state.outcome == 'success'
+        run: python3 cloud_state.py pack --state "$RUNNER_TEMP/worker-state" --output "$RUNNER_TEMP/checkpoint-next"
+      - name: Upload immutable checkpoint
+        id: uploaded
+        if: always() && !cancelled() && steps.packed.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ steps.packed.outputs.artifact_name }}
+          path: ${{ runner.temp }}/checkpoint-next/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90
+          overwrite: false
+      - name: Read back the new checkpoint
+        if: always() && !cancelled() && steps.uploaded.outcome == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ steps.uploaded.outputs.artifact-id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/checkpoint-readback
+          merge-multiple: true
+      - name: Verify readback then retain newest two checkpoints
+        if: always() && !cancelled() && steps.uploaded.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE_PIN: ${{ steps.packed.outputs.manifest_sha256 }}
+          ARTIFACT_ID: ${{ steps.uploaded.outputs.artifact-id }}
+          PREVIOUS_RUN_ID: ${{ steps.selected.outputs.previous_run_id }}
+        run: python3 cloud_state.py finish --checkpoint "$RUNNER_TEMP/checkpoint-readback" --verify-state "$RUNNER_TEMP/readback-state" --sha256 "$STATE_PIN" --artifact-id "$ARTIFACT_ID" --previous-run-id "$PREVIOUS_RUN_ID"
+      - name: Dispatch isolated official review for a durable candidate
+        if: always() && !cancelled() && steps.uploaded.outcome == 'success' && vars.APP_OFFICIAL_CLOSE_COLLECTION_ENABLED == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE_PIN: ${{ steps.packed.outputs.manifest_sha256 }}
+          ARTIFACT_ID: ${{ steps.uploaded.outputs.artifact-id }}
+        run: python3 official_review_dispatch.py --state "$RUNNER_TEMP/worker-state"

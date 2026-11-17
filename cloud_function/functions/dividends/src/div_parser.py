@@ -33,6 +33,7 @@ import os
 import re
 import sys
 import unicodedata
+from div_quality import verification_issue
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -155,7 +156,7 @@ def parse_calendar(page: str, year: int) -> list:
         # it the payment window is their estimate, not a commitment.
         confirmed = bool(ex_dates)
 
-        out.append({
+        parsed = {
             'issuer':      name,
             'key':         normalise_name(name),
             'ticker':      ticker_of(name),
@@ -168,7 +169,11 @@ def parse_calendar(page: str, year: int) -> list:
             'confirmed':   confirmed,
             'type':        cells[5] or None,
             'frequency':   cells[6] or None,
-        })
+        }
+        issue = verification_issue(parsed)
+        if issue is not None:
+            parsed['verification_issue'] = issue
+        out.append(parsed)
     return out
 
 

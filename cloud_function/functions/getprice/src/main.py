@@ -1,10 +1,9 @@
 """
 Appwrite Cloud Function: fetch live market data, compute ratios, store in 'data' collection.
 
-Environment variables (Appwrite Console → Functions → Settings → Variables):
-  APPWRITE_ENDPOINT   https://fra.cloud.appwrite.io/v1
-  APPWRITE_PROJECT_ID 6a12447800077d5113ae
-  APPWRITE_API_KEY    <server API key with documents.read/write>
+Authentication uses Appwrite's per-execution dynamic API key. Configure the
+function scopes in appwrite.config.json; do not store a long-lived API key in
+the function environment.
 
 Schedule (UTC): */15 8-15 * * 1-5   (see cloud_function/appwrite.config.json)
   → every 15 min, 09:00–16:45 Casablanca time, Mon–Fri
@@ -291,26 +290,29 @@ def all_docs(db, col_id, queries=None):
         offset += limit
     return docs
 
+def _execution_key(context):
+    """Return Appwrite's short-lived key injected for this execution."""
+    try:
+        key = (context.req.headers or {}).get('x-appwrite-key', '') or ''
+    except Exception:
+        key = ''
+    if not key:
+        raise RuntimeError("missing Appwrite dynamic execution key")
+    return key
+
 # ── entry point ───────────────────────────────────────────────────────────────
 
 def main(context):
+    execution_key = _execution_key(context)
     client = Client()
     client.set_endpoint(os.environ['APPWRITE_ENDPOINT']) \
           .set_project(os.environ['APPWRITE_PROJECT_ID']) \
-          .set_key(os.environ['APPWRITE_API_KEY'])
+          .set_key(execution_key)
     db = Databases(client)
-    # Trigger executions with the per-execution dynamic key (carries this function's
-    # functions.write scope); fall back to the standard key. DB writes keep using
-    # the standard key above — unchanged, proven.
-    dyn_key = ''
-    try:
-        dyn_key = (context.req.headers or {}).get('x-appwrite-key', '') or ''
-    except Exception:
-        dyn_key = ''
     fn_client = Client()
     fn_client.set_endpoint(os.environ['APPWRITE_ENDPOINT']) \
              .set_project(os.environ['APPWRITE_PROJECT_ID']) \
-             .set_key(dyn_key or os.environ['APPWRITE_API_KEY'])
+             .set_key(execution_key)
     functions = Functions(fn_client)
     onboard_fn = os.environ.get('ONBOARD_FUNCTION_ID', 'onboard_company')
 

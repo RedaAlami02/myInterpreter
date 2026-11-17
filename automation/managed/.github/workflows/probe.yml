@@ -1,0 +1,14 @@
+name: Private runner eligibility
+on:
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: eligibility
+  cancel-in-progress: false
+jobs:
+  eligibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Confirm standard private runner starts
+        run: python3 -c 'import json; print(json.dumps({"standard_linux_runner_started":True,"secrets_used":False,"schedules_enabled":False}))'

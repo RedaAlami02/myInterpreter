@@ -1,0 +1,43 @@
+name: Private acquisition
+# Recurrence intentionally absent until runtime, budget and source checks pass.
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        type: choice
+        options: [quotes, depth]
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: private-acquisition
+  cancel-in-progress: false
+jobs:
+  collect:
+    # Preserved as a reference. Durable collection has separate explicit gates.
+    if: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install pinned database driver
+        run: python3 -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Collect into private evidence only
+        env:
+          APP_MARKET_CONFIG: ${{ secrets.APP_MARKET_CONFIG }}
+          APP_DEPTH_CONFIG: ${{ secrets.APP_DEPTH_CONFIG }}
+          APP_ARCHIVE_GATEWAY_URL: ${{ secrets.APP_ARCHIVE_GATEWAY_URL }}
+          APP_ARCHIVE_WRITE_TOKEN: ${{ secrets.APP_ARCHIVE_WRITE_TOKEN }}
+          JOB_KIND: ${{ inputs.kind }}
+        run: |
+          if [ "$JOB_KIND" = quotes ]; then
+            export APP_SOURCE_CONFIG="$APP_MARKET_CONFIG"
+          elif [ "$JOB_KIND" = depth ]; then
+            export APP_SOURCE_CONFIG="$APP_DEPTH_CONFIG"
+          else
+            exit 1
+          fi
+          unset APP_MARKET_CONFIG APP_DEPTH_CONFIG
+          python3 run_collection.py "$JOB_KIND"

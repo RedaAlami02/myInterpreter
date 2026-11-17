@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "tables": {
+    "company_profiles": {"fields": {"c_name": "text", "captured_at": "timestamptz", "profile": "jsonb"}},
+    "market_snapshots": {"fields": {"captured_at": "timestamptz", "snapshot": "jsonb"}},
+    "market_reference": {"fields": {"captured_at": "timestamptz", "reference": "jsonb"}},
+    "market_orderbooks": {"fields": {"symbol": "text", "captured_at": "timestamptz", "snapshot": "jsonb"}},
+    "dividend_source_snapshots": {"fields": {"payment_year": "integer", "captured_at": "timestamptz", "calendar": "jsonb"}},
+    "daily_price_reference": {"fields": {"c_name": "text", "symbol": "text", "period_day": "date", "close": "numeric", "bar": "jsonb", "quality": "jsonb", "source_sha256": "text"}}
+  }
+}

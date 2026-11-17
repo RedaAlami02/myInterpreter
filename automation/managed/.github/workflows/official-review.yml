@@ -1,0 +1,61 @@
+name: Private official close review
+run-name: Official close review ${{ inputs.document_sha256 }}
+on:
+  workflow_dispatch:
+    inputs:
+      checkpoint_run_id:
+        type: string
+        required: true
+      artifact_id:
+        type: string
+        required: true
+      checkpoint_sha256:
+        type: string
+        required: true
+      document_sha256:
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: official-close-review
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: vars.APP_OFFICIAL_REVIEW_ENABLED == 'true' && github.event.repository.private && github.ref_name == github.event.repository.default_branch
+    environment: official-close-review
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install pinned Python and official report dependencies
+        run: |
+          python3 -m pip install --disable-pip-version-check --target "$RUNNER_TEMP/worker-deps" -r requirements.txt
+          echo "PYTHONPATH=$RUNNER_TEMP/worker-deps" >> "$GITHUB_ENV"
+          sudo apt-get update -qq -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources -o Dir::Etc::sourceparts=-
+          sudo apt-get install -y --no-install-recommends poppler-utils
+      - name: Download exact candidate checkpoint
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ inputs.artifact_id }}
+          run-id: ${{ inputs.checkpoint_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/official-candidate
+          merge-multiple: true
+      - name: Validate checkpoint and independent review target
+        env:
+          CANDIDATE_PIN: ${{ inputs.checkpoint_sha256 }}
+          DOCUMENT_PIN: ${{ inputs.document_sha256 }}
+        run: |
+          python3 cloud_state.py restore --checkpoint "$RUNNER_TEMP/official-candidate" --state "$RUNNER_TEMP/official-state" --sha256 "$CANDIDATE_PIN"
+          python3 official_review_target.py --state "$RUNNER_TEMP/official-state" --sha256 "$DOCUMENT_PIN"
+      - name: Fetch independently and authorize exact official prices
+        env:
+          APP_OFFICIAL_REVIEW_CONFIG: ${{ secrets.APP_OFFICIAL_REVIEW_CONFIG }}
+          APP_OFFICIAL_ATTESTATION_KEY: ${{ secrets.APP_OFFICIAL_ATTESTATION_KEY }}
+          APP_OFFICIAL_CLOSE_URL: ${{ secrets.APP_OFFICIAL_CLOSE_URL }}
+          APP_OFFICIAL_CLOSE_TOKEN: ${{ secrets.APP_OFFICIAL_CLOSE_TOKEN }}
+        run: python3 official_close_verify.py --state "$RUNNER_TEMP/official-state"

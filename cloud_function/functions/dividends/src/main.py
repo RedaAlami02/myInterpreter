@@ -135,14 +135,14 @@ def idb_dpa(soc, year):
 
 
 def _api_key(context):
-    """Prefer Appwrite's per-execution dynamic key; fall back to a standard key env."""
+    """Return Appwrite's short-lived key injected for this execution."""
     try:
         k = (context.req.headers or {}).get('x-appwrite-key', '') or ''
         if k:
             return k
     except Exception:
         pass
-    return os.environ.get('APPWRITE_API_KEY', '')
+    raise RuntimeError("missing Appwrite dynamic execution key")
 
 
 def main(context):
@@ -186,7 +186,13 @@ def main(context):
 
         for r in rows:
             r['c_name'] = resolve(r['key'], index, r.get('ticker'))
-        matched = [r for r in rows if r['c_name']]
+        invalid_periods = [r for r in rows if r.get('verification_issue')]
+        if invalid_periods:
+            log_error(db, "dividends", "warning",
+                      f"{len(invalid_periods)} calendar rows have conflicting payment periods; not stored",
+                      json.dumps({'payment_year': year, 'issues': sorted({
+                          r['verification_issue'] for r in invalid_periods})}), context)
+        matched = [r for r in rows if r['c_name'] and not r.get('verification_issue')]
         unmatched += [r['issuer'] for r in rows if not r['c_name']]
         matched = dedupe(matched)
 

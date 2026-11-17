@@ -1,0 +1,390 @@
+{
+  "now": "2026-11-01T12:00:00Z",
+  "cases": [
+    {
+      "name": "dated original records remain references, not current authority",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": "2026-10-30T16:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": 20,
+        "pnl": 5,
+        "complete": true
+      }
+    },
+    {
+      "name": "partial price coverage never creates portfolio loss",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        },
+        {
+          "c_name": "Beta",
+          "quantity": 1,
+          "total_cost": 20
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": "2026-10-30T16:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "all prices missing",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "mixed recorded dates cannot form a total",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        },
+        {
+          "c_name": "Beta",
+          "quantity": 1,
+          "total_cost": 20
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": "2026-10-30T16:00:00Z"
+        },
+        {
+          "c_name": "Beta",
+          "pa": 25,
+          "date": "2026-10-29T16:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "duplicate identities are not last-write-wins",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": "2026-10-30T16:00:00Z"
+        },
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": "2026-10-30T16:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "future timestamp",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": "2026-11-02T00:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "unknown timezone",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": "2026-10-30T16:00:00"
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "invalid calendar date",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": "2026-02-30T16:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "invalid source time",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": "2026-10-30T25:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "missing date",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": null
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "negative price",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": -1,
+          "date": "2026-10-30T16:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "zero price",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 0,
+          "date": "2026-10-30T16:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "boolean price",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": true,
+          "date": "2026-10-30T16:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "empty holdings do not invent a P&L",
+      "holdings": [],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": "2026-10-30T16:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      }
+    },
+    {
+      "name": "holding read cap suppresses portfolio totals",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": "2026-10-30T16:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": null,
+        "pnl": null,
+        "complete": false
+      },
+      "holdings_complete": false
+    },
+    {
+      "name": "numeric decimal string keeps recorded reference semantics",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": "10.25",
+          "date": "2026-10-30T16:00:00Z"
+        }
+      ],
+      "expected": {
+        "value": 20.5,
+        "pnl": 5.5,
+        "complete": true
+      }
+    },
+    {
+      "name": "explicit false shadow flags do not become saved valuation authority",
+      "holdings": [
+        {
+          "c_name": "Alpha",
+          "quantity": 2,
+          "total_cost": 15
+        }
+      ],
+      "prices": [
+        {
+          "c_name": "Alpha",
+          "pa": 10,
+          "date": "2026-10-30T16:00:00Z",
+          "portfolio_valuation_eligible": false,
+          "mode": "SHADOW_ONLY"
+        }
+      ],
+      "expected": {
+        "value": 20,
+        "pnl": 5,
+        "complete": true
+      }
+    }
+  ]
+}

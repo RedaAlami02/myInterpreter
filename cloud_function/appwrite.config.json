@@ -4,6 +4,78 @@
     "endpoint": "https://fra.cloud.appwrite.io/v1",
     "functions": [
         {
+            "$id": "cdg_probe",
+            "name": "cdg_probe",
+            "runtime": "python-3.9",
+            "buildSpecification": "s-2vcpu-2gb",
+            "runtimeSpecification": "s-0.5vcpu-512mb",
+            "execute": [],
+            "events": [],
+            "scopes": [],
+            "schedule": "",
+            "timeout": 30,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "src/main.py",
+            "commands": "pip install -r requirements.txt",
+            "ignore": [
+                "__pypackages__"
+            ],
+            "deploymentRetention": 7,
+            "path": "functions/cdg_probe"
+        },
+        {
+            "$id": "orderbook_collector",
+            "name": "orderbook_collector",
+            "runtime": "python-3.9",
+            "buildSpecification": "s-2vcpu-2gb",
+            "runtimeSpecification": "s-0.5vcpu-512mb",
+            "execute": [],
+            "events": [],
+            "scopes": [
+                "documents.read",
+                "documents.write",
+                "files.write"
+            ],
+            "schedule": "*/5 8-15 * * 1-5",
+            "timeout": 180,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "src/main.py",
+            "commands": "pip install -r requirements.txt",
+            "ignore": [
+                "__pypackages__"
+            ],
+            "deploymentRetention": 7,
+            "path": "functions/orderbook_collector"
+        },
+        {
+            "$id": "m24_cdg_benchmark",
+            "name": "m24_cdg_benchmark",
+            "runtime": "python-3.9",
+            "buildSpecification": "s-2vcpu-2gb",
+            "runtimeSpecification": "s-0.5vcpu-512mb",
+            "execute": [],
+            "events": [],
+            "scopes": [
+                "documents.read",
+                "documents.write",
+                "files.read",
+                "files.write"
+            ],
+            "schedule": "",
+            "timeout": 180,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "src/main.py",
+            "commands": "pip install -r requirements.txt",
+            "ignore": [
+                "__pypackages__"
+            ],
+            "deploymentRetention": 7,
+            "path": "functions/m24_cdg_benchmark"
+        },
+        {
             "$id": "6a125537000a4c1668bf",
             "name": "GETprice",
             "runtime": "python-3.9",
@@ -14,8 +86,8 @@
             ],
             "events": [],
             "scopes": [
-                "users.read",
-                "functions.write",
+                "documents.read",
+                "documents.write",
                 "executions.write"
             ],
             "schedule": "*/15 8-15 * * 1-5",
@@ -58,6 +130,8 @@
             "$id": "dividends",
             "name": "dividends",
             "runtime": "python-3.9",
+            "buildSpecification": "s-2vcpu-2gb",
+            "runtimeSpecification": "s-0.5vcpu-512mb",
             "execute": [],
             "events": [],
             "schedule": "0 6 * * 1",
@@ -70,7 +144,56 @@
                 "documents.read",
                 "documents.write"
             ],
+            "ignore": [
+                "__pypackages__"
+            ],
+            "deploymentRetention": 0,
             "path": "functions/dividends"
+        },
+        {
+            "$id": "6a18c069001d1f661df3",
+            "name": "cleanup",
+            "runtime": "python-3.9",
+            "buildSpecification": "s-2vcpu-2gb",
+            "runtimeSpecification": "s-0.5vcpu-512mb",
+            "execute": [],
+            "events": [],
+            "scopes": [
+                "documents.read",
+                "documents.write"
+            ],
+            "schedule": "0 16 * * 1-5",
+            "timeout": 900,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "src/main.py",
+            "commands": "pip install -r requirements.txt",
+            "ignore": [
+                "__pypackages__"
+            ],
+            "deploymentRetention": 0,
+            "path": "functions/cleanup"
+        },
+        {
+            "$id": "egress_probe",
+            "name": "egress_probe",
+            "runtime": "python-3.9",
+            "buildSpecification": "s-2vcpu-2gb",
+            "runtimeSpecification": "s-0.5vcpu-512mb",
+            "execute": [],
+            "events": [],
+            "scopes": [],
+            "schedule": "",
+            "timeout": 60,
+            "enabled": true,
+            "logging": true,
+            "entrypoint": "src/main.py",
+            "commands": "pip install -r requirements.txt",
+            "ignore": [
+                "__pypackages__"
+            ],
+            "deploymentRetention": 1,
+            "path": "functions/egress_probe"
         }
     ]
 }

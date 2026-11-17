@@ -1,0 +1,11 @@
+[
+  {"name":"confirmed payment with matching dates","row":{"c_name":"FIXTURE","year":2026,"amount":62,"ex_date":"2026-09-08","pay_date":"2026-09-17","confirmed":true},"issue":null},
+  {"name":"old dates relabeled as future payment","row":{"c_name":"FIXTURE","year":2027,"amount":175,"ex_date":"2025-03-25","pay_date":"2025-04-08","confirmed":true},"issue":"payment_year_mismatch"},
+  {"name":"unconfirmed future estimate stays unconfirmed","row":{"c_name":"FIXTURE","year":2027,"amount":null,"pay_date":"2027-09-23","pay_date_end":"2027-09-29","confirmed":false},"issue":null},
+  {"name":"confirmed without ex date","row":{"c_name":"FIXTURE","year":2026,"amount":14,"pay_date":"2026-09-02","confirmed":true},"issue":"missing_confirmation_date"},
+  {"name":"calendar overflow is rejected","row":{"c_name":"FIXTURE","year":2026,"amount":14,"ex_date":"2026-02-30","confirmed":true},"issue":"invalid_calendar_date"},
+  {"name":"backwards payment range","row":{"c_name":"FIXTURE","year":2026,"amount":null,"pay_date":"2026-09-29","pay_date_end":"2026-09-23","confirmed":false},"issue":"invalid_date_order"},
+  {"name":"payment before detachment","row":{"c_name":"FIXTURE","year":2026,"amount":14,"ex_date":"2026-09-17","pay_date":"2026-09-08","confirmed":true},"issue":"invalid_date_order"},
+  {"name":"invalid leap day","row":{"c_name":"FIXTURE","year":2025,"amount":14,"pay_date":"2025-02-29","confirmed":false},"issue":"invalid_calendar_date"},
+  {"name":"December detachment with January payment is valid","row":{"c_name":"FIXTURE","year":2026,"amount":14,"ex_date":"2025-12-29","pay_date":"2026-01-06","confirmed":true},"issue":null}
+]

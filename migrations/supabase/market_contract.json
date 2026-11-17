@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "tables": {
+    "company": {
+      "required": ["name"],
+      "fields": {
+        "name": "text", "bpa": "numeric", "tc5": "numeric", "roe": "numeric",
+        "na": "numeric", "cp": "numeric", "date": "timestamptz", "dpa": "numeric",
+        "sector": "text", "description": "text", "shareholders": "text",
+        "beta_3y": "numeric", "beta_5y": "numeric", "revenue": "numeric",
+        "ebitda": "numeric", "ebit": "numeric", "net_profit": "numeric",
+        "fcf": "numeric", "net_debt": "numeric", "net_cash": "numeric",
+        "total_assets": "numeric", "rev_growth_5y": "numeric",
+        "rnpg_growth_5y": "numeric", "profit_margin": "numeric", "ext_name": "text",
+        "fiscal_year": "integer", "fy_est": "integer", "rnpg_est": "numeric"
+      }
+    },
+    "format": {
+      "required": ["name", "symbol"],
+      "fields": {"name": "text", "symbol": "text"}
+    },
+    "data": {
+      "required": ["c_name", "pa", "date"],
+      "fields": {
+        "c_name": "text", "cb": "numeric", "cours_ref": "numeric", "data_chart": "text",
+        "date": "timestamptz", "high": "numeric", "low": "numeric", "market_cap": "numeric",
+        "open_price": "numeric", "pa": "numeric", "pb": "numeric", "pb_rating": "text",
+        "peg": "numeric", "peg_rating": "text", "per": "numeric", "per_rating": "text",
+        "pr": "numeric", "pr_rating": "text", "qty_traded": "bigint", "symbol": "text",
+        "variation": "numeric", "variation_v": "numeric", "volume": "numeric"
+      }
+    },
+    "dividends": {
+      "required": ["c_name", "year", "confirmed"],
+      "fields": {
+        "c_name": "text", "issuer": "text", "year": "integer", "amount": "numeric",
+        "ex_date": "date", "pay_date": "date", "pay_date_end": "date", "confirmed": "boolean",
+        "type": "text", "frequency": "text", "updated_at": "timestamptz"
+      }
+    },
+    "latest_prices": {
+      "required": ["c_name", "pa", "date", "origin_collection"],
+      "fields": {"c_name": "text", "pa": "numeric", "date": "timestamptz", "origin_collection": "text"}
+    }
+  }
+}

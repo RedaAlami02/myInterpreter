@@ -1,0 +1,22 @@
+name: Private source reachability
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: source-reachability
+  cancel-in-progress: false
+jobs:
+  reachability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install pinned HTTP client
+        run: python3 -m pip install --disable-pip-version-check requests==2.34.2
+      - name: Check read-only endpoint without logging identity or response
+        env:
+          APP_SOURCE_PROBE: ${{ secrets.APP_SOURCE_PROBE }}
+        run: python3 probe_source.py

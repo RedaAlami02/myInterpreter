@@ -1,0 +1,5 @@
+# Template only: no active Supabase project or deployment configuration.
+# The function authenticates a separate scoped publish token itself.
+[functions.private-app-publisher]
+verify_jwt = false
+entrypoint = "./functions/private-app-publisher/index.ts"
