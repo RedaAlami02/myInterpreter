@@ -26,7 +26,8 @@ jobs:
     timeout-minutes: 10
     env:
       MIGRATION_FILE: ${{ github.event.inputs.file }}
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      DB_URL_RAW: ${{ secrets.SUPABASE_DB_URL }}
+      PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -44,6 +45,38 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client
 
+      - name: Normalize pooled connection URL
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+
+          url = os.environ.get("DB_URL_RAW", "").strip()
+          project = os.environ.get("PROJECT_URL", "").strip()
+          if not url:
+              sys.exit("SUPABASE_DB_URL is empty")
+
+          match = re.fullmatch(r"https://([a-z0-9]{10,40})\.supabase\.co/?", project)
+          ref = match.group(1) if match else ""
+
+          # Session transaction pooler only accepts the tenant-qualified username
+          # postgres.<project-ref>; rewrite it without touching the password.
+          user_match = re.match(r"^(postgres(?:ql)?://)([^:@/]+)(:.*)$", url, re.S)
+          if user_match and ref and ".pooler.supabase.com" in url:
+              user = user_match.group(2)
+              if user == "postgres":
+                  url = f"{user_match.group(1)}postgres.{ref}{user_match.group(3)}"
+                  print("Connection URL rewritten to the pooler tenant username.")
+              elif user == f"postgres.{ref}":
+                  print("Connection URL already uses the pooler tenant username.")
+              else:
+                  sys.exit("Unexpected pooler username; expected postgres or postgres.<project-ref>")
+          else:
+              print("Connection URL left unchanged.")
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
+              handle.write("SUPABASE_DB_URL=" + url + "\n")
+          PY
+
       - name: Validate only
         if: github.event.inputs.apply != 'true'
         run: |
@@ -56,6 +89,11 @@ jobs:
         run: |
           test -n "$SUPABASE_DB_URL"
           psql "$SUPABASE_DB_URL" --single-transaction -v ON_ERROR_STOP=1 -f "$MIGRATION_FILE"
+          if [ "$MIGRATION_FILE" = "migrations/supabase/20261116_exchange_price_publication.sql" ]; then
+            psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -At -c \
+              "select count(*) from pg_proc where proname = 'apply_exchange_latest_prices'" | grep -qx 1
+            echo "Verified apply_exchange_latest_prices."
+          fi
 
       - name: Summary
         run: |
