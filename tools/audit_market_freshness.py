@@ -101,9 +101,9 @@ def main():
                 row["flags"].append("BOOK_MISSING")
             elif status == "STALE":
                 row["flags"].append("BOOK_STALE_%dH" % (book_ages.get(symbol) or 0))
+        args.out_dir.mkdir(parents=True, exist_ok=True)
         (args.out_dir / "books.json").write_text(
             json.dumps(book_status, ensure_ascii=False, indent=1), encoding="utf-8")
-        args.out_dir.mkdir(parents=True, exist_ok=True)
         (args.out_dir / "market_health.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
         (args.out_dir / "dividends.json").write_text(
