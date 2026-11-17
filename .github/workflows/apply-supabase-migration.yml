@@ -73,6 +73,18 @@ jobs:
           else:
               print("Connection URL left unchanged.")
 
+          from urllib.parse import unquote, urlsplit
+          parsed = urlsplit(url)
+          password = parsed.password or ""
+          decoded = unquote(password)
+          reserved = sorted({ch for ch in decoded if ch in "@:/?#[]"})
+          print(f"password_present={bool(password)} password_length={len(password)} "
+                f"percent_encoded={password != decoded}")
+          print(f"query_present={bool(parsed.query)} fragment_present={bool(parsed.fragment)}")
+          if reserved and password == decoded:
+              print("WARNING: the password contains unencoded reserved URL characters; "
+                    "the server receives a different password.")
+
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
               handle.write("SUPABASE_DB_URL=" + url + "\n")
           PY
