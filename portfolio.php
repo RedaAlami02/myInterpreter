@@ -193,7 +193,7 @@ foreach ($holdingsDocs as $h) {
 }
 
 $divLines = [];
-$divTotalYear = 0.0; $divTotalUpcoming = 0.0; $divPaying = 0;
+$divTotalYear = 0.0; $divTotalUpcoming = 0.0; $divPaying = 0; $divPayingNames = [];
 foreach ($divQty as $name => $qty) {
     if ($qty <= 0 || empty($divByName[$name])) continue;
     $paid = false;
@@ -217,9 +217,13 @@ foreach ($divQty as $name => $qty) {
         if ($upcoming) $divTotalUpcoming += $gross;
         $paid = true;
     }
-    if ($paid) $divPaying++;
+    if ($paid) { $divPaying++; $divPayingNames[$name] = true; }
 }
 usort($divLines, fn($a, $b) => strcmp($a['sort'], $b['sort']));
+$divNonPayers = array_values(array_diff(
+    array_keys(array_filter($divQty, fn($qty) => $qty > 0)),
+    array_keys($divPayingNames)));
+sort($divNonPayers);
 $divYieldOnCost = $totalBuyVal > 0 ? $divTotalYear / $totalBuyVal * 100 : null;
 
 // Companies list — session-cached for 5 min to avoid re-fetching on every load
@@ -439,6 +443,9 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
         <p class="fund-source mt-2">
           <i class="fas fa-info-circle me-1"></i>
           <?= $divPaying ?> <?= te('de vos') ?> <?= count($divQty) ?> <?= te('positions versent un dividende cette année.') ?>
+          <?php if ($divNonPayers): ?>
+            <span class="muted"><?= $divPaying === 0 ? '' : te('Sans dividende cette année :') ?> <?= htmlspecialchars(implode(', ', $divNonPayers)) ?>.</span>
+          <?php endif; ?>
           <span class="muted"><?= te('Montants bruts, avant retenue à la source · les lignes « prévu » n\'ont pas encore été votées en assemblée générale') ?></span>
         </p>
       </div>

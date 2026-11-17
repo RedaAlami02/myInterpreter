@@ -85,6 +85,17 @@
 .chart-caption, .sector-note { color: var(--text-mute); font-size: .78rem; margin: -8px 0 14px; }
 .sector-note { margin: 12px 0 0; }
 .sector-list { max-height: 520px; overflow-y: auto; padding-right: 6px; scrollbar-width: thin; }
+/* Sector page: both cards share one height; the coverage list scrolls inside
+   instead of stretching the row and the chart beside it. */
+#allocationSectors.charts-grid { height: clamp(430px, 38vw, 560px); align-items: stretch; }
+#allocationSectors .chart-card { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+#allocationSectors .chart-canvas { flex: 1 1 auto; height: auto; min-height: 0; }
+#allocationSectors .sector-list { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; }
+@media (max-width: 700px) {
+  #allocationSectors.charts-grid { height: auto; }
+  #allocationSectors .chart-canvas { height: 320px; }
+  #allocationSectors .sector-list { max-height: 320px; }
+}
 .sector-item { display: block; margin-bottom: 12px; color: inherit; text-decoration: none; border-radius: 6px; }
 .sector-item:hover .sector-item__heading span,
 .sector-item:focus-visible .sector-item__heading span { color: var(--cyan); }

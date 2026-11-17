@@ -47,12 +47,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--snapshot", required=True, type=Path)
     parser.add_argument("--actions", type=Path)
+    parser.add_argument("--indices", type=Path)
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
     try:
         snapshot = json.loads(args.snapshot.read_text(encoding="utf-8"))
         actions_path = args.actions or args.snapshot.parent / "actions.json"
         actions = json.loads(actions_path.read_text(encoding="utf-8"))
+        indices_path = args.indices or args.snapshot.parent / "indices.json"
+        try:
+            indices = json.loads(indices_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            indices = []
     except (OSError, json.JSONDecodeError):
         print(json.dumps({"status": "FAILED", "code": "INVALID_CAPTURE"}))
         return 1
@@ -80,6 +86,7 @@ def main():
 
     moment = datetime.now(timezone.utc)
     rows, unpriced = exchange_history.build_rows(snapshot, actions, formats, companies, moment)
+    rows += exchange_history.index_rows(indices, moment)
     raw = json.dumps(rows, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
     if not rows:

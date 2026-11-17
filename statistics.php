@@ -51,7 +51,9 @@ function stats(): void
     $achatDocs = $transactions['buys'];
     $venteDocs = $transactions['sells'];
     $hasDeclaredDays = (bool)array_filter($achatDocs, fn($row) => ($row['purchase_day_basis'] ?? null) === 'USER_CONFIRMED');
+    $purchaseSection = '';
     if ($achatDocs) {
+        ob_start();
         ?>
         <section class="card-glass mb-4" aria-labelledby="purchaseHistoryTitle">
           <h2 id="purchaseHistoryTitle" style="padding:18px 20px 0;font-size:1rem"><?= te('Achats enregistrés') ?></h2>
@@ -74,6 +76,7 @@ function stats(): void
           </table></div>
         </section>
         <?php
+        $purchaseSection = ob_get_clean();
     }
 
     // Get distinct stocks that have been sold
@@ -86,6 +89,7 @@ function stats(): void
 
     if (empty($soldStocks)) {
         echo '<div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>' . te('Aucune vente enregistrée.') . '</div>';
+        echo $purchaseSection;
         return;
     }
 
@@ -214,5 +218,6 @@ function stats(): void
         </table>
       </div>
     </div>
+    <?php echo $purchaseSection; ?>
     <?php
 }

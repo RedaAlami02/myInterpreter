@@ -26,6 +26,7 @@ from pathlib import Path
 
 UA = "myInterpreter-exchange-reconciliation/1.0 (+https://myinterpreter.infinityfree.me)"
 DEFAULT_ACTIONS = "https://www.casablanca-bourse.com/live-market/actions"
+DEFAULT_INDICES = "https://www.casablanca-bourse.com/live-market/indices"
 SETTINGS_RE = re.compile(
     r'<script type="application/json" data-drupal-selector="drupal-settings-json">(.*?)</script>',
     re.S,
@@ -222,6 +223,17 @@ def main():
         universe = actions(body.decode("utf-8", "replace"))
         (args.out_dir / "actions.json").write_text(
             json.dumps(universe, ensure_ascii=False, indent=1), encoding="utf-8")
+        # Index closes ride along so the MASI chart has a daily point.
+        try:
+            _, index_body = fetch(DEFAULT_INDICES, args.out_dir, bundle)
+            index_rows = (settings(index_body.decode("utf-8", "replace"))
+                          .get("live_market") or {}).get("indices") or {}
+            (args.out_dir / "indices.json").write_text(
+                json.dumps(index_rows.get("all") or [], ensure_ascii=False, indent=1),
+                encoding="utf-8")
+        except Exception as error:
+            (args.out_dir / "indices.json").write_text("[]", encoding="utf-8")
+            print("indices capture failed", type(error).__name__, file=sys.stderr)
         wanted = {s.strip().upper() for s in args.symbols.split(",") if s.strip()}
         records = []
         for index, row in enumerate(universe, 1):

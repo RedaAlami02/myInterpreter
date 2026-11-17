@@ -31,6 +31,8 @@ marked **open** were confirmed by reading the code but are not yet changed.
 | 21 | Dashboard hid a failed load behind zeros | An outage looked like an empty market | Visible banner; failure logged |
 | 22 | Screener/dashboard "previous" row was 15 minutes old | Δ% labelled as a session change was intraday noise | Previous row selected by trading day |
 | 23 | Shareholder names interpolated into `innerHTML` | Stored XSS in a signed-in page | DOM built with `textContent` |
+| 24 | MASI chart stopped at 21 October; 1M showed almost nothing | Nothing published the index; the chart had no new points | Daily capture of `/live-market/indices` and MASI/MASI20 rows in `public.data` (`20261118_history_indices.sql`) |
+| 25 | Deploying one page without its helpers took `infoAction.php` down | New page required `company_market.php`, `latest_sessions.php` and `current_prices.php` that were never uploaded | Helpers deployed; deploy the full include set when a page changes |
 
 ## Open — worth fixing next
 

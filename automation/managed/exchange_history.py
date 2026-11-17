@@ -125,6 +125,26 @@ def daily_row(symbol, name, action, record, company, moment):
     return {key: value for key, value in row.items() if value is not None}
 
 
+def index_rows(indices, moment):
+    """Daily closes for the headline indices, which have no company row."""
+    rows = []
+    for row in indices or []:
+        code = str((row or {}).get("code") or "").upper()
+        value = number((row or {}).get("value"))
+        if code not in {"MASI", "MASI20"} or value is None or value <= 0:
+            continue
+        entry = {
+            "symbol": code,
+            "c_name": code,
+            "trade_day": trade_day(moment),
+            "date": utc_stamp(moment),
+            "pa": value,
+            "variation": number((row or {}).get("change_pct")),
+        }
+        rows.append({key: item for key, item in entry.items() if item is not None})
+    return rows
+
+
 def build_rows(snapshot, actions, formats, companies, moment):
     """Map capture artefacts onto one row per company; skip unpriced ones."""
     by_symbol = {}
