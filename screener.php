@@ -364,7 +364,7 @@ $noPER          = $totalCompanies - count($rated);
                 </td>
                 <!-- 5: PER -->
                 <td class="ratio-cell" data-val="<?= $perAttr ?>"
-                    <?= $r['PER'] < 0 ? 'title="Bénéfice par action négatif — le PER n\'a pas de sens"' : '' ?>>
+                    <?= $r['PER'] <= 0 ? 'title="' . htmlspecialchars(te("Bénéfice négatif, nul ou non significatif — le PER n'a pas de sens")) . '"' : '' ?>>
                   <span class="ratio-pill <?= $r['colors']['PER'] ?>"><?= ratioTxt($r['PER']) ?></span>
                 </td>
                 <!-- 6: PEG -->

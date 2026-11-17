@@ -33,6 +33,7 @@ marked **open** were confirmed by reading the code but are not yet changed.
 | 23 | Shareholder names interpolated into `innerHTML` | Stored XSS in a signed-in page | DOM built with `textContent` |
 | 24 | MASI chart stopped at 21 October; 1M showed almost nothing | Nothing published the index; the chart had no new points | Daily capture of `/live-market/indices` and MASI/MASI20 rows in `public.data` (`20261118_history_indices.sql`) |
 | 25 | Deploying one page without its helpers took `infoAction.php` down | New page required `company_market.php`, `latest_sessions.php` and `current_prices.php` that were never uploaded | Helpers deployed; deploy the full include set when a page changes |
+| 26 | MASI history had a month-long hole | Even with daily publication, 1M/3M still had almost no points | `backfill_index_history.py` imported 739 CDG closes (735 applied), replacing 1 267 legacy duplicate rows |
 
 ## Open — worth fixing next
 
