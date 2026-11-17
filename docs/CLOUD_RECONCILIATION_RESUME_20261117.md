@@ -1,56 +1,70 @@
 # myInterpreter — cloud reconciliation state 2026-11-17
 
-## Where things stand
+## Automatic operation
 
-- Prices are live again. The price-publication migration is applied and the
-  exchange capture run `44069602847` published 81 prices: `applied=81`,
-  `skipped=0`, `missing=1`. Market health run `44070285419` now reports
-  `price_stale=0`, `price_ok=81`, `price_missing=0`.
-- The one missing symbol is the new NRJ listing, which still has no app company
-  mapping; add the mapping before its price or annual row can be applied.
-- Service key and RPCs work. Share reconciliation applied 16 updates and left 64
-  unchanged; 47 annual candidates are staged and waiting for approval.
-- Health after the price fix: 81 companies, 1 fiscal year current, 59 stale, 21
-  missing; dividends 60 recent, 4 stale, 17 missing, 16 unconfirmed; 7
-  shareholder lists missing. Annual approval will lift 47 of the stale years.
-- `EXCHANGE_PRICE_PUBLICATION_ENABLED=true`: weekday capture at 16:45 UTC,
-  after the Casablanca close.
+- Prices publish automatically on weekdays at 16:45 UTC through
+  `exchange-price-publication.yml`, gated by `EXCHANGE_PRICE_PUBLICATION_ENABLED=true`.
+  No local machine is involved.
+- `keepalive.yml` writes a timestamp every Monday so GitHub does not disable the
+  schedules after 60 days without repository activity.
+- Monthly `exchange-reconciliation.yml` captures the full universe, applies
+  verified shares and stages annual candidates.
+- Daily `market-health.yml` audits freshness without writing.
+
+## Current data state
+
+- Price publication run `44069602847`: 81 applied, 0 skipped, 1 missing (NRJ).
+  Market health run `44070285419`: `price_stale=0`, `price_ok=81`.
+- Annual queue holds **76 pending rows**: 47 auto candidates, 7 banks, 5 insurers,
+  17 standalone-account companies. All satisfy the BPA and ROE identities.
+  Evidence: `docs/ANNUAL_REVIEW_20261117.md`.
+- `SNA` was reclassified after the engine learned to use a capital action's own
+  nominal. Its 17,695,150 shares are confirmed by capitalization/price and by the
+  2024 action (353,903,000 at nominal 20).
+- `REB` no longer carries a profit margin; its revenue is 30 thousand MAD.
+- Five stale rows stay out of the queue: DIS (2011), DLM (2021), IBC (2021),
+  INV (2023), SAM (2014). The exchange has no newer filing.
+- `NRJ` (JET ENERGY) has no company mapping and its annual row reports 1,050,000
+  shares against 13,125,000 implied by capitalization, a 12.5x difference. Map
+  the company and reconcile the row before applying it.
 
 ## Database URL
 
-The URL uses the tenant-qualified pooler user, and the workflow rewrites a bare
-`postgres` to `postgres.<project-ref>`. The diagnostic step reports
-`password_length=11 percent_encoded=False`, no reserved characters and no query
-or fragment, and PostgreSQL still answers `password authentication failed for
-user "postgres"`. The stored password is therefore simply wrong; reset the
-database password, copy the value from the reset dialog, and re-save the secret.
-This only affects future database migrations, not the running site.
+`SUPABASE_DB_URL` now authenticates. Validate run `44071540279` reported
+`Connection OK`, and apply run `44071617554` re-ran the price migration and
+verified `apply_exchange_latest_prices`. Future migrations can use
+`apply-supabase-migration.yml` with `apply=true`.
 
-## Open items
+## Next action
 
-1. Approve the 47 annual rows on
-   <https://myinterpreter.infinityfree.me/reconciliation.php> with the
-   select-all box. Evidence and the per-row decision are in
-   `docs/ANNUAL_REVIEW_20261117.md`. All 47 pass the BPA, ROE and margin
-   identities; approve all.
-2. Review the 35 exceptions: 7 banks, 5 insurers, 16 standalone-account
-   companies, 5 stale fiscal years, 2 conflicts (SNA, NRJ).
-3. Add the NRJ company mapping.
-4. Historical `data` rows and ratios are still frozen. The price publisher
-   updates `latest_prices` only; a `data`/ratio publisher or the private managed
-   runner is still needed.
-5. Legacy `Update.php` and `results.php` compare the UID in
+Approve the 76 staged rows on
+<https://myinterpreter.infinityfree.me/reconciliation.php> with the select-all
+box. Approval writes annual fields only, never the share count, and recomputes
+BPA from current shares. Approving lifts most of the 59 stale fiscal years.
+
+## Still open
+
+1. Map NRJ, then reconcile its share count and annual row.
+2. Historical `data` rows and ratios remain frozen. The price publisher updates
+   `latest_prices` only; a `data`/ratio publisher or the private managed runner
+   is still needed.
+3. Dividends: 17 missing, 4 stale, 16 unconfirmed. Shareholder lists missing for
+   7 companies.
+4. Legacy `Update.php` and `results.php` compare the UID in
    `config/supabase.local.php`; update it only if those pages return 403.
-6. Do not apply `20261116_public_market_anon_read.sql`.
+5. Do not apply `20261116_public_market_anon_read.sql`.
 
 ## Run IDs
 
 | Run | Purpose | Result |
 |---|---|---|
-| `43963698404` | Exchange capture and report | success, 82 companies |
-| `43976007884` | Apply shares, stage annual | 16 applied, 47 staged |
-| `43976023261` | Market health before fix | all 81 prices stale |
-| `44068546060` | Review page deploy | success, select-all |
 | `44069602847` | Daily price publication | 81 applied, 1 missing |
-| `44070285419` | Market health after fix | `price_stale=0` |
-| `44070449079` | DB URL diagnostic | password length 11, rejected |
+| `44070285419` | Market health | `price_stale=0` |
+| `44071540279` | DB URL validate | success |
+| `44071617554` | Price migration via psql | verified |
+| `44072388042` | Stage review classes | applied |
+| `44072458281` | Stage bank/insurer/standalone | 28 staged |
+| `44072539854` | Read RPC with class | applied |
+| `44072646277` | Page deploy | success |
+| `44073118618` | Margin guard | applied |
+| `44073193487` | Fresh report, SNA staged | 1 staged |
