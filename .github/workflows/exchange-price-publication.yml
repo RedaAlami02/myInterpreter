@@ -1,0 +1,71 @@
+name: Exchange price publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: Optional comma-separated symbols (empty = entire universe)
+        type: string
+        default: ""
+  schedule:
+    # Weekdays after the Casablanca close. GitHub may delay scheduled runs.
+    - cron: "45 16 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exchange-price-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || vars.EXCHANGE_PRICE_PUBLICATION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUNBUFFERED: "1"
+      SYMBOLS: ${{ github.event.inputs.symbols }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Capture current exchange prices
+        run: |
+          python3 tools/capture_exchange_pages.py \
+            --out-dir "$RUNNER_TEMP/exchange-prices/capture" \
+            --symbols "$SYMBOLS" \
+            --delay 0.7
+
+      - name: Publish prices
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 tools/publish_exchange_prices.py \
+            --snapshot "$RUNNER_TEMP/exchange-prices/capture/snapshot.json" \
+            --apply | tee "$RUNNER_TEMP/exchange-prices/result.json"
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Exchange price publication"
+            echo "\`\`\`json"
+            cat "$RUNNER_TEMP/exchange-prices/result.json" 2>/dev/null || echo '{"status":"NO_RESULT"}'
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload capture evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exchange-prices-${{ github.run_id }}
+          path: ${{ runner.temp }}/exchange-prices
+          retention-days: 14
+          if-no-files-found: warn
