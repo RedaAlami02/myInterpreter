@@ -65,7 +65,7 @@ jobs:
           fi
           # Retention runs once, on the first trigger after the close.
           prune=""
-          if [ "$(date -u +%H)" = "16" ]; then prune="--prune"; fi
+          if [ "$(date -u +%H)" = "16" ] && [ "$(date -u +%M)" -lt 15 ]; then prune="--prune"; fi
           python3 tools/publish_exchange_orderbooks.py \
             --snapshot "$RUNNER_TEMP/orderbooks/capture/snapshot.json" \
             --apply $prune | tee "$RUNNER_TEMP/orderbooks/result.json"

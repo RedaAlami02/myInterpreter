@@ -24,6 +24,12 @@ Medias24 does not cover six small caps that CDG does (for example NRJ), which is
 why the fallback exists. A symbol failing both sources is reported, never
 invented.
 
+**Runner egress:** Medias24 answers `403` to GitHub Actions addresses even with
+a browser-faithful request, so in the cloud the capture falls through to CDG for
+every symbol (still ten levels). The Medias24 path stays first in code: from an
+allowed network — or behind a proxy someone adds later — it is used
+automatically. The capture summary records which source served each run.
+
 ### Medias24 methods observed in the page bundle
 
 `getAllStocks`, `getBasicStocksInfo`, `getStockInfo`, `getBidAsk`,
