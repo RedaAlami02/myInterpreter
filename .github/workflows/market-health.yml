@@ -44,6 +44,7 @@ jobs:
             --max-age-days "$MAX_AGE_DAYS"
 
       - name: Publish job summary
+        if: always()
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json, os
@@ -58,11 +59,15 @@ jobs:
           for key in ("companies", "price_ok", "price_stale", "price_missing",
                       "price_zero", "fiscal_stale", "fiscal_missing", "fiscal_current",
                       "shares_missing", "dividend_recent", "dividend_stale",
-                      "dividend_missing", "shareholders_missing", "needs_attention"):
+                      "dividend_missing", "shareholders_missing",
+                      "book_fresh", "book_stale", "book_missing",
+                      "history_fresh", "history_stale", "history_missing",
+                      "history_latest_age_days", "needs_attention"):
               print(f"| {key.replace('_', ' ')} | {summary.get(key, 0)} |")
           PY
 
       - name: Upload report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: market-health-${{ github.run_id }}

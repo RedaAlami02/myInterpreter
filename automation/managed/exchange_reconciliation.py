@@ -91,10 +91,18 @@ def validate_current_shares(record):
                        "deviation": abs(implied / shares - 1)})
     if shares and nominal and capital:
         # Capital is a current total; nominal is the current instrument nominal.
-        # A split is already reflected in both, so this stays a current check.
+        # A dated action can carry its own nominal when the instrument page still
+        # shows the previous value, so accept the action basis when it reconciles.
         implied = capital / nominal
+        deviation = abs(implied / shares - 1)
+        action_nominal = number(action.get("nominal")) if action else None
+        if deviation > TOLERANCE and action_nominal and action_nominal != nominal:
+            alternative = capital / action_nominal
+            if abs(alternative / shares - 1) <= TOLERANCE:
+                implied = alternative
+                deviation = abs(alternative / shares - 1)
         checks.append({"name": "capital_nominal", "implied": implied,
-                       "deviation": abs(implied / shares - 1)})
+                       "deviation": deviation})
     good = [c for c in checks if c["deviation"] <= TOLERANCE]
     if not shares or shares <= 0:
         status = "INSUFFICIENT"

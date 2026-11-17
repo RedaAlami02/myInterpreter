@@ -24,12 +24,12 @@ import cloud_auth
 URL_RE = re.compile(r"^https://[a-z0-9]{10,40}\.supabase\.co/?$")
 
 
-def fetch(base, key, table, select):
+def fetch(base, key, table, select, query="", max_rows=None):
     rows = []
     offset = 0
     while True:
         url = (f"{base}/rest/v1/{table}?select={select}"
-               f"&limit=1000&offset={offset}")
+               f"{query}&limit=1000&offset={offset}")
         headers = cloud_auth.service_headers(key)
         headers["Accept"] = "application/json"
         request = urllib.request.Request(url, headers=headers)
@@ -43,6 +43,8 @@ def fetch(base, key, table, select):
         if not isinstance(page, list):
             raise RuntimeError(f"{table} returned a non-list page")
         rows.extend(page)
+        if max_rows is not None and len(rows) >= max_rows:
+            return rows[:max_rows]
         if len(page) < 1000:
             return rows
         offset += 1000
@@ -55,6 +57,8 @@ def main():
     parser.add_argument("--out-dir", required=True, type=Path)
     parser.add_argument("--as-of")
     parser.add_argument("--max-age-days", type=int, default=7)
+    parser.add_argument("--allow-stale", action="store_true",
+                        help="report staleness but exit 0")
     args = parser.parse_args()
     if args.out_dir.exists() and any(args.out_dir.iterdir()):
         print(json.dumps({"status": "FAILED", "code": "OUTPUT_DIRECTORY_NOT_EMPTY"}))
@@ -77,15 +81,52 @@ def main():
                   if args.as_of else datetime.now(timezone.utc))
         if moment.tzinfo is None:
             moment = moment.replace(tzinfo=timezone.utc)
+        dividends = fetch(base, key, "dividends",
+                          "c_name,year,amount,ex_date,pay_date,confirmed,type,updated_at")
+        formats = fetch(base, key, "format", "name,symbol")
         report = market_health.audit(
             fetch(base, key, "latest_prices", "c_name,pa,date,origin_collection"),
             fetch(base, key, "company", "name,fiscal_year,na,shareholders,date"),
-            fetch(base, key, "dividends", "c_name,year,confirmed,updated_at"),
-            fetch(base, key, "format", "name,symbol"),
+            dividends,
+            formats,
             as_of=moment, max_age_days=args.max_age_days)
+        books = fetch(base, key, "market_orderbooks", "symbol,captured_at",
+                      "&order=captured_at.desc", max_rows=4000)
+        history = fetch(base, key, "data", "c_name,date",
+                        "&order=date.desc", max_rows=4000)
+        history_summary, history_status, history_ages = market_health.history_health(
+            history, formats, as_of=moment, max_age_days=args.max_age_days)
+        report["summary"].update(history_summary)
+        book_summary, book_status, book_ages = market_health.book_health(
+            books, formats, as_of=moment)
+        report["summary"].update(book_summary)
+        for row in report["companies"]:
+            symbol = row.get("symbol")
+            if not symbol:
+                continue
+            status = book_status.get(symbol)
+            row["book_status"] = status
+            row["book_age_hours"] = book_ages.get(symbol)
+            if status == "MISSING":
+                row["flags"].append("BOOK_MISSING")
+            elif status == "STALE":
+                row["flags"].append("BOOK_STALE_%dH" % (book_ages.get(symbol) or 0))
+            history_status_value = history_status.get(symbol)
+            row["history_status"] = history_status_value
+            row["history_age_days"] = history_ages.get(symbol)
+            if history_status_value == "MISSING":
+                row["flags"].append("HISTORY_MISSING")
+            elif history_status_value == "STALE":
+                row["flags"].append("HISTORY_STALE_%dD" % (history_ages.get(symbol) or 0))
         args.out_dir.mkdir(parents=True, exist_ok=True)
+        (args.out_dir / "books.json").write_text(
+            json.dumps(book_status, ensure_ascii=False, indent=1), encoding="utf-8")
+        (args.out_dir / "history.json").write_text(
+            json.dumps(history_status, ensure_ascii=False, indent=1), encoding="utf-8")
         (args.out_dir / "market_health.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+        (args.out_dir / "dividends.json").write_text(
+            json.dumps(dividends, ensure_ascii=False, indent=1), encoding="utf-8")
         rows = market_health.to_csv_rows(report)
         with (args.out_dir / "market_health.csv").open("w", newline="", encoding="utf-8") as stream:
             writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
@@ -93,13 +134,24 @@ def main():
             writer.writerows(rows)
         (args.out_dir / "market_health.md").write_text(
             market_health.to_markdown(report), encoding="utf-8")
-        print(json.dumps({"status": "OK", "summary": report["summary"],
-                          "outputs": ["market_health.json", "market_health.csv", "market_health.md"],
+        summary = report["summary"]
+        failures = []
+        if summary.get("price_missing") or summary.get("price_zero") or summary.get("price_stale"):
+            failures.append("PRICES")
+        if summary.get("history_stale") or summary.get("history_missing"):
+            failures.append("HISTORY")
+        if summary.get("book_missing"):
+            failures.append("ORDER_BOOKS")
+        status = "STALE" if failures else "OK"
+        print(json.dumps({"status": status, "stale": failures, "summary": report["summary"],
+                          "outputs": ["market_health.json", "market_health.csv",
+                                      "market_health.md", "dividends.json", "books.json", "history.json"],
                           "production_writes": 0}, sort_keys=True))
-        return 0
+        return 0 if (not failures or args.allow_stale) else 1
     except Exception as error:
-        print(json.dumps({"status": "FAILED",
-                          "code": str(error)[:200] if isinstance(error, RuntimeError) else "AUDIT_FAILED"}))
+        detail = (str(error)[:200] if isinstance(error, RuntimeError)
+                  else f"{type(error).__name__}: {str(error)[:180]}")
+        print(json.dumps({"status": "FAILED", "code": detail or "AUDIT_FAILED"}))
         return 1
 
 

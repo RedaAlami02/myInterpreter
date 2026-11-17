@@ -15,6 +15,10 @@ on:
         description: Stage annual candidates
         type: boolean
         default: false
+      publish_prices:
+        description: Publish current exchange prices into latest_prices
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -47,6 +51,16 @@ jobs:
           path: ${{ runner.temp }}/report-evidence
           run-id: ${{ github.event.inputs.report_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish exchange prices
+        if: github.event.inputs.publish_prices == 'true'
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          SNAP=$(find "$RUNNER_TEMP/report-evidence" -name snapshot.json -print -quit)
+          test -n "$SNAP"
+          python3 tools/publish_exchange_prices.py --snapshot "$SNAP" --apply
 
       - name: Apply or stage
         env:

@@ -39,6 +39,10 @@ def main():
               and isinstance(row.get("price"), (int, float)) and row["price"] > 0
               and isinstance(row.get("fetched_at"), str)]
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    if not usable:
+        print(json.dumps({"status": "FAILED", "code": "NO_USABLE_PRICES",
+                          "records": len(records)}))
+        return 1
     if not args.apply:
         print(json.dumps({"status": "DRY_RUN", "snapshot_sha256": digest,
                           "records": len(records), "usable_prices": len(usable),
@@ -64,14 +68,20 @@ def main():
             result = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as error:
         detail = error.read(300).decode("utf-8", "replace")
-        print(json.dumps({"status": "FAILED", "code": "RPC_FAILED",
-                          "detail": detail[:300]}))
+        code = "MIGRATION_NOT_APPLIED" if "PGRST202" in detail else "RPC_FAILED"
+        print(json.dumps({"status": "FAILED", "code": code, "detail": detail[:300]}))
         return 1
     except urllib.error.URLError as error:
         print(json.dumps({"status": "FAILED", "code": "RPC_CONNECTION_FAILED"}))
         return 1
     print(json.dumps({"status": "COMPLETE", "snapshot_sha256": digest,
                       "result": result}, ensure_ascii=False, sort_keys=True))
+    if isinstance(result, dict):
+        applied = int(result.get("applied", 0)) + int(result.get("unchanged", 0))
+        if applied == 0 and (int(result.get("skipped", 0)) or int(result.get("missing", 0))):
+            print(json.dumps({"status": "FAILED", "code": "NOTHING_APPLIED",
+                              "result": result}, ensure_ascii=False, sort_keys=True))
+            return 1
     return 0
 
 

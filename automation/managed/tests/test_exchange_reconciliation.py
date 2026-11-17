@@ -77,9 +77,16 @@ class CurrentShareTests(unittest.TestCase):
         self.assertEqual(result["status"], "VERIFIED")
         self.assertEqual(result["latest_capital"], 3_864_133_800)
 
-    def test_action_nominal_that_disagrees_with_current_is_a_conflict(self):
+    def test_action_nominal_reconciles_a_previous_instrument_nominal(self):
         result = recon.validate_current_shares(record(
             shares=17_695_150, nominal=10, price=49.3, cap=872_370_895.0,
+            capital_actions=[{"date": "2024-10-18", "capital": 353_903_000, "nominal": 20}]))
+        self.assertEqual(result["status"], "VERIFIED")
+        self.assertEqual(result["shares"], 17_695_150)
+
+    def test_action_nominal_that_still_disagrees_is_a_conflict(self):
+        result = recon.validate_current_shares(record(
+            shares=10_000_000, nominal=10, price=49.3, cap=493_000_000.0,
             capital_actions=[{"date": "2024-10-18", "capital": 353_903_000, "nominal": 20}]))
         self.assertEqual(result["status"], "CONFLICT")
 

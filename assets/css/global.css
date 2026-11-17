@@ -238,6 +238,7 @@ body::before {
 .pill-green  { background: var(--emerald-dim); color: var(--green); }
 .pill-orange { background: var(--amber-dim);   color: var(--amber); }
 .pill-red    { background: var(--rose-dim);    color: var(--red); }
+.pill-none   { background: var(--surface-3);   color: var(--text-mute); }
 
 /* ── Form controls ──────────────────────────────────────── */
 .form-control, .form-select {

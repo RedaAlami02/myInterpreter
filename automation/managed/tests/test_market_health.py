@@ -24,7 +24,8 @@ class MarketHealthTests(unittest.TestCase):
             {"c_name": "ZERO", "pa": 0, "date": "2026-11-16T15:00:00Z"},
         ]
         self.dividends = [
-            {"c_name": "FRESH", "year": 2025, "confirmed": True},
+            {"c_name": "FRESH", "year": 2025, "confirmed": True, "amount": 1.5,
+             "ex_date": "2026-07-01", "pay_date": "2026-07-15", "type": "Ordinary"},
             {"c_name": "STALE", "year": 2020, "confirmed": True},
         ]
         self.formats = [{"name": name, "symbol": name} for name in
@@ -54,6 +55,8 @@ class MarketHealthTests(unittest.TestCase):
         self.assertIn("FISCAL_YEAR_MISSING", by_name["MISSING"]["flags"])
         self.assertIn("SHARES_MISSING", by_name["MISSING"]["flags"])
         self.assertEqual(by_name["FRESH"]["dividend_status"], "CONFIRMED")
+        self.assertEqual(by_name["FRESH"]["dividend_amount"], 1.5)
+        self.assertEqual(by_name["FRESH"]["dividend_pay_date"], "2026-07-15")
 
     def test_report_shapes(self):
         report = market_health.audit(
@@ -63,6 +66,55 @@ class MarketHealthTests(unittest.TestCase):
         self.assertEqual(len(rows), 4)
         self.assertIn("PRICE_STALE", rows[0]["flags"] + rows[1]["flags"] + rows[2]["flags"])
         self.assertIn("Market data health", market_health.to_markdown(report))
+
+
+class BookHealthTests(unittest.TestCase):
+    def test_fresh_stale_and_missing_books(self):
+        summary, statuses, ages = market_health.book_health(
+            [{"symbol": "ADH", "captured_at": "2026-11-17T15:00:00Z"},
+             {"symbol": "ADH", "captured_at": "2026-11-17T14:00:00Z"},
+             {"symbol": "BCP", "captured_at": "2026-11-10T15:00:00Z"}],
+            [{"symbol": "ADH"}, {"symbol": "BCP"}, {"symbol": "NRJ"}],
+            as_of=datetime(2026, 11, 17, 18, 0, tzinfo=timezone.utc))
+        self.assertEqual(statuses["ADH"], "FRESH")
+        self.assertEqual(statuses["BCP"], "STALE")
+        self.assertEqual(statuses["NRJ"], "MISSING")
+        self.assertEqual(ages["ADH"], 3.0)
+        self.assertEqual(summary, {"book_symbols": 3, "book_fresh": 1,
+                                   "book_stale": 1, "book_missing": 1})
+
+    def test_a_friday_close_is_fresh_on_monday_morning(self):
+        summary, statuses, _ages = market_health.book_health(
+            [{"symbol": "ADH", "captured_at": "2026-11-20T15:00:00Z"}],
+            [{"symbol": "ADH"}],
+            as_of=datetime(2026, 11, 23, 8, 0, tzinfo=timezone.utc))
+        self.assertEqual(statuses["ADH"], "FRESH")
+        self.assertEqual(summary["book_fresh"], 1)
+
+
+class HistoryHealthTests(unittest.TestCase):
+    def test_history_ages_and_missing_companies(self):
+        summary, statuses, ages = market_health.history_health(
+            [{"c_name": "FRESH CO", "date": "2026-11-17T10:00:00Z"},
+             {"c_name": "FRESH CO", "date": "2026-11-16T10:00:00Z"},
+             {"c_name": "OLD CO", "date": "2026-10-21T10:00:00Z"}],
+            [{"name": "FRESH CO", "symbol": "FRS"},
+             {"name": "OLD CO", "symbol": "OLD"},
+             {"name": "NEVER CO", "symbol": "NVR"}],
+            as_of=datetime(2026, 11, 17, 18, 0, tzinfo=timezone.utc))
+        self.assertEqual(statuses, {"FRS": "FRESH", "OLD": "STALE", "NVR": "MISSING"})
+        self.assertEqual(ages["OLD"], 27)
+        self.assertEqual(summary["history_fresh"], 1)
+        self.assertEqual(summary["history_stale"], 1)
+        self.assertEqual(summary["history_missing"], 1)
+        self.assertEqual(summary["history_latest_age_days"], 0)
+
+    def test_empty_history_does_not_crash(self):
+        summary, statuses, _ages = market_health.history_health(
+            [], [{"name": "A", "symbol": "A"}],
+            as_of=datetime(2026, 11, 17, 18, 0, tzinfo=timezone.utc))
+        self.assertIsNone(summary["history_latest_age_days"])
+        self.assertEqual(statuses, {"A": "MISSING"})
 
 
 if __name__ == "__main__":

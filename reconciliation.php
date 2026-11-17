@@ -25,12 +25,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $admin = sb_admin();
         $token = sb_access_token();
         if ($action === 'approve') {
-            $result = $admin->applyExchangeAnnualCandidates($token, $sha, $symbols);
-            $message = 'Applied ' . (int)($result['applied'] ?? 0) . ' candidate(s); '
-                . (int)($result['skipped'] ?? 0) . ' skipped.';
+            $applied = 0;
+            $skipped = 0;
+            $failed = [];
+            foreach (array_chunk($symbols, 50) as $chunk) {
+                $result = $admin->applyExchangeAnnualCandidates($token, $sha, $chunk);
+                $applied += (int)($result['applied'] ?? 0);
+                $skipped += (int)($result['skipped'] ?? 0);
+                foreach ((array)($result['results'] ?? []) as $entry) {
+                    if (($entry['status'] ?? '') === 'FAILED') {
+                        $failed[] = (string)($entry['symbol'] ?? '?')
+                            . ' (' . (string)($entry['reason'] ?? 'failed') . ')';
+                    }
+                }
+            }
+            $message = 'Applied ' . $applied . ' candidate(s); ' . $skipped . ' skipped.';
+            if ($failed) {
+                $error = 'Not applied: ' . implode(', ', $failed);
+            }
         } elseif ($action === 'reject') {
-            $result = $admin->rejectExchangeAnnualCandidates($token, $sha, $symbols);
-            $message = 'Rejected ' . (int)($result['rejected'] ?? 0) . ' candidate(s).';
+            $rejected = 0;
+            foreach (array_chunk($symbols, 50) as $chunk) {
+                $result = $admin->rejectExchangeAnnualCandidates($token, $sha, $chunk);
+                $rejected += (int)($result['rejected'] ?? 0);
+            }
+            $message = 'Rejected ' . $rejected . ' candidate(s).';
         } else {
             throw new InvalidArgumentException('Unknown action.');
         }
@@ -90,10 +109,16 @@ foreach ($candidates as $candidate) {
         Exchange annual review
       </h2>
       <p class="muted" style="font-size:0.85rem;">
-        Consolidated, non-financial companies with a current 2025 exchange row. These are
-        exchange proposals, not primary-document verification. Approve only after checking
-        the fields and the source evidence. Access is checked by the database against
-        <code>market_admin.admins</code>.
+        Consolidated and standalone companies with a current exchange annual row, including
+        banks, insurers and standalone-account issuers. These are exchange proposals, not
+        primary-document verification. Approve only after checking the fields and the source
+        evidence. Access is checked by the database against <code>market_admin.admins</code>.
+      </p>
+      <p class="muted" style="font-size:0.78rem;">
+        <strong>cp</strong> equity, MAD · <strong>bpa</strong> earnings per share, MAD ·
+        <strong>roe</strong> percent · <strong>revenue</strong> and
+        <strong>net_profit</strong> millions MAD · <strong>profit_margin</strong> percent.
+        Approval writes annual fields only and recomputes BPA from the current share count.
       </p>
 
       <?php if ($adminDenied): ?>
@@ -127,7 +152,7 @@ foreach ($candidates as $candidate) {
             <table class="table table-sm align-middle" style="font-size:0.82rem">
               <thead>
                 <tr>
-                  <th></th><th>Symbol</th><th>Company</th><th>FY</th>
+                  <th><input type="checkbox" class="js-select-all" aria-label="Select all"></th><th>Symbol</th><th>Company</th><th>FY</th><th>Class</th>
                   <th>Fields</th><th>Warnings</th><th>Evidence</th>
                 </tr>
               </thead>
@@ -150,6 +175,7 @@ foreach ($candidates as $candidate) {
                   <td><strong><?= htmlspecialchars((string)$row['symbol']) ?></strong></td>
                   <td><?= htmlspecialchars((string)$row['company_name']) ?></td>
                   <td><?= (int)$row['fiscal_year'] ?></td>
+                  <td><?= htmlspecialchars((string)($row['review_class'] ?? '')) ?></td>
                   <td style="max-width:420px"><?= htmlspecialchars(implode(' · ', $fieldText)) ?></td>
                   <td><?= htmlspecialchars(implode(' · ', array_map('strval', (array)$warnings))) ?></td>
                   <td title="<?= htmlspecialchars((string)$row['page_sha256']) ?>"><?= htmlspecialchars(substr((string)$row['page_sha256'], 0, 10)) ?>…</td>
@@ -163,5 +189,14 @@ foreach ($candidates as $candidate) {
     </div>
   </main>
 </div>
+<script>
+document.querySelectorAll('.js-select-all').forEach(function (box) {
+  box.addEventListener('change', function () {
+    box.closest('form').querySelectorAll('input[name="symbols[]"]').forEach(function (item) {
+      item.checked = box.checked;
+    });
+  });
+});
+</script>
 </body>
 </html>

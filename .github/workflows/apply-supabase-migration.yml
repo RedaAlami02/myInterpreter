@@ -1,0 +1,120 @@
+name: Apply Supabase migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: Migration file under migrations/supabase
+        type: string
+        default: migrations/supabase/20261116_exchange_price_publication.sql
+      apply:
+        description: Apply the migration (otherwise validate only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apply-supabase-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: vars.MIGRATIONS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MIGRATION_FILE: ${{ github.event.inputs.file }}
+      DB_URL_RAW: ${{ secrets.SUPABASE_DB_URL }}
+      PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Validate migration path
+        run: |
+          case "$MIGRATION_FILE" in
+            migrations/supabase/*.sql) ;;
+            *) echo "Refusing path outside migrations/supabase"; exit 1;;
+          esac
+          test -f "$MIGRATION_FILE"
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+
+      - name: Normalize pooled connection URL
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+
+          url = os.environ.get("DB_URL_RAW", "").strip()
+          project = os.environ.get("PROJECT_URL", "").strip()
+          if not url:
+              sys.exit("SUPABASE_DB_URL is empty")
+
+          match = re.fullmatch(r"https://([a-z0-9]{10,40})\.supabase\.co/?", project)
+          ref = match.group(1) if match else ""
+
+          # Session transaction pooler only accepts the tenant-qualified username
+          # postgres.<project-ref>; rewrite it without touching the password.
+          user_match = re.match(r"^(postgres(?:ql)?://)([^:@/]+)(:.*)$", url, re.S)
+          if user_match and ref and ".pooler.supabase.com" in url:
+              user = user_match.group(2)
+              if user == "postgres":
+                  url = f"{user_match.group(1)}postgres.{ref}{user_match.group(3)}"
+                  print("Connection URL rewritten to the pooler tenant username.")
+              elif user == f"postgres.{ref}":
+                  print("Connection URL already uses the pooler tenant username.")
+              else:
+                  sys.exit("Unexpected pooler username; expected postgres or postgres.<project-ref>")
+          else:
+              print("Connection URL left unchanged.")
+
+          from urllib.parse import unquote, urlsplit
+          parsed = urlsplit(url)
+          password = parsed.password or ""
+          decoded = unquote(password)
+          reserved = sorted({ch for ch in decoded if ch in "@:/?#[]"})
+          print(f"password_present={bool(password)} password_length={len(password)} "
+                f"percent_encoded={password != decoded}")
+          print(f"query_present={bool(parsed.query)} fragment_present={bool(parsed.fragment)}")
+          if reserved and password == decoded:
+              print("WARNING: the password contains unencoded reserved URL characters; "
+                    "the server receives a different password.")
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
+              handle.write("SUPABASE_DB_URL=" + url + "\n")
+          PY
+
+      - name: Validate only
+        if: github.event.inputs.apply != 'true'
+        run: |
+          test -n "$SUPABASE_DB_URL"
+          if ! psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c 'select 1;' >/dev/null; then
+            echo "::error::Database login failed. Reset the database password in Supabase, copy the Session pooler URI from Connect, and update SUPABASE_DB_URL. An alphanumeric-only password avoids URL-encoding errors."
+            exit 1
+          fi
+          echo "Connection OK; migration not applied."
+
+      - name: Apply migration
+        if: github.event.inputs.apply == 'true'
+        run: |
+          test -n "$SUPABASE_DB_URL"
+          if ! psql "$SUPABASE_DB_URL" --single-transaction -v ON_ERROR_STOP=1 -f "$MIGRATION_FILE"; then
+            echo "::error::Migration failed. A login error means the database password in SUPABASE_DB_URL is wrong; a SQL error names the failing statement."
+            exit 1
+          fi
+          if [ "$MIGRATION_FILE" = "migrations/supabase/20261116_exchange_price_publication.sql" ]; then
+            psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -At -c \
+              "select count(*) from pg_proc where proname = 'apply_exchange_latest_prices'" | grep -qx 1
+            echo "Verified apply_exchange_latest_prices."
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Supabase migration" >> "$GITHUB_STEP_SUMMARY"
+          echo "File: \`$MIGRATION_FILE\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Apply: ${{ github.event.inputs.apply }}" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,75 @@
+name: Exchange instrument identities
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 07:40 UTC, weekdays: before the Casablanca session opens.
+    - cron: "40 7 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exchange-instrument-identities
+  cancel-in-progress: false
+
+jobs:
+  identities:
+    if: github.event_name == 'workflow_dispatch' || vars.EXCHANGE_ORDERBOOK_PUBLICATION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Capture the instrument universe
+        run: |
+          python3 tools/capture_exchange_pages.py \
+            --out-dir "$RUNNER_TEMP/identities/capture" \
+            --delay 0.5
+
+      - name: Publish identities
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 tools/publish_instrument_identities.py \
+            --snapshot "$RUNNER_TEMP/identities/capture/snapshot.json" \
+            --apply | tee "$RUNNER_TEMP/identities/result.json"
+
+      - name: Publish job summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          try:
+              result = json.load(open(os.environ["RUNNER_TEMP"] + "/identities/result.json"))
+          except Exception:
+              print("## Instrument identities\n\nPublish step did not complete.")
+              raise SystemExit(0)
+          print("## Instrument identities")
+          print()
+          print(f"Status: `{result.get('status')}`")
+          payload = result.get("result") or {}
+          print()
+          print("| Result | Count |")
+          print("|---|---:|")
+          for key in ("applied", "unchanged", "skipped", "conflicts"):
+              print(f"| {key} | {payload.get(key, 0)} |")
+          PY
+
+      - name: Upload capture artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrument-identities-${{ github.run_id }}
+          path: ${{ runner.temp }}/identities
+          retention-days: 14
+          if-no-files-found: warn

@@ -96,10 +96,10 @@ $labels = ['PER' => 'P.E.R', 'PEG' => 'PEG', 'PR' => 'P/R', 'PB' => 'P/B'];
       <div class="ratio-card <?= $color ?>">
         <div class="ratio-icon"><i class="fas <?= $icon ?>"></i></div>
         <div class="ratio-label"><?= $label ?></div>
-        <div class="ratio-value"><?= number_format($val, 2) ?></div>
+        <div class="ratio-value"><?= $color === 'none' ? '—' : number_format($val, 2) ?></div>
         <div class="mt-2">
-          <span class="pill pill-<?= $color === 'green' ? 'green' : ($color === 'orange' ? 'orange' : 'red') ?>">
-            <?= $color === 'green' ? 'Attractif' : ($color === 'orange' ? 'Neutre' : 'Surévalué') ?>
+          <span class="pill pill-<?= $color === 'none' ? 'none' : ($color === 'green' ? 'green' : ($color === 'orange' ? 'orange' : 'red')) ?>">
+            <?= $color === 'none' ? te('Non applicable') : ($color === 'green' ? te('Attractif') : ($color === 'orange' ? te('Neutre') : te('Surévalué'))) ?>
           </span>
         </div>
       </div>

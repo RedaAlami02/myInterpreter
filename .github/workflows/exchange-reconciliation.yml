@@ -50,10 +50,22 @@ jobs:
             --symbols "$SYMBOLS" \
             --delay 0.7
 
+      - name: Export saved reference rows
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 tools/export_reference_rows.py --table company \
+            --out "$RUNNER_TEMP/exchange-reconciliation/company.json"
+          python3 tools/export_reference_rows.py --table format \
+            --out "$RUNNER_TEMP/exchange-reconciliation/format.json"
+
       - name: Reconcile against exchange evidence
         run: |
           python3 tools/reconcile_exchange.py \
             --snapshot "$RUNNER_TEMP/exchange-reconciliation/capture/snapshot.json" \
+            --companies "$RUNNER_TEMP/exchange-reconciliation/company.json" \
+            --format "$RUNNER_TEMP/exchange-reconciliation/format.json" \
             --pages-dir "$RUNNER_TEMP/exchange-reconciliation/capture/pages" \
             --out-dir "$RUNNER_TEMP/exchange-reconciliation/report"
 
