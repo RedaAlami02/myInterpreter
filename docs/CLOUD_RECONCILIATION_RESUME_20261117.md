@@ -17,8 +17,8 @@
 - Dividends: repaired and reconciled. 61 recent, 2 unconfirmed (ADH, LES - waiting
   for an AGM), 16 companies with no declared dividend, 4 stale (INV, CMT, SNP,
   UMR). See `docs/DIVIDENDS_20261117.md`.
-- Annual queue: **76 pending rows** (47 auto, 7 banks, 5 insurers, 17 standalone).
-  All satisfy the BPA and ROE identities. Evidence:
+- Annual queue: 47 auto candidates plus 29 reviewed rows were staged; the page
+  shows the current pending count. All pass the BPA and ROE identities. Evidence:
   `docs/ANNUAL_REVIEW_20261117.md`.
 - `SNA` resolved through the action-nominal rule; `REB` margin dropped as noise.
 - Five stale fiscal years stay out: DIS (2011), DLM (2021), IBC (2021), INV
@@ -34,7 +34,7 @@ and `apply=true`.
 
 ## Next actions
 
-1. Approve the 76 staged annual rows on
+1. Approve the remaining staged annual rows on
    <https://myinterpreter.infinityfree.me/reconciliation.php> with select-all.
 2. Map NRJ and reconcile its share count.
 3. Historical `data` rows and ratios remain frozen; the price publisher updates
