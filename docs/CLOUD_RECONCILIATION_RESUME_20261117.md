@@ -2,75 +2,46 @@
 
 ## Where things stand
 
-- `master` carries the reconciliation migration, the admin review page, the price
-  publisher and the market-health audit. Service key and RPCs work.
-- Share reconciliation applied 16 updates and left 64 unchanged; 47 annual
-  candidates are staged and waiting for approval.
-- Market health proves the price feed is frozen: all 81 prices were dated
-  2026-10-21, 55 fiscal years were 2024, 21 were missing, 16 dividends were
-  unconfirmed and 7 shareholder lists were absent.
-- The price-publication migration is not applied yet, so
-  `apply_exchange_latest_prices` does not exist and `latest_prices` cannot be
-  written. The service role only has SELECT on that table.
+- Prices are live again. The price-publication migration is applied and the
+  exchange capture run `44069602847` published 81 prices: `applied=81`,
+  `skipped=0`, `missing=1`. Market health run `44070285419` now reports
+  `price_stale=0`, `price_ok=81`, `price_missing=0`.
+- The one missing symbol is the new NRJ listing, which still has no app company
+  mapping; add the mapping before its price or annual row can be applied.
+- Service key and RPCs work. Share reconciliation applied 16 updates and left 64
+  unchanged; 47 annual candidates are staged and waiting for approval.
+- Health after the price fix: 81 companies, 1 fiscal year current, 59 stale, 21
+  missing; dividends 60 recent, 4 stale, 17 missing, 16 unconfirmed; 7
+  shareholder lists missing. Annual approval will lift 47 of the stale years.
+- `EXCHANGE_PRICE_PUBLICATION_ENABLED=true`: weekday capture at 16:45 UTC,
+  after the Casablanca close.
 
-## Database URL: diagnosis
+## Database URL
 
-The stored URL already uses the tenant-qualified pooler user
-(`postgres.<project-ref>`), and the workflow now rewrites a bare `postgres` to
-that form automatically. PostgreSQL still answers `password authentication
-failed for user "postgres"`, which is the tenant's database role behind the
-pooler — so the password in `SUPABASE_DB_URL` is wrong, not the username.
-Resetting the password and re-saving the secret fixes it; an
-alphanumeric-only password avoids URL-encoding mistakes.
+The URL uses the tenant-qualified pooler user, and the workflow rewrites a bare
+`postgres` to `postgres.<project-ref>`. The diagnostic step reports
+`password_length=11 percent_encoded=False`, no reserved characters and no query
+or fragment, and PostgreSQL still answers `password authentication failed for
+user "postgres"`. The stored password is therefore simply wrong; reset the
+database password, copy the value from the reset dialog, and re-save the secret.
+This only affects future database migrations, not the running site.
 
-## Unblock sequence
+## Open items
 
-1. Apply `migrations/supabase/20261116_exchange_price_publication.sql`.
-   - Fastest: Supabase → SQL Editor → paste the file from
-     <https://raw.githubusercontent.com/RedaAlami02/myInterpreter/master/migrations/supabase/20261116_exchange_price_publication.sql> → Run.
-   - Or reset the database password, then:
-     `gh secret set SUPABASE_DB_URL --repo RedaAlami02/myInterpreter`
-     with the Session pooler URI, and run
-     `gh workflow run apply-supabase-migration.yml --repo RedaAlami02/myInterpreter --ref master -f apply=false`
-     then the same command with `-f apply=true`.
-   The SQL was compiled and exercised on PostgreSQL 17: the function applies a
-   price, records an audit row, rejects a 10x share mismatch and refuses an
-   older-than-current date.
-2. Publish current prices:
-   `gh workflow run exchange-price-publication.yml --repo RedaAlami02/myInterpreter --ref master`
-   This captures the exchange universe and calls the RPC. Until the workflow
-   variable `EXCHANGE_PRICE_PUBLICATION_ENABLED` is `true`, only manual runs happen.
-3. Re-run health and confirm stale prices fall:
-   `gh workflow run market-health.yml --repo RedaAlami02/myInterpreter --ref master`
-4. Keep the weekday schedule on:
-   `gh variable set EXCHANGE_PRICE_PUBLICATION_ENABLED --body true --repo RedaAlami02/myInterpreter`
-   The daily job runs at 16:45 UTC on weekdays, after the Casablanca close.
-5. Approve the 47 annual rows on
-   <https://myinterpreter.infinityfree.me/reconciliation.php> using the new
-   select-all box. The evidence is in `docs/ANNUAL_REVIEW_20261117.md`.
-
-## Annual candidates — decision summary
-
-All 47 rows satisfy `bpa = net_profit x 1e6 / shares`,
-`roe = net_profit x 1e6 / equity` and `profit_margin = net_profit / revenue`;
-equity and revenue are positive throughout. The large year-over-year moves come
-from depressed or negative prior-year bases (CMT, RDS, ATH, MNG, T2S, ZDJ) or a
-low prior exchange row (IAM). No row needs rejection. Approval writes annual
-fields only, never the share count, and recomputes BPA from current shares.
-
-## Still open
-
-1. Review the 35 exceptions: 7 banks, 5 insurers, 16 standalone-account
+1. Approve the 47 annual rows on
+   <https://myinterpreter.infinityfree.me/reconciliation.php> with the
+   select-all box. Evidence and the per-row decision are in
+   `docs/ANNUAL_REVIEW_20261117.md`. All 47 pass the BPA, ROE and margin
+   identities; approve all.
+2. Review the 35 exceptions: 7 banks, 5 insurers, 16 standalone-account
    companies, 5 stale fiscal years, 2 conflicts (SNA, NRJ).
-2. Add the NRJ company mapping before applying its shares or annual row.
-3. Historical `data` rows and ratios remain frozen at 2026-10-21. The price
-   publisher updates `latest_prices` only; a `data`/ratio publisher or the
-   private managed runner is still needed.
-4. Legacy `Update.php` and `results.php` still compare the UID in
-   `config/supabase.local.php` (`admin_user_id`). Update it only if those pages
-   return 403; `reconciliation.php` authorizes through `market_admin.admins`.
-5. Do not apply `20261116_public_market_anon_read.sql`; public market pages
-   without sign-in were explicitly declined.
+3. Add the NRJ company mapping.
+4. Historical `data` rows and ratios are still frozen. The price publisher
+   updates `latest_prices` only; a `data`/ratio publisher or the private managed
+   runner is still needed.
+5. Legacy `Update.php` and `results.php` compare the UID in
+   `config/supabase.local.php`; update it only if those pages return 403.
+6. Do not apply `20261116_public_market_anon_read.sql`.
 
 ## Run IDs
 
@@ -78,8 +49,8 @@ fields only, never the share count, and recomputes BPA from current shares.
 |---|---|---|
 | `43963698404` | Exchange capture and report | success, 82 companies |
 | `43976007884` | Apply shares, stage annual | 16 applied, 47 staged |
-| `43976023261` | Market health | success, all prices stale |
-| `44066487131` | DB URL validate | failed, wrong password |
-| `44067790230` | DB URL validate after username rewrite | failed, wrong password |
-| `44068004155` | Price publication probe | failed, RPC missing |
-| `44068546060` | Review page deploy | success |
+| `43976023261` | Market health before fix | all 81 prices stale |
+| `44068546060` | Review page deploy | success, select-all |
+| `44069602847` | Daily price publication | 81 applied, 1 missing |
+| `44070285419` | Market health after fix | `price_stale=0` |
+| `44070449079` | DB URL diagnostic | password length 11, rejected |
