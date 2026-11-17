@@ -76,7 +76,7 @@ Every row below satisfies `bpa = net_profit x 1e6 / shares` and `roe = net_profi
 | MIC | MICRODATA | STANDALONE | 2025 | 979.4 | 69.5 | 195.4 | 41.40 | 35.6 | 7.1 | Approve — Standalone accounts. |
 | MLE | MAROC LEASING | STANDALONE | 2025 | 387.2 | 107.3 | 1348.0 | 38.64 | 8.0 | 27.7 | Approve — Standalone accounts. |
 | PRO | SOCIETE DE PROMOTION PHARMACEUTIQUE DU MAGHREB | STANDALONE | 2025 | 979.7 | 59.9 | 590.8 | 59.91 | 10.1 | 6.1 | Approve — Standalone accounts. |
-| REB | REBAB COMPANY | STANDALONE | 2025 | 0.0 | 1.1 | 25.9 | 5.97 | 4.1 | 3514.2 | Approve — Margin omitted: revenue is 0.03M. |
+| REB | REBAB COMPANY | STANDALONE | 2025 | 0.0 | 1.1 | 25.9 | 5.97 | 4.1 | — | Approve — Margin omitted: revenue is 0.03M. |
 | SLF | SALAFIN | STANDALONE | 2025 | 384.0 | 96.1 | 888.5 | 30.77 | 10.8 | 25.0 | Approve — Standalone accounts. |
 | SMI | SOCIETE METALLURGIQUE D'IMITER | STANDALONE | 2025 | 1566.0 | 397.1 | 1660.2 | 241.39 | 23.9 | 25.4 | Approve — Standalone accounts. |
 | SNA | STOKVIS NORD AFRIQUE | STANDALONE | 2025 | 219.4 | 26.2 | -96.5 | 1.48 | -27.2 | 11.9 | Approve — Share conflict resolved: the 2024 action nominal of 20 yields 17,695,150 shares. |
