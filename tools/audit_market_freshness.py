@@ -77,16 +77,19 @@ def main():
                   if args.as_of else datetime.now(timezone.utc))
         if moment.tzinfo is None:
             moment = moment.replace(tzinfo=timezone.utc)
+        dividends = fetch(base, key, "dividends",
+                          "c_name,year,amount,ex_date,pay_date,confirmed,type,updated_at")
         report = market_health.audit(
             fetch(base, key, "latest_prices", "c_name,pa,date,origin_collection"),
             fetch(base, key, "company", "name,fiscal_year,na,shareholders,date"),
-            fetch(base, key, "dividends",
-                  "c_name,year,amount,ex_date,pay_date,confirmed,type,updated_at"),
+            dividends,
             fetch(base, key, "format", "name,symbol"),
             as_of=moment, max_age_days=args.max_age_days)
         args.out_dir.mkdir(parents=True, exist_ok=True)
         (args.out_dir / "market_health.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+        (args.out_dir / "dividends.json").write_text(
+            json.dumps(dividends, ensure_ascii=False, indent=1), encoding="utf-8")
         rows = market_health.to_csv_rows(report)
         with (args.out_dir / "market_health.csv").open("w", newline="", encoding="utf-8") as stream:
             writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
@@ -95,7 +98,8 @@ def main():
         (args.out_dir / "market_health.md").write_text(
             market_health.to_markdown(report), encoding="utf-8")
         print(json.dumps({"status": "OK", "summary": report["summary"],
-                          "outputs": ["market_health.json", "market_health.csv", "market_health.md"],
+                          "outputs": ["market_health.json", "market_health.csv",
+                                      "market_health.md", "dividends.json"],
                           "production_writes": 0}, sort_keys=True))
         return 0
     except Exception as error:
