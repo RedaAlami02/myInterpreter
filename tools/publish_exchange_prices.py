@@ -64,8 +64,8 @@ def main():
             result = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as error:
         detail = error.read(300).decode("utf-8", "replace")
-        print(json.dumps({"status": "FAILED", "code": "RPC_FAILED",
-                          "detail": detail[:300]}))
+        code = "MIGRATION_NOT_APPLIED" if "PGRST202" in detail else "RPC_FAILED"
+        print(json.dumps({"status": "FAILED", "code": code, "detail": detail[:300]}))
         return 1
     except urllib.error.URLError as error:
         print(json.dumps({"status": "FAILED", "code": "RPC_CONNECTION_FAILED"}))
