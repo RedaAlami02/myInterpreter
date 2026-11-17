@@ -58,13 +58,17 @@ class Company {
      */
     public function test(): array {
         $r = self::RESULT;
+        // A zero or negative ratio is missing or loss-making information, not a
+        // cheap company. Scoring it against the thresholds badged it green.
+        $score = static function (float $value, float $green, float $orange) use ($r): string {
+            if ($value <= 0) return 'none';
+            return $value < $green ? $r[0] : ($value < $orange ? $r[1] : $r[2]);
+        };
         return [
-            'PER' => $this->PER < PER_GREEN ? $r[0] : ($this->PER < PER_ORANGE ? $r[1] : $r[2]),
-            'PEG' => ($this->PEG > 0 && $this->PEG < PEG_GREEN)
-                   ? $r[0]
-                   : (($this->PEG > 0 && $this->PEG < PEG_ORANGE) ? $r[1] : $r[2]),
-            'PR'  => $this->PR < PR_GREEN ? $r[0] : ($this->PR < PR_ORANGE ? $r[1] : $r[2]),
-            'PB'  => $this->PB < PB_GREEN ? $r[0] : ($this->PB < PB_ORANGE ? $r[1] : $r[2]),
+            'PER' => $score($this->PER, PER_GREEN, PER_ORANGE),
+            'PEG' => $score($this->PEG, PEG_GREEN, PEG_ORANGE),
+            'PR'  => $score($this->PR, PR_GREEN, PR_ORANGE),
+            'PB'  => $score($this->PB, PB_GREEN, PB_ORANGE),
         ];
     }
 }

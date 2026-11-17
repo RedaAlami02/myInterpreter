@@ -42,6 +42,7 @@
 .ratio-card.green::before  { background: var(--green); }
 .ratio-card.orange::before { background: var(--orange); }
 .ratio-card.red::before    { background: var(--red); }
+.ratio-card.none::before   { background: var(--border); }
 .ratio-card:hover { transform: translateY(-5px); box-shadow: var(--shadow); }
 
 .ratio-icon {
