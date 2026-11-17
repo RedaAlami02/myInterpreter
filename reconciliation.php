@@ -90,10 +90,10 @@ foreach ($candidates as $candidate) {
         Exchange annual review
       </h2>
       <p class="muted" style="font-size:0.85rem;">
-        Consolidated, non-financial companies with a current 2025 exchange row. These are
-        exchange proposals, not primary-document verification. Approve only after checking
-        the fields and the source evidence. Access is checked by the database against
-        <code>market_admin.admins</code>.
+        Consolidated and standalone companies with a current exchange annual row, including
+        banks, insurers and standalone-account issuers. These are exchange proposals, not
+        primary-document verification. Approve only after checking the fields and the source
+        evidence. Access is checked by the database against <code>market_admin.admins</code>.
       </p>
 
       <?php if ($adminDenied): ?>
@@ -127,7 +127,7 @@ foreach ($candidates as $candidate) {
             <table class="table table-sm align-middle" style="font-size:0.82rem">
               <thead>
                 <tr>
-                  <th><input type="checkbox" class="js-select-all" aria-label="Select all"></th><th>Symbol</th><th>Company</th><th>FY</th>
+                  <th><input type="checkbox" class="js-select-all" aria-label="Select all"></th><th>Symbol</th><th>Company</th><th>FY</th><th>Class</th>
                   <th>Fields</th><th>Warnings</th><th>Evidence</th>
                 </tr>
               </thead>
@@ -150,6 +150,7 @@ foreach ($candidates as $candidate) {
                   <td><strong><?= htmlspecialchars((string)$row['symbol']) ?></strong></td>
                   <td><?= htmlspecialchars((string)$row['company_name']) ?></td>
                   <td><?= (int)$row['fiscal_year'] ?></td>
+                  <td><?= htmlspecialchars((string)($row['review_class'] ?? '')) ?></td>
                   <td style="max-width:420px"><?= htmlspecialchars(implode(' · ', $fieldText)) ?></td>
                   <td><?= htmlspecialchars(implode(' · ', array_map('strval', (array)$warnings))) ?></td>
                   <td title="<?= htmlspecialchars((string)$row['page_sha256']) ?>"><?= htmlspecialchars(substr((string)$row['page_sha256'], 0, 10)) ?>…</td>
