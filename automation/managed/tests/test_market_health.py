@@ -24,7 +24,8 @@ class MarketHealthTests(unittest.TestCase):
             {"c_name": "ZERO", "pa": 0, "date": "2026-11-16T15:00:00Z"},
         ]
         self.dividends = [
-            {"c_name": "FRESH", "year": 2025, "confirmed": True},
+            {"c_name": "FRESH", "year": 2025, "confirmed": True, "amount": 1.5,
+             "ex_date": "2026-07-01", "pay_date": "2026-07-15", "type": "Ordinary"},
             {"c_name": "STALE", "year": 2020, "confirmed": True},
         ]
         self.formats = [{"name": name, "symbol": name} for name in
@@ -54,6 +55,8 @@ class MarketHealthTests(unittest.TestCase):
         self.assertIn("FISCAL_YEAR_MISSING", by_name["MISSING"]["flags"])
         self.assertIn("SHARES_MISSING", by_name["MISSING"]["flags"])
         self.assertEqual(by_name["FRESH"]["dividend_status"], "CONFIRMED")
+        self.assertEqual(by_name["FRESH"]["dividend_amount"], 1.5)
+        self.assertEqual(by_name["FRESH"]["dividend_pay_date"], "2026-07-15")
 
     def test_report_shapes(self):
         report = market_health.audit(

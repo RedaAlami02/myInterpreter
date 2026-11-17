@@ -80,7 +80,8 @@ def main():
         report = market_health.audit(
             fetch(base, key, "latest_prices", "c_name,pa,date,origin_collection"),
             fetch(base, key, "company", "name,fiscal_year,na,shareholders,date"),
-            fetch(base, key, "dividends", "c_name,year,confirmed,updated_at"),
+            fetch(base, key, "dividends",
+                  "c_name,year,amount,ex_date,pay_date,confirmed,type,updated_at"),
             fetch(base, key, "format", "name,symbol"),
             as_of=moment, max_age_days=args.max_age_days)
         args.out_dir.mkdir(parents=True, exist_ok=True)

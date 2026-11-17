@@ -47,15 +47,15 @@ def audit(latest_prices, companies, dividends, formats, as_of=None, max_age_days
         moment = moment.replace(tzinfo=timezone.utc)
     symbols = {row.get("name"): row.get("symbol") for row in formats or []}
     prices = {row.get("c_name"): row for row in latest_prices or []}
-    dividend_years = {}
+    dividend_latest = {}
     for row in dividends or []:
         name = row.get("c_name")
         year = row.get("year")
         if not isinstance(year, int):
             continue
-        current = dividend_years.get(name)
-        if current is None or year > current[0]:
-            dividend_years[name] = (year, bool(row.get("confirmed")))
+        current = dividend_latest.get(name)
+        if current is None or year > current.get("year"):
+            dividend_latest[name] = row
     rows = []
     summary = {
         "companies": 0, "price_ok": 0, "price_stale": 0, "price_missing": 0,
@@ -109,19 +109,19 @@ def audit(latest_prices, companies, dividends, formats, as_of=None, max_age_days
         if shares is None or shares <= 0:
             summary["shares_missing"] += 1
             flags.append("SHARES_MISSING")
-        dividend = dividend_years.get(name)
+        dividend = dividend_latest.get(name)
         if dividend is None:
             dividend_status = "MISSING"
             summary["dividend_missing"] += 1
-        elif dividend[0] >= moment.year - 1:
-            dividend_status = "CONFIRMED" if dividend[1] else "UNCONFIRMED"
+        elif dividend.get("year") >= moment.year - 1:
+            dividend_status = "CONFIRMED" if dividend.get("confirmed") else "UNCONFIRMED"
             summary["dividend_recent"] += 1
-            if not dividend[1]:
+            if not dividend.get("confirmed"):
                 flags.append("DIVIDEND_UNCONFIRMED")
         else:
             dividend_status = "STALE"
             summary["dividend_stale"] += 1
-            flags.append("DIVIDEND_STALE_%d" % dividend[0])
+            flags.append("DIVIDEND_STALE_%d" % dividend.get("year"))
         holders = _shareholders(company.get("shareholders"))
         if not holders:
             summary["shareholders_missing"] += 1
@@ -135,8 +135,12 @@ def audit(latest_prices, companies, dividends, formats, as_of=None, max_age_days
             "price": price_value, "price_date": price.get("date"),
             "price_age_days": age, "price_status": price_status,
             "fiscal_year": fiscal, "fiscal_status": fiscal_status,
-            "shares": shares, "dividend_year": dividend[0] if dividend else None,
-            "dividend_confirmed": dividend[1] if dividend else None,
+            "shares": shares, "dividend_year": dividend.get("year") if dividend else None,
+            "dividend_confirmed": dividend.get("confirmed") if dividend else None,
+            "dividend_amount": dividend.get("amount") if dividend else None,
+            "dividend_ex_date": dividend.get("ex_date") if dividend else None,
+            "dividend_pay_date": dividend.get("pay_date") if dividend else None,
+            "dividend_type": dividend.get("type") if dividend else None,
             "dividend_status": dividend_status,
             "shareholders": len(holders), "flags": flags,
         })
@@ -149,7 +153,8 @@ def to_csv_rows(report):
     return [{key: row.get(key) for key in (
         "symbol", "name", "price", "price_date", "price_age_days", "price_status",
         "fiscal_year", "fiscal_status", "shares", "dividend_year",
-        "dividend_confirmed", "dividend_status", "shareholders")}
+        "dividend_confirmed", "dividend_amount", "dividend_ex_date",
+        "dividend_pay_date", "dividend_type", "dividend_status", "shareholders")}
         | {"flags": "; ".join(row.get("flags") or [])}
         for row in report.get("companies") or []]
 
