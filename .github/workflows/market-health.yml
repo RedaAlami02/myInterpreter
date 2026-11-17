@@ -44,6 +44,7 @@ jobs:
             --max-age-days "$MAX_AGE_DAYS"
 
       - name: Publish job summary
+        if: always()
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json, os
@@ -66,6 +67,7 @@ jobs:
           PY
 
       - name: Upload report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: market-health-${{ github.run_id }}

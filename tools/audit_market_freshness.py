@@ -57,6 +57,8 @@ def main():
     parser.add_argument("--out-dir", required=True, type=Path)
     parser.add_argument("--as-of")
     parser.add_argument("--max-age-days", type=int, default=7)
+    parser.add_argument("--allow-stale", action="store_true",
+                        help="report staleness but exit 0")
     args = parser.parse_args()
     if args.out_dir.exists() and any(args.out_dir.iterdir()):
         print(json.dumps({"status": "FAILED", "code": "OUTPUT_DIRECTORY_NOT_EMPTY"}))
@@ -88,7 +90,8 @@ def main():
             dividends,
             formats,
             as_of=moment, max_age_days=args.max_age_days)
-        books = fetch(base, key, "market_orderbooks", "symbol,captured_at")
+        books = fetch(base, key, "market_orderbooks", "symbol,captured_at",
+                      "&order=captured_at.desc", max_rows=4000)
         history = fetch(base, key, "data", "c_name,date",
                         "&order=date.desc", max_rows=4000)
         history_summary, history_status, history_ages = market_health.history_health(
@@ -131,11 +134,20 @@ def main():
             writer.writerows(rows)
         (args.out_dir / "market_health.md").write_text(
             market_health.to_markdown(report), encoding="utf-8")
-        print(json.dumps({"status": "OK", "summary": report["summary"],
+        summary = report["summary"]
+        failures = []
+        if summary.get("price_missing") or summary.get("price_zero") or summary.get("price_stale"):
+            failures.append("PRICES")
+        if summary.get("history_stale") or summary.get("history_missing"):
+            failures.append("HISTORY")
+        if summary.get("book_missing"):
+            failures.append("ORDER_BOOKS")
+        status = "STALE" if failures else "OK"
+        print(json.dumps({"status": status, "stale": failures, "summary": report["summary"],
                           "outputs": ["market_health.json", "market_health.csv",
                                       "market_health.md", "dividends.json", "books.json", "history.json"],
                           "production_writes": 0}, sort_keys=True))
-        return 0
+        return 0 if (not failures or args.allow_stale) else 1
     except Exception as error:
         detail = (str(error)[:200] if isinstance(error, RuntimeError)
                   else f"{type(error).__name__}: {str(error)[:180]}")

@@ -63,12 +63,21 @@ jobs:
             echo "Outside the session window; nothing to publish." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          # Retention runs once, on the first trigger after the close.
-          prune=""
-          if [ "$(date -u +%H)" = "16" ] && [ "$(date -u +%M)" -lt 15 ]; then prune="--prune"; fi
           python3 tools/publish_exchange_orderbooks.py \
             --snapshot "$RUNNER_TEMP/orderbooks/capture/snapshot.json" \
-            --apply $prune | tee "$RUNNER_TEMP/orderbooks/result.json"
+            --apply | tee "$RUNNER_TEMP/orderbooks/result.json"
+
+      - name: Prune expired order books
+        if: always()
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          # Retention is independent of capture: the post-close trigger is
+          # outside the session window, so a gated prune would never run.
+          if [ "$(date -u +%H)" = "16" ] && [ "$(date -u +%M)" -lt 15 ]; then
+            python3 tools/publish_exchange_orderbooks.py --prune-only
+          fi
 
       - name: Publish job summary
         if: always()

@@ -51,6 +51,16 @@ jobs:
             --snapshot "$RUNNER_TEMP/exchange-prices/capture/snapshot.json" \
             --apply | tee "$RUNNER_TEMP/exchange-prices/result.json"
 
+      - name: Publish daily history
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 tools/publish_exchange_history.py \
+            --snapshot "$RUNNER_TEMP/exchange-prices/capture/snapshot.json" \
+            --actions "$RUNNER_TEMP/exchange-prices/capture/actions.json" \
+            --apply | tee "$RUNNER_TEMP/exchange-prices/result_history.json"
+
       - name: Publish dividends
         if: vars.EXCHANGE_DIVIDEND_PUBLICATION_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
         env:
@@ -66,7 +76,7 @@ jobs:
         run: |
           {
             echo "## Exchange price publication"
-            for result in result.json result_dividends.json; do
+            for result in result.json result_history.json result_dividends.json; do
               echo "\`\`\`json"
               cat "$RUNNER_TEMP/exchange-prices/$result" 2>/dev/null || echo '{"status":"NO_RESULT"}'
               echo "\`\`\`"

@@ -39,8 +39,9 @@ def main():
     if not isinstance(records, list) or not 1 <= len(records) <= 200:
         print(json.dumps({"status": "FAILED", "code": "INVALID_SNAPSHOT_SHAPE"}))
         return 1
+    current_year = datetime.now(timezone.utc).year
     years = sorted({int(value) for value in args.years.split(",") if value.strip()}
-                   or {datetime.now(timezone.utc).year})
+                   or {current_year, current_year - 1})
     if not 1 <= len(years) <= 5 or any(year < 2000 or year > 2100 for year in years):
         print(json.dumps({"status": "FAILED", "code": "INVALID_YEARS"}))
         return 1
