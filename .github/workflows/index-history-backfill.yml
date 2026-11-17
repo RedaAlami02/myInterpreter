@@ -1,0 +1,38 @@
+name: Index history backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: Comma-separated indices to backfill
+        type: string
+        default: "MASI"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: index-history-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SYMBOLS: ${{ github.event.inputs.symbols }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Backfill index closes
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 tools/backfill_index_history.py --symbols "$SYMBOLS" --apply
