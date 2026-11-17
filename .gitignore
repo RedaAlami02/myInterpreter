@@ -135,3 +135,9 @@ unavoidable_issues.md
 
 # Key documentation must never hold a pasted value
 API_KEYS.md
+
+# Local artefacts and captured data — never committed
+/research/
+/safety-snapshots/
+/design-review/screenshots/
+/{config,core,handlers,scrapping,assets
