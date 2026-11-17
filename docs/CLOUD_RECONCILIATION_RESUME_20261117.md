@@ -2,69 +2,59 @@
 
 ## Automatic operation
 
-- Prices publish automatically on weekdays at 16:45 UTC through
-  `exchange-price-publication.yml`, gated by `EXCHANGE_PRICE_PUBLICATION_ENABLED=true`.
-  No local machine is involved.
+- Weekdays at 16:45 UTC, `exchange-price-publication.yml` captures the exchange,
+  publishes prices and reconciles the current-year dividends. Both are gated by
+  `EXCHANGE_PRICE_PUBLICATION_ENABLED` and `EXCHANGE_DIVIDEND_PUBLICATION_ENABLED`,
+  both true. No local machine is involved.
 - `keepalive.yml` writes a timestamp every Monday so GitHub does not disable the
   schedules after 60 days without repository activity.
-- Monthly `exchange-reconciliation.yml` captures the full universe, applies
-  verified shares and stages annual candidates.
-- Daily `market-health.yml` audits freshness without writing.
+- Monthly `exchange-reconciliation.yml` applies verified shares and stages annual
+  candidates. Daily `market-health.yml` audits freshness without writing.
 
 ## Current data state
 
-- Price publication run `44069602847`: 81 applied, 0 skipped, 1 missing (NRJ).
-  Market health run `44070285419`: `price_stale=0`, `price_ok=81`.
-- Annual queue holds **76 pending rows**: 47 auto candidates, 7 banks, 5 insurers,
-  17 standalone-account companies. All satisfy the BPA and ROE identities.
-  Evidence: `docs/ANNUAL_REVIEW_20261117.md`.
-- `SNA` was reclassified after the engine learned to use a capital action's own
-  nominal. Its 17,695,150 shares are confirmed by capitalization/price and by the
-  2024 action (353,903,000 at nominal 20).
-- `REB` no longer carries a profit margin; its revenue is 30 thousand MAD.
-- Five stale rows stay out of the queue: DIS (2011), DLM (2021), IBC (2021),
-  INV (2023), SAM (2014). The exchange has no newer filing.
-- `NRJ` (JET ENERGY) has no company mapping and its annual row reports 1,050,000
-  shares against 13,125,000 implied by capitalization, a 12.5x difference. Map
-  the company and reconcile the row before applying it.
+- Prices: 81 published, `price_stale=0`.
+- Dividends: repaired and reconciled. 61 recent, 2 unconfirmed (ADH, LES - waiting
+  for an AGM), 16 companies with no declared dividend, 4 stale (INV, CMT, SNP,
+  UMR). See `docs/DIVIDENDS_20261117.md`.
+- Annual queue: **76 pending rows** (47 auto, 7 banks, 5 insurers, 17 standalone).
+  All satisfy the BPA and ROE identities. Evidence:
+  `docs/ANNUAL_REVIEW_20261117.md`.
+- `SNA` resolved through the action-nominal rule; `REB` margin dropped as noise.
+- Five stale fiscal years stay out: DIS (2011), DLM (2021), IBC (2021), INV
+  (2023), SAM (2014).
+- `NRJ` (JET ENERGY) still needs a company mapping; its row reports 1,050,000
+  shares against 13,125,000 implied, a 12.5x difference.
 
 ## Database URL
 
-`SUPABASE_DB_URL` now authenticates. Validate run `44071540279` reported
-`Connection OK`, and apply run `44071617554` re-ran the price migration and
-verified `apply_exchange_latest_prices`. Future migrations can use
-`apply-supabase-migration.yml` with `apply=true`.
+`SUPABASE_DB_URL` authenticates. Validate `44071540279` and apply `44071617554`
+both succeeded. Migrations can be applied with `apply-supabase-migration.yml`
+and `apply=true`.
 
-## Next action
+## Next actions
 
-Approve the 76 staged rows on
-<https://myinterpreter.infinityfree.me/reconciliation.php> with the select-all
-box. Approval writes annual fields only, never the share count, and recomputes
-BPA from current shares. Approving lifts most of the 59 stale fiscal years.
-
-## Still open
-
-1. Map NRJ, then reconcile its share count and annual row.
-2. Historical `data` rows and ratios remain frozen. The price publisher updates
-   `latest_prices` only; a `data`/ratio publisher or the private managed runner
-   is still needed.
-3. Dividends: 17 missing, 4 stale, 16 unconfirmed. Shareholder lists missing for
-   7 companies.
-4. Legacy `Update.php` and `results.php` compare the UID in
+1. Approve the 76 staged annual rows on
+   <https://myinterpreter.infinityfree.me/reconciliation.php> with select-all.
+2. Map NRJ and reconcile its share count.
+3. Historical `data` rows and ratios remain frozen; the price publisher updates
+   `latest_prices` only.
+4. Seven companies still have no shareholder list.
+5. Legacy `Update.php` and `results.php` compare the UID in
    `config/supabase.local.php`; update it only if those pages return 403.
-5. Do not apply `20261116_public_market_anon_read.sql`.
+6. Do not apply `20261116_public_market_anon_read.sql`.
 
 ## Run IDs
 
 | Run | Purpose | Result |
 |---|---|---|
-| `44069602847` | Daily price publication | 81 applied, 1 missing |
+| `44069602847` | Daily price publication | 81 applied |
 | `44070285419` | Market health | `price_stale=0` |
 | `44071540279` | DB URL validate | success |
 | `44071617554` | Price migration via psql | verified |
-| `44072388042` | Stage review classes | applied |
-| `44072458281` | Stage bank/insurer/standalone | 28 staged |
-| `44072539854` | Read RPC with class | applied |
-| `44072646277` | Page deploy | success |
-| `44073118618` | Margin guard | applied |
+| `44072458281` | Stage review classes | 28 staged |
 | `44073193487` | Fresh report, SNA staged | 1 staged |
+| `44076077350` | Dividend repair migration | 60 deleted, 8 updated |
+| `44076167396` | Dividend publication | 7 updated, 3 duplicates |
+| `44076935964` | Health after dividends | 2 unconfirmed, 16 non-payers |
+| `44077086510` | Dividend constraints | applied |
