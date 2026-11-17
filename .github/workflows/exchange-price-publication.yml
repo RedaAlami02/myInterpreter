@@ -51,14 +51,26 @@ jobs:
             --snapshot "$RUNNER_TEMP/exchange-prices/capture/snapshot.json" \
             --apply | tee "$RUNNER_TEMP/exchange-prices/result.json"
 
+      - name: Publish dividends
+        if: vars.EXCHANGE_DIVIDEND_PUBLICATION_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 tools/publish_exchange_dividends.py \
+            --snapshot "$RUNNER_TEMP/exchange-prices/capture/snapshot.json" \
+            --apply | tee "$RUNNER_TEMP/exchange-prices/result_dividends.json"
+
       - name: Job summary
         if: always()
         run: |
           {
             echo "## Exchange price publication"
-            echo "\`\`\`json"
-            cat "$RUNNER_TEMP/exchange-prices/result.json" 2>/dev/null || echo '{"status":"NO_RESULT"}'
-            echo "\`\`\`"
+            for result in result.json result_dividends.json; do
+              echo "\`\`\`json"
+              cat "$RUNNER_TEMP/exchange-prices/$result" 2>/dev/null || echo '{"status":"NO_RESULT"}'
+              echo "\`\`\`"
+            done
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload capture evidence
