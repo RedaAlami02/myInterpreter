@@ -1,0 +1,120 @@
+name: Database snapshot
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Monthly, 1st at 03:30 UTC.
+    - cron: "30 3 1 * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: database-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DB_URL_RAW: ${{ secrets.SUPABASE_DB_URL }}
+      PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      TABLES: >-
+        company format data latest_prices dividends market_orderbooks
+        company_profiles market_snapshots market_reference dividend_source_snapshots
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+
+      - name: Normalize pooled connection URL
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+
+          url = os.environ.get("DB_URL_RAW", "").strip()
+          project = os.environ.get("PROJECT_URL", "").strip()
+          if not url:
+              sys.exit("SUPABASE_DB_URL is empty")
+
+          match = re.fullmatch(r"https://([a-z0-9]{10,40})\.supabase\.co/?", project)
+          ref = match.group(1) if match else ""
+          user_match = re.match(r"^(postgres(?:ql)?://)([^:@/]+)(:.*)$", url, re.S)
+          if user_match and ref and ".pooler.supabase.com" in url:
+              user = user_match.group(2)
+              if user == "postgres":
+                  url = f"{user_match.group(1)}postgres.{ref}{user_match.group(3)}"
+              elif user != f"postgres.{ref}":
+                  sys.exit("Unexpected pooler username; expected postgres or postgres.<project-ref>")
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
+              handle.write("SUPABASE_DB_URL=" + url + "\n")
+          PY
+
+      - name: Dump public market tables
+        run: |
+          mkdir -p "$RUNNER_TEMP/db-snapshot"
+          STAMP="$(date -u +%Y%m)"
+          OUT="$RUNNER_TEMP/db-snapshot/database-snapshot-$STAMP.sql"
+          args=()
+          for table in $TABLES; do args+=("-t" "public.$table"); done
+          pg_dump "$SUPABASE_DB_URL" --data-only --no-owner --no-privileges \
+            --schema=public "${args[@]}" -f "$OUT"
+          gzip -9 "$OUT"
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+          echo "SNAPSHOT=$OUT.gz" >> "$GITHUB_ENV"
+          ls -l "$OUT.gz"
+
+      - name: Write manifest
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess, datetime
+          path = os.environ["SNAPSHOT"]
+          data = open(path, "rb").read()
+          counts = {}
+          for table in os.environ["TABLES"].split():
+              out = subprocess.run(["psql", os.environ["SUPABASE_DB_URL"], "-tAc",
+                                    f"select count(*) from public.{table}"],
+                                   capture_output=True, text=True)
+              if out.returncode != 0:
+                  raise SystemExit(f"count failed for {table}: {out.stderr[:200]}")
+              counts[table] = int(out.stdout.strip() or 0)
+          manifest = {
+              "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+              "stamp": os.environ["STAMP"],
+              "file": os.path.basename(path),
+              "bytes": len(data),
+              "sha256": hashlib.sha256(data).hexdigest(),
+              "rows": counts,
+              "excluded_personal_tables": True,
+          }
+          os.makedirs("backups/db", exist_ok=True)
+          target = f"backups/db/manifest-{os.environ['STAMP']}.json"
+          open(target, "w", encoding="utf-8").write(json.dumps(manifest, indent=1, sort_keys=True) + "\n")
+          print(json.dumps(manifest, indent=1, sort_keys=True))
+          PY
+
+      - name: Upload snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-snapshot-${{ env.STAMP }}
+          path: ${{ env.SNAPSHOT }}
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Commit manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "backups/db/manifest-$STAMP.json"
+          if git diff --cached --quiet; then
+            echo "Manifest unchanged."
+            exit 0
+          fi
+          git commit -m "chore(backup): database snapshot manifest $STAMP"
+          git push

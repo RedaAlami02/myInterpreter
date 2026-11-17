@@ -141,3 +141,8 @@ API_KEYS.md
 /safety-snapshots/
 /design-review/screenshots/
 /{config,core,handlers,scrapping,assets
+
+# Database snapshots: manifests are committed, dumps stay local/artifacts
+/backups/db/*.sql.gz
+/backups/db/*.sql
+/backups/db/*.dump

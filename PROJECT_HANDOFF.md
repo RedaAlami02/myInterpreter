@@ -1,3 +1,10 @@
+> **Current state (2026-11-17):** the Supabase migration is committed and
+> merged into `master`; the repository now matches production. Start with
+> [docs/CURRENT_STATE_20261117.md](docs/CURRENT_STATE_20261117.md), then
+> [docs/OPERATIONS_RUNBOOK.md](docs/OPERATIONS_RUNBOOK.md) and
+> [docs/BUGFIX_LOG_20261117.md](docs/BUGFIX_LOG_20261117.md). The sections below
+> record the earlier migration history.
+
 # myInterpreter Project Handoff
 
 ## Active migration handoff — 2026-10-25
