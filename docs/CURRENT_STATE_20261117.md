@@ -47,6 +47,11 @@ writes it from the same capture as prices.
 | `market-health.yml` | daily 06:30 | nothing (audit; exits non-zero on stale prices/history) |
 | `exchange-reconciliation.yml` | monthly, 1st 06:17 | stages annual candidates; optional share apply |
 | `keepalive.yml` | Mondays 05:00 | `.github/keepalive.txt` commit |
+| `database-snapshot.yml` | monthly, 1st 03:30 | nothing in the database; uploads a data-only dump and commits a manifest |
+
+Database snapshots cover the public market tables only. Restoring is manual and
+documented in the runbook: an automatic restore into production would be
+destructive.
 
 Scheduled jobs are gated by repository variables
 (`EXCHANGE_PRICE_PUBLICATION_ENABLED`, `EXCHANGE_ORDERBOOK_PUBLICATION_ENABLED`,
