@@ -22,6 +22,7 @@ $year    = isset($_GET['year']) ? max(2022, min($thisYr + 1, (int)$_GET['year'])
 $dbError = null;
 $rows    = [];
 $priceMap = [];
+$priceDateMap = [];
 
 try {
     $calendarData = aw_multi_list_docs([
@@ -31,7 +32,7 @@ try {
     $rows = array_map('div_review_row', $calendarData['year']);
     foreach ($calendarData['prices'] as $d) {
         $n = $d['c_name'] ?? '';
-        if ($n !== '') $priceMap[$n] = (float)($d['pa'] ?? 0);
+        if ($n !== '') { $priceMap[$n] = (float)($d['pa'] ?? 0); $priceDateMap[$n] = $d['date'] ?? null; }
     }
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
@@ -42,6 +43,7 @@ try {
 try {
     foreach (current_market_prices(sb_market_preview()) as $name => $quote) {
         $priceMap[$name] = (float)$quote['pa'];
+        $priceDateMap[$name] = gmdate('c');
     }
 } catch (Throwable $e) { /* keep recorded references */ }
 
@@ -104,7 +106,17 @@ foreach (array_chunk($historyRequests, 6, true) as $batch) {
 }
 
 /** One table body, shared by the three sections. */
-function div_rows_table(array $list, array $priceMap, bool $dim = false, array $predictions = []): void
+function div_price_is_today($date): bool
+{
+    if (!$date) return false;
+    try { $stamp = new DateTimeImmutable((string)$date); }
+    catch (Throwable $error) { return false; }
+    $tz = new DateTimeZone('Africa/Casablanca');
+    return $stamp->setTimezone($tz)->format('Y-m-d')
+        === (new DateTimeImmutable('now', $tz))->format('Y-m-d');
+}
+
+function div_rows_table(array $list, array $priceMap, array $priceDateMap, bool $dim = false, array $predictions = []): void
 {
     if (!$list) return; ?>
     <div class="card-glass overflow-x-auto mb-4">
@@ -121,7 +133,12 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
         <?php foreach ($list as $r):
             $name  = $r['c_name'] ?? '';
             $amt   = (float)($r['amount'] ?? 0);
-            $yield = div_yield($r, $priceMap[$name] ?? null);
+            // The footer promises a yield on today's price. When the stored
+            // price is older, show no yield instead of an unlabelled one.
+            $priceDate = $priceDateMap[$name] ?? null;
+            $yieldFresh = div_price_is_today($priceDate);
+            $yield = $yieldFresh ? div_yield($r, $priceMap[$name] ?? null) : null;
+            $yieldNote = $yieldFresh ? '' : ($priceDate ? te('Cours du ') . fmt_date($priceDate) : te('Cours indisponible'));
             $isQ   = strcasecmp((string)($r['frequency'] ?? ''), 'Trimestriel') === 0;
         ?>
           <tr<?= $dim ? ' class="div-done"' : '' ?>>
@@ -133,7 +150,7 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
               <?php endif; ?>
             </td>
             <td class="num mono"><?= $amt > 0 ? number_format($amt, 2, ',', ' ') : '—' ?></td>
-            <td class="num mono"><?= $yield === null ? '—' : number_format($yield, 2, ',', ' ') . '&nbsp;%' ?></td>
+            <td class="num mono"<?= $yieldNote !== '' ? ' title="' . htmlspecialchars($yieldNote) . '"' : '' ?>><?= $yield === null ? '—' : number_format($yield, 2, ',', ' ') . '&nbsp;%' ?></td>
             <td class="date">
               <?php if (!empty($r['ex_date'])): ?>
                 <?= fmt_date($r['ex_date']) ?>
@@ -253,7 +270,7 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
             <i class="fas fa-arrow-right me-2 t-cyan"></i><?= te('À venir') ?>
             <span class="muted"><?= count($upcoming) ?></span>
           </h5>
-          <?php div_rows_table($upcoming, $priceMap, false, $predictions); ?>
+          <?php div_rows_table($upcoming, $priceMap, $priceDateMap, false, $predictions); ?>
         <?php endif; ?>
 
         <?php if ($undated): ?>
@@ -261,7 +278,7 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
             <i class="fas fa-question-circle me-2 t-amber"></i><?= te('Date non communiquée') ?>
             <span class="muted"><?= count($undated) ?></span>
           </h5>
-          <?php div_rows_table($undated, $priceMap, false, $predictions); ?>
+          <?php div_rows_table($undated, $priceMap, $priceDateMap, false, $predictions); ?>
         <?php endif; ?>
 
         <?php if ($past): ?>
@@ -269,13 +286,13 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
             <i class="fas fa-check me-2"></i><?= te('Déjà versés') ?>
             <span class="muted"><?= count($past) ?></span>
           </h5>
-          <?php div_rows_table($past, $priceMap, true, $predictions); ?>
+          <?php div_rows_table($past, $priceMap, $priceDateMap, true, $predictions); ?>
         <?php endif; ?>
 
         <p class="fund-source">
           <i class="fas fa-calendar-alt me-1"></i>
           <span class="muted"><?= te('Un dividende versé en') ?> <?= $year ?> <?= te('provient de l\'exercice') ?> <?= $year - 1 ?>
-          <?= te('· les rendements sont calculés sur le cours du jour · montants bruts') ?></span>
+          <?= te('· les rendements ne sont calculés que sur un cours du jour · montants bruts') ?></span>
         </p>
 
       <?php endif; ?>

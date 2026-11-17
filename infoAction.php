@@ -190,17 +190,27 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
             // so the share count cannot poison it.
             $fyEst   = (int)($company['fy_est'] ?? 0);
             $rnpgEst = (float)($company['rnpg_est'] ?? 0);
+            // Market capitalisation comes from the exchange via the newest data
+            // row. price * reported shares goes wrong the moment a company
+            // splits (MANAGEM 10:1, SOTHEMA, CASH PLUS were all hit); the
+            // implied share count derived from the cap survives splits.
+            $histCap      = (float)($history[0]['cb'] ?? $history[0]['market_cap'] ?? 0);
+            $histPa       = (float)($history[0]['pa'] ?? 0);
+            $impliedShare = ($histCap > 0 && $histPa > 0) ? $histCap / $histPa : 0;
+            $mcap         = ($impliedShare > 0 && $divPrice > 0)
+                              ? $divPrice * $impliedShare
+                              : (($divPrice > 0 && !empty($company['na']))
+                                    ? $divPrice * (float)$company['na'] : 0.0);
             $perEst  = null;
-            if ($fyEst && $rnpgEst > 0 && $divPrice > 0 && !empty($company['na'])) {
-                $mcap   = $divPrice * (float)$company['na'];
+            if ($fyEst && $rnpgEst > 0 && $mcap > 0) {
                 $perEst = $mcap / ($rnpgEst * 1e6);
                 // Same ceiling the scraper applies: beyond it the number is an
                 // artefact of a bad input, not a valuation worth showing.
                 if ($perEst <= 0 || $perEst > MAX_PER) $perEst = null;
             }
             $perRep = null;
-            if (!empty($company['net_profit']) && $divPrice > 0 && !empty($company['na'])) {
-                $p = $divPrice * (float)$company['na'] / ((float)$company['net_profit'] * 1e6);
+            if (!empty($company['net_profit']) && $mcap > 0) {
+                $p = $mcap / ((float)$company['net_profit'] * 1e6);
                 if ($p > 0 && $p <= MAX_PER) $perRep = $p;
             }
 

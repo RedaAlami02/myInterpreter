@@ -19,6 +19,18 @@ marked **open** were confirmed by reading the code but are not yet changed.
 | 9 | Zero/negative ratios scored as "Attractif" | Missing or loss-making companies were badged green on the results page | `Action::test()` returns `none`; page renders "non applicable" |
 | 10 | Order-book levels with zero/fractional quantity | The detail page rejects a whole book on one invalid level | Dropped at capture; sorted, capped at 10 |
 | 11 | Repo did not match production | `master` held the Appwrite client; the live site ran an uncommitted Supabase rewrite | Migration work committed and merged (`e3d885e`), 451 tests pass |
+| 12 | Company-page PER used `price × reported shares` | A split made reported PER wrong by the split factor | Market cap taken from the newest `data` row; implied share count survives splits |
+| 13 | Dividend yield ignored the price date | Footer promised a yield on today's price; a stale or suspended price was presented as current | Yield shown only when the price is from today (Casablanca); otherwise "—" with the price date as a tooltip |
+| 14 | Annual approval could overwrite reviewed financials | A re-staged report for an already-reviewed year replaced `roe/cp/revenue/net_profit` | `20261118_annual_review_guard.sql`: same-year candidates are skipped with `FINANCIAL_PERIOD_REVIEWED` when a review receipt exists |
+| 15 | Malformed dividend dates aborted the whole batch | One bad `paiement`/`detachement` rejected every company and year | `20261118_dividend_hardening.sql`: safe cast, unparseable components dropped, rows without a payment date skipped |
+| 16 | Dividend dedupe deleted components the snapshot did not mention | A partial capture erased a stored exceptional dividend | Groups whose stored types are not fully covered are left untouched and reported as `skipped_partial` |
+| 17 | Dividend index contradicted the projection writer | `(c_name, year)` unique clashed with per-type rows and could not even be built on real duplicates | `20261118_dividend_key.sql`: index moved to `(c_name, year, type)` |
+| 18 | Share RPC fell back to a free-text company name | An unmapped or misspelled symbol could update the wrong company | Both share functions now skip unmapped symbols |
+| 19 | Replaying an older share report reverted a newer share count | `na` rolled back; every BPA derived from it was wrong | Reports generated before the newest applied one are skipped (`skipped_older_report`) |
+| 20 | Prices were restamped with the publication time | A suspended instrument looked freshly priced forever | Capture emits `traded`; untraded instruments keep their stored date (`NOT_TRADED`) |
+| 21 | Dashboard hid a failed load behind zeros | An outage looked like an empty market | Visible banner; failure logged |
+| 22 | Screener/dashboard "previous" row was 15 minutes old | Δ% labelled as a session change was intraday noise | Previous row selected by trading day |
+| 23 | Shareholder names interpolated into `innerHTML` | Stored XSS in a signed-in page | DOM built with `textContent` |
 
 ## Open — worth fixing next
 

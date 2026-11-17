@@ -81,8 +81,8 @@ therefore safe again. `design-review/screenshots/` and `research/` stay local
 
 ## Known open issues
 
-See [BUGFIX_LOG_20261117.md](BUGFIX_LOG_20261117.md). Highest-impact open
-items: PER on the company page still uses the reported share count; dividend
-yields have no price-date check; one dividend date with a bad format can abort a
-whole publication batch; the annual-approval RPC can overwrite reviewed
-financials.
+See [BUGFIX_LOG_20261117.md](BUGFIX_LOG_20261117.md). Remaining highest-impact
+items: the dividend `(c_name, year)` unique index conflicts with the per-type
+projection writer; the share RPC falls back to a free-text company name; a
+replayed share report can revert a newer share count; price rows are stamped at
+fetch time; and the dashboard hides a failed load behind zeros.
