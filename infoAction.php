@@ -1,17 +1,29 @@
 <?php
-session_start();
+require_once __DIR__ . '/core/session.php';
+app_session_start();
 require_once __DIR__ . '/core/i18n.php';
 require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/Action.php';
 require_once 'core/dividends.php';
 require_once 'core/sector_allocation.php';
+require_once 'core/latest_sessions.php';
+require_once 'core/current_prices.php';
+require_once 'core/company_market.php';
+$detailQuote = null;
+$detailBook = null;
+$currentPriceRecords = [];
+if (MYINTERPRETER_MARKET_PREVIEW) {
+    try { $currentPriceRecords = current_market_prices(sb_market_preview()); }
+    catch (Throwable $error) { /* Historical records keep their original dates. */ }
+}
 
 $companyDocs = [];
 $allCompanies = [];
 $labelOf = [];
 $company      = null;
 $history      = [];
+$latestSessions = [];
 $sparkLabels  = [];
 $sparkData    = [];
 $searched     = false;
@@ -134,6 +146,29 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
             if (!$symbol) {
                 $symbol = array_flip($symbolTo)[$name] ?? null;
             }
+            $sessionSymbol=latest_session_symbol($directoryData['symbols'],$name);
+            if ($sessionSymbol) {
+                try {
+                    $latestSessions=latest_sessions(sb_app()->recentMarketSessions(sb_access_token(),$sessionSymbol),$sessionSymbol,
+                        (new DateTimeImmutable('now',new DateTimeZone('Africa/Casablanca')))->format('Y-m-d'));
+                } catch (Throwable $error) { /* Keep the company page usable when session history is unavailable. */ }
+            }
+
+            // Display reads fail independently so a missing book never hides a price.
+            $priceCandidates = array_merge(array_values($currentPriceRecords), $history);
+            foreach ($latestSessions as $session) {
+                if ($session['price'] !== null) $priceCandidates[] = ['c_name' => $name, 'pa' => $session['price'], 'date' => $session['day']];
+            }
+            try {
+                $priceCandidates = array_merge($priceCandidates, aw_list_docs('latest_prices', [q_equal('c_name', $name), q_order_desc('date'), q_limit(1)]));
+            } catch (Throwable $error) { /* Dated observations remain available. */ }
+            $detailQuote = company_market_quote($name, $priceCandidates);
+            if ($sessionSymbol) {
+                try {
+                    $books = aw_list_docs('market_orderbooks', [q_equal('symbol', $sessionSymbol), q_order_desc('captured_at'), q_limit(1)]);
+                    if ($books) $detailBook = company_market_book($books[0], $sessionSymbol);
+                } catch (Throwable $error) { /* Render an explicit unavailable state. */ }
+            }
 
             // ─── Dividends ───────────────────────────────────
             $divRows            = div_for_company($name);
@@ -145,7 +180,7 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
             // enough to support one. Shown as a window, never as a date.
             $divPredict         = ($divNext && !div_confirmed($divNext))
                                     ? div_predict($divRows, (int)date('Y')) : null;
-            $divPrice           = (float)($history[0]['pa'] ?? 0);
+            $divPrice           = (float)($currentPriceRecords[$name]['pa'] ?? $history[0]['pa'] ?? 0);
 
             // ─── Projected year ──────────────────────────────
             // A reported year can be unrepresentative while the market prices
@@ -183,7 +218,7 @@ $directoryPriceCeiling = 100;
 if (!$searched && !$dbError) {
     try {
         $companySet = array_fill_keys($allCompanies, true);
-        foreach (($directoryData['prices'] ?? aw_list_docs('latest_prices', [q_limit(200)])) as $priceDoc) {
+        foreach (overlay_current_prices(($directoryData['prices'] ?? aw_list_docs('latest_prices', [q_limit(200)])), $currentPriceRecords) as $priceDoc) {
             $priceName = $priceDoc['c_name'] ?? '';
             $price = (float)($priceDoc['pa'] ?? 0);
             if (isset($companySet[$priceName]) && $price > 0) $directoryPrices[$priceName] = $price;
@@ -230,7 +265,7 @@ if ($awSession && !empty($name ?? '')) {
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=5" rel="stylesheet">
-  <link href="assets/css/infoAction.css?v=11" rel="stylesheet">
+  <link href="assets/css/infoAction.css?v=13" rel="stylesheet">
   <?php require 'core/theme.php'; ?>
 </head>
 <body class="workspace workspace-company">
@@ -429,6 +464,8 @@ if ($awSession && !empty($name ?? '')) {
               </div>
             </div>
 
+            <?php render_company_market($detailQuote, $detailBook); ?>
+
             <!-- Fundamentals grid -->
             <?php if (!empty($company['fiscal_year'])): ?>
               <p class="fund-source">
@@ -494,6 +531,8 @@ if ($awSession && !empty($name ?? '')) {
               <?php endforeach; ?>
             </div>
           </div>
+
+          <?php render_latest_sessions($latestSessions); ?>
 
           <?php if (!empty($history)): ?>
 
@@ -584,7 +623,9 @@ if ($awSession && !empty($name ?? '')) {
                       </div>
                       <div class="div-date-cell">
                         <span class="div-date-lbl"><?= te('Statut') ?></span>
-                        <?php if ($conf): ?>
+                        <?php if (div_verification_issue($divNext) !== null): ?>
+                          <span class="div-badge estimated"><?= te('à vérifier') ?></span>
+                        <?php elseif ($conf): ?>
                           <span class="div-badge confirmed"><i class="fas fa-check me-1"></i><?= te('Confirmé') ?></span>
                         <?php else: ?>
                           <span class="div-badge estimated"><i class="fas fa-clock me-1"></i><?= te('Prévu') ?></span>

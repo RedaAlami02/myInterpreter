@@ -1,0 +1,23 @@
+.sync-shell { max-width: 1120px; margin: auto; padding: 28px 20px 48px; color: var(--text); }
+.sync-shell h1 { margin: 22px 0 10px; font-size: clamp(1.4rem, 3vw, 2rem); }
+.sync-shell h2 { font-size: 1.1rem; margin: 24px 0 12px; }
+.sync-shell p { line-height: 1.6; }
+.sync-note, .sync-summary, .sync-shell small { color: var(--text-dim); }
+.sync-scroll { overflow-x: auto; margin: 18px 0; border: 1px solid var(--border); border-radius: 12px; }
+.sync-shell table { width: 100%; border-collapse: collapse; }
+.sync-shell th, .sync-shell td { padding: 14px; text-align: start; border-bottom: 1px solid var(--border); vertical-align: top; }
+.sync-shell thead { background: var(--surface-2); }
+.sync-shell th small { display: block; font-weight: normal; }
+.sync-shell time { white-space: nowrap; }
+.sync-shell summary { cursor: pointer; padding-block: 4px; }
+.sync-value { max-width: 46ch; overflow-wrap: anywhere; }
+.sync-empty, .sync-result { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.sync-result h2 { margin-top: 0; }
+.sync-alert { color: var(--rose); border-inline-start: 3px solid var(--rose); padding: 12px; }
+.sync-confirm { border-top: 1px solid var(--border); padding-block: 12px; }
+.sync-shell footer { margin-top: 24px; }
+@media (max-width: 640px) {
+ .sync-shell { padding: 16px 12px 28px; }
+ .sync-shell table { min-width: 650px; }
+ .sync-confirm .btn { width: 100%; white-space: normal; }
+}

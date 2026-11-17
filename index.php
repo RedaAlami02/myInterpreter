@@ -1,84 +1,30 @@
 <?php
 ob_start();
-session_start();
+require_once __DIR__ . '/core/session.php';
+app_session_start();
 require_once __DIR__ . '/core/i18n.php';
 require_once 'config/config.php';
-require_once 'config/sources.php';
+if (MYINTERPRETER_DIRECT_SOURCE_REQUESTS && !MYINTERPRETER_MARKET_PREVIEW) require_once 'config/sources.php';
 require_once 'core/Appwrite.php';
 require_once 'core/auth.php';
+require_once 'core/current_prices.php';
 
-// ─── Restore session from cookie ─────────────────────────
-if (!isset($_SESSION['logged_in']) && isset($_COOKIE['aw_session'])) {
-    $_SESSION['aw_cookie'] = $_COOKIE['aw_session'];
-    $me = aw_get('/account', $_SESSION['aw_cookie']);
-    if (isset($me['body']['$id'])) {
-        $_SESSION['logged_in'] = true;
-        $_SESSION['USER_ID']   = $me['body']['$id'];
-        $_SESSION['USER_EMAIL']= $me['body']['email'] ?? '';
-        // Slide the cookie forward another year on each restore
-        setcookie('aw_session', $_COOKIE['aw_session'], time() + 86400 * 365, '/', '', false, true);
-    } else {
-        setcookie('aw_session', '', time() - 3600, '/', '', false, true);
-        unset($_SESSION['aw_cookie']);
-    }
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['logout']) || isset($_POST['signup_form']) || isset($_POST['login_form']) || isset($_POST['reset_request']) || isset($_POST['resend_confirmation']))) {
+    csrf_verify();
 }
-
-// ─── Logout ───────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
-    if (!empty($_SESSION['aw_cookie'])) {
-        aw_delete('/account/sessions/current', $_SESSION['aw_cookie']);
-    }
-    session_destroy();
-    setcookie('aw_session', '', time() - 3600, '/', '', false, true);
-    header('Location: ' . BASE_URL . '/index.php');
-    exit();
+$loginNotice = '';
+$pendingEmail = '';
+require __DIR__ . '/handlers/supabase_auth.php';
+$isLoggedIn = $sessionValidated;
+$marketPreviewEnabled = MYINTERPRETER_MARKET_PREVIEW;
+$marketPreviewSnapshot = null;
+if ($isLoggedIn && $marketPreviewEnabled) {
+    try { $marketPreviewSnapshot = sb_market_preview(); }
+    catch (Throwable $error) { /* The panel shows a bounded unavailable state. */ }
 }
-
-// ─── Sign up ──────────────────────────────────────────────
-$loginError = '';
-$isSignUp   = false;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signup_form'])) {
-    $isSignUp = true;
-    $email    = trim($_POST['email']    ?? '');
-    $password = $_POST['password']      ?? '';
-    $name     = trim($_POST['name']     ?? '');
-    $res = aw_post('/account', [
-        'userId'   => 'unique()',
-        'email'    => $email,
-        'password' => $password,
-        'name'     => $name ?: null,
-    ]);
-    if (isset($res['body']['$id'])) {
-        $_POST['login_form'] = '1';
-        $_POST['stay'] = $_POST['stay'] ?? '';
-        $loginSignup = true;
-    } else {
-        $loginError = $res['body']['message'] ?? 'Inscription échouée.';
-    }
-}
-
-// ─── Login ────────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['login_form']) || isset($loginSignup))) {
-    $email    = trim($_POST['email']    ?? '');
-    $password = $_POST['password']      ?? '';
-    $stay     = !empty($_POST['stay']);
-    $res = aw_post('/account/sessions/email', ['email' => $email, 'password' => $password]);
-    if (isset($res['body']['$id'])) {
-        $_SESSION['logged_in']  = true;
-        $_SESSION['USER_ID']    = $res['body']['userId'];
-        $_SESSION['USER_EMAIL'] = $email;
-        $_SESSION['aw_cookie']  = $res['cookies'];
-        setcookie('aw_session', $res['cookies'], time() + 86400 * 365, '/', '', false, true);
-        header('Location: ' . BASE_URL . '/index.php');
-        exit();
-    } else {
-        $loginError = $res['body']['message'] ?? 'Identifiants incorrects.';
-    }
-}
-
-$isLoggedIn = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
 
 function _live_market_status(): array {
+    if (!MYINTERPRETER_DIRECT_SOURCE_REQUESTS) return [];
     $payload = json_encode(['ACTIONS' => [[
         'ACTION' => ['NAME' => 'MARKET-STATUS', 'TYPE' => 'SELECT', 'VALUE' => 'MARKET-STATUS'],
         'PARAMS' => [
@@ -119,6 +65,7 @@ $allGreen       = 0;
 $totalCompanies = 0;
 $ratedCount     = 0;
 $masiSeries     = [];
+$masiFullSeries = [];
 $masiLast       = null;
 $masiChange     = null;
 $masiChangePct  = null;
@@ -126,7 +73,8 @@ $topGainers     = [];
 $topLosers      = [];
 $topScored      = [];
 $screenerCount  = null;
-$isMarketOpen   = false;
+$isMarketOpen   = null;
+$sessionLabel   = '';
 
 if ($isLoggedIn) {
     try {
@@ -205,22 +153,9 @@ if ($isLoggedIn) {
             $masiChangePct = $masiPrev ? round(($masiLast - $masiPrev) / $masiPrev * 100, 2) : null;
             // keep $masiSeries for legacy check (just need count >= 2)
             $masiSeries    = array_column($masiFullSeries, 'v');
-        } else {
-            // Fallback: avg PA across all stocks per day
-            krsort($byDate);
-            $byDate = array_slice($byDate, 0, 30, true);
-            ksort($byDate);
-            foreach ($byDate as $pas) {
-                $masiSeries[] = round(array_sum($pas) / count($pas), 2);
-                $masiFullSeries[] = ['d' => '', 'v' => end($masiSeries)];
-            }
-            if (count($masiSeries) >= 2) {
-                $masiLast      = end($masiSeries);
-                $masiFirst     = reset($masiSeries);
-                $masiChange    = round($masiLast - $masiFirst, 2);
-                $masiChangePct = $masiFirst ? round(($masiLast - $masiFirst) / $masiFirst * 100, 2) : null;
-            }
         }
+        // Missing index history remains unavailable; a stock-price average is
+        // not an index observation and must never be displayed as MASI.
 
         // Score / PER stats
         // Mirrors rateColor() in screener.php: a ratio is only scoreable when it
@@ -305,24 +240,51 @@ if ($isLoggedIn) {
         $topLosers  = array_slice(array_values($losers),  0, 6);
         $topScored  = array_slice(array_values($scored4), 0, 6);
 
-        // Market session status: live check (3s timeout), fallback to time-based
-        $isMarketOpen  = false;
+        // Saved observations do not establish the current exchange session.
+        $isMarketOpen  = null;
         $sessionLabel  = '';
         $mktStatus = _live_market_status();
         if (!empty($mktStatus)) {
             $isMarketOpen = ($mktStatus['Color'] ?? '') === 'G';
             $sessionLabel = $mktStatus['Statut'] ?? '';
-        } else {
-            $nowC = new DateTime('now', new DateTimeZone('Africa/Casablanca'));
-            $tm   = (int)$nowC->format('G') * 60 + (int)$nowC->format('i');
-            $dow  = (int)$nowC->format('N');
-            $isMarketOpen = ($dow <= 5 && $tm >= 9*60+30 && $tm < 15*60+30);
         }
 
     } catch (Throwable $e) {
         // fail silently
     }
 }
+
+// Live same-day quotes overlay the recorded session for movers only. The
+// recorded fundamentals (PER/PEG/P/R/P/B) keep their own date.
+$previewAvailable = $marketPreviewEnabled && $marketPreviewSnapshot !== null
+    && $marketPreviewSnapshot->status === 'AVAILABLE';
+$liveGainers = $liveLosers = [];
+if ($previewAvailable && !empty($latest) && !empty($rows)) {
+    try {
+        $liveQuotes = current_market_prices($marketPreviewSnapshot);
+        $rowsByName = [];
+        foreach ($rows as $row) $rowsByName[$row['name']] = $row;
+        $liveRows = [];
+        foreach ($liveQuotes as $name => $quote) {
+            if (!isset($latest[$name], $rowsByName[$name])) continue;
+            $old = (float)($latest[$name]['pa'] ?? 0);
+            $new = (float)($quote['pa'] ?? 0);
+            if ($old <= 0 || $new <= 0) continue;
+            $liveRows[] = array_merge($rowsByName[$name],
+                ['PA' => $new, 'trend' => ($new - $old) / $old * 100]);
+        }
+        usort($liveRows, fn($a, $b) => $b['trend'] <=> $a['trend']);
+        $liveGainers = array_slice(array_values(array_filter($liveRows, fn($r) => $r['trend'] > 0)), 0, 5);
+        $liveLosers  = array_slice(array_values(array_filter($liveRows, fn($r) => $r['trend'] < 0)), 0, 5);
+    } catch (Throwable $e) { /* recorded movers remain */ }
+}
+$moversLive    = !empty($liveGainers) || !empty($liveLosers);
+$moversGainers = $moversLive ? $liveGainers : array_slice($topGainers, 0, 5);
+$moversLosers  = $moversLive ? $liveLosers  : array_slice($topLosers, 0, 5);
+$moversLabel   = $moversLive
+    ? te('Cours du jour vs dernière donnée enregistrée')
+    : te('Données enregistrées');
+if ($newestDate) $moversLabel .= ' · ' . $newestDate;
 
 // Date/time for page header
 $nowParis  = new DateTime('now', new DateTimeZone('Africa/Casablanca'));
@@ -338,7 +300,7 @@ $dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="<?= csrf_token() ?>">
-  <title><?= te('myInterpreter | Tableau de bord') ?></title>
+  <title><?= te('myInterpreter | Marché') ?></title>
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=5" rel="stylesheet">
@@ -420,6 +382,19 @@ $dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j
         <?php if ($loginError): ?>
           <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i><?= te($loginError) ?></div>
         <?php endif; ?>
+        <?php if ($loginNotice): ?>
+          <div class="alert alert-success"><?= te($loginNotice) ?></div>
+        <?php endif; ?>
+        <?php if (!empty($pendingEmail) && !$isLoggedIn): ?>
+          <form method="POST" action="" class="mb-3">
+            <?= csrf_field() ?>
+            <input type="hidden" name="email" value="<?= htmlspecialchars($pendingEmail ?? '', ENT_QUOTES) ?>">
+            <input type="hidden" name="resend_confirmation" value="1">
+            <button type="submit" class="btn btn-ghost btn-sm w-100">
+              <i class="fas fa-envelope me-1"></i><?= te("Renvoyer l'email de confirmation") ?>
+            </button>
+          </form>
+        <?php endif; ?>
         <div class="d-flex mb-4" style="gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden">
           <button type="button" id="tabLogin"  onclick="switchAuthTab('login')"
             class="btn btn-sm flex-fill" style="border-radius:0;border:none;padding:8px">
@@ -448,6 +423,25 @@ $dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j
           </div>
           <button type="submit" name="login_form" class="btn btn-cyan w-100 btn-lg" data-loading-text="Vérification...">
             <i class="fas fa-sign-in-alt"></i> <?= te('Se connecter') ?>
+          </button>
+        </form>
+        <p id="resetLinkRow" style="text-align:center;margin:14px 0 0">
+          <button type="button" class="btn btn-link btn-sm p-0" onclick="showResetForm()" style="color:var(--text-dim);text-decoration:none">
+            <i class="fas fa-key me-1"></i><?= te('Mot de passe oublié ?') ?>
+          </button>
+        </p>
+        <form id="formReset" method="POST" action="" data-loading style="display:none">
+          <?= csrf_field() ?>
+          <input type="hidden" name="reset_request" value="1">
+          <div class="mb-3">
+            <label class="form-label small muted"><?= te('Email') ?></label>
+            <input type="email" name="email" class="form-control" placeholder="email@example.com" required>
+          </div>
+          <button type="submit" class="btn btn-cyan w-100 btn-lg" data-loading-text="Envoi...">
+            <i class="fas fa-paper-plane"></i> <?= te('Envoyer le lien') ?>
+          </button>
+          <button type="button" class="btn btn-ghost w-100 mt-2" onclick="hideResetForm()">
+            <i class="fas fa-arrow-left"></i> <?= te('Retour') ?>
           </button>
         </form>
         <form id="formSignup" method="POST" action="" data-loading style="display:none">
@@ -534,20 +528,35 @@ $dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j
     <div class="page-head">
       <div>
         <div class="eyebrow"><?= htmlspecialchars(ucfirst($dateLabel)) ?> · <?= $timeLabel ?></div>
-        <h1 class="page-title"><?= te('Tableau de bord') ?></h1>
+        <h1 class="page-title"><?= te('Marché') ?></h1>
       </div>
       <div class="pill-bar">
+        <?php if ($masiLast !== null): ?>
+          <div class="closed-pill" style="gap:8px">
+            <span class="mono">MASI <?= number_format($masiLast, 2, ',', ' ') ?></span>
+            <?php if ($masiChangePct !== null): ?>
+              <span class="<?= $masiChangePct >= 0 ? 'pos' : 'neg' ?>" style="font-size:11px">
+                <?= ($masiChangePct >= 0 ? '+' : '') . number_format($masiChangePct, 2, ',', ' ') ?> %
+              </span>
+            <?php endif; ?>
+            <span style="font-size:10px;opacity:.6"><?= $previewAvailable ? te('cours du jour') : te('enregistré') ?></span>
+          </div>
+        <?php endif; ?>
         <a href="infoAction.php" class="search-pill" style="text-decoration:none;cursor:pointer">
           <span>⌕</span>
           <span><?= te('Chercher une société…') ?></span>
         </a>
-        <?php if ($isMarketOpen): ?>
+        <?php if ($isMarketOpen === null): ?>
+          <div class="closed-pill"><?= te('Statut de séance indisponible') ?></div>
+        <?php elseif ($isMarketOpen): ?>
           <div class="live-pill"><span class="live-dot"></span><?= te(ui_locale() === 'fr' ? ($sessionLabel ?: 'Séance ouverte') : 'Séance ouverte') ?></div>
         <?php else: ?>
           <div class="closed-pill"><span style="width:7px;height:7px;border-radius:50%;background:var(--neg);display:inline-block"></span><?= te(ui_locale() === 'fr' ? ($sessionLabel ?: 'Séance fermée') : 'Séance fermée') ?></div>
         <?php endif; ?>
       </div>
     </div>
+
+
 
     <!-- Metrics -->
     <section class="metrics">
@@ -577,13 +586,14 @@ $dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j
       </div>
     </section>
 
-    <!-- Chart + Actions -->
-    <section class="two-col">
+    <!-- Market chart -->
+    <section class="two-col" style="display:block">
       <!-- Market trend chart -->
       <div class="glass">
         <div class="card-head">
           <div>
             <div class="card-title"><?= !empty($masiFullSeries) ? 'Indice MASI' : 'Tendance marché' ?></div>
+            <div class="card-sub"><?= $previewAvailable ? te('Cours du jour') : te('Données enregistrées') ?><?= $newestDate ? ' · ' . htmlspecialchars($newestDate) : '' ?></div>
             <div class="masi-value">
               <?php if ($masiLast !== null): ?>
                 <span class="masi-num"><?= number_format($masiLast, 2, ',', ' ') ?></span>
@@ -653,70 +663,6 @@ $dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j
         </div>
       </div>
 
-      <!-- Quick actions -->
-      <div class="glass">
-        <div class="card-head">
-          <div>
-            <div class="card-title"><?= te('Actions rapides') ?></div>
-            <div class="card-sub"><?= te('Vos outils du quotidien') ?></div>
-          </div>
-        </div>
-        <div class="action-grid">
-          <?php if (is_admin()): ?>
-          <a class="action-tile" href="Update.php">
-            <div class="action-tile-top">
-              <div class="action-icon cyan">+</div>
-              <span class="action-arrow">→</span>
-            </div>
-            <div>
-              <div class="action-label"><?= te('Société / MAJ') ?></div>
-              <div class="action-sub"><?= te('Ajouter ou MAJ') ?></div>
-            </div>
-          </a>
-          <?php else: ?>
-          <a class="action-tile" href="screener.php">
-            <div class="action-tile-top">
-              <div class="action-icon cyan">▽</div>
-              <span class="action-arrow">→</span>
-            </div>
-            <div>
-              <div class="action-label"><?= te('Screener') ?></div>
-              <div class="action-sub"><?= te('Filtrer ·') ?> <?= (int)$totalCompanies ?> <?= te('résultats') ?></div>
-            </div>
-          </a>
-          <?php endif; ?>
-          <a class="action-tile" href="infoAction.php">
-            <div class="action-tile-top">
-              <div class="action-icon green">⌕</div>
-              <span class="action-arrow">→</span>
-            </div>
-            <div>
-              <div class="action-label"><?= te('Consulter') ?></div>
-              <div class="action-sub"><?= te('Historique &amp; ratios') ?></div>
-            </div>
-          </a>
-          <a class="action-tile" href="portfolio.php">
-            <div class="action-tile-top">
-              <div class="action-icon purple">◐</div>
-              <span class="action-arrow">→</span>
-            </div>
-            <div>
-              <div class="action-label"><?= te('Portefeuille') ?></div>
-              <div class="action-sub"><?= te('Achats · P&amp;L') ?></div>
-            </div>
-          </a>
-          <a class="action-tile" href="screener.php">
-            <div class="action-tile-top">
-              <div class="action-icon orange">▽</div>
-              <span class="action-arrow">→</span>
-            </div>
-            <div>
-              <div class="action-label"><?= te('Screener') ?></div>
-              <div class="action-sub"><?= te('Filtrer ·') ?> <?= (int)$totalCompanies ?> <?= te('résultats') ?></div>
-            </div>
-          </a>
-        </div>
-      </div>
     </section>
 
     <!-- Mouvements table -->
@@ -724,12 +670,11 @@ $dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j
       <div class="card-head">
         <div>
           <div class="card-title"><?= te('Mouvements de la séance') ?></div>
-          <div class="card-sub" id="table-sub"><?= te('Top hausses ·') ?> <?= htmlspecialchars($dateLabel) ?> · <?= $timeLabel ?></div>
+          <div class="card-sub" id="table-sub"><?= htmlspecialchars($moversLabel) ?></div>
         </div>
         <div class="segmented">
           <button class="seg is-active" onclick="showTab('gainers', this, 'Top hausses')"><?= te('Hausses') ?></button>
           <button class="seg" onclick="showTab('losers', this, 'Top baisses')"><?= te('Baisses') ?></button>
-          <button class="seg" onclick="showTab('scored', this, 'Score 4/4')"><?= te('Score 4/4') ?></button>
         </div>
       </div>
       <div class="data-table-wrap">
@@ -747,9 +692,9 @@ $dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j
             </tr>
           </thead>
           <tbody id="tbody-gainers">
-            <?php if (empty($topGainers)): ?>
+            <?php if (empty($moversGainers)): ?>
               <tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:24px"><?= te('Aucune donnée') ?></td></tr>
-            <?php else: foreach ($topGainers as $r): ?>
+            <?php else: foreach ($moversGainers as $r): ?>
             <tr>
               <td class="name"><span class="ticker"><?= htmlspecialchars($r['abbr']) ?></span><?= htmlspecialchars($r['name']) ?></td>
               <td class="num"><?= number_format($r['PA'], 2, ',', ' ') ?></td>
@@ -763,9 +708,9 @@ $dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j
             <?php endforeach; endif; ?>
           </tbody>
           <tbody id="tbody-losers" style="display:none">
-            <?php if (empty($topLosers)): ?>
+            <?php if (empty($moversLosers)): ?>
               <tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:24px"><?= te('Aucune donnée') ?></td></tr>
-            <?php else: foreach ($topLosers as $r): ?>
+            <?php else: foreach ($moversLosers as $r): ?>
             <tr>
               <td class="name"><span class="ticker"><?= htmlspecialchars($r['abbr']) ?></span><?= htmlspecialchars($r['name']) ?></td>
               <td class="num"><?= number_format($r['PA'], 2, ',', ' ') ?></td>
@@ -778,27 +723,52 @@ $dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j
             </tr>
             <?php endforeach; endif; ?>
           </tbody>
-          <tbody id="tbody-scored" style="display:none">
-            <?php if (empty($topScored)): ?>
-              <tr><td colspan="8" style="text-align:center;color:var(--text-faint);padding:24px"><?= te('Aucun score 4/4') ?></td></tr>
-            <?php else: foreach ($topScored as $r): ?>
+        </table>
+      </div>
+    </section>
+
+    <!-- Meilleurs scores -->
+    <section class="glass" style="margin-bottom:24px">
+      <div class="card-head">
+        <div>
+          <div class="card-title"><?= te('Meilleurs scores') ?></div>
+          <div class="card-sub"><?= te('Ratios sur les données enregistrées') ?><?= $newestDate ? ' · ' . htmlspecialchars($newestDate) : '' ?></div>
+        </div>
+        <a href="screener.php" class="seg"><?= te('Screener') ?> →</a>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead><tr>
+            <th><?= te('Société') ?></th>
+            <th class="num"><?= te('Prix (MAD)') ?></th>
+            <th class="num">PER</th><th class="num">PEG</th><th class="num">P/R</th><th class="num">P/B</th>
+            <th class="num" style="padding-right:24px"><?= te('Score') ?></th>
+          </tr></thead>
+          <tbody>
+          <?php if (empty($topScored)): ?>
+            <tr><td colspan="7" style="text-align:center;color:var(--text-faint);padding:24px"><?= te('Aucun score 4/4') ?></td></tr>
+          <?php else: foreach (array_slice($topScored, 0, 5) as $r): ?>
             <tr>
               <td class="name"><span class="ticker"><?= htmlspecialchars($r['abbr']) ?></span><?= htmlspecialchars($r['name']) ?></td>
               <td class="num"><?= number_format($r['PA'], 2, ',', ' ') ?></td>
-              <td class="num <?= $r['trend'] !== null ? ($r['trend'] >= 0 ? 'pos' : 'neg') : '' ?>">
-                <?= $r['trend'] !== null ? (($r['trend'] >= 0 ? '+' : '') . number_format($r['trend'], 2, ',', ' ') . ' %') : '—' ?>
-              </td>
               <td class="num"><?= number_format($r['PER'], 2, ',', ' ') ?></td>
               <td class="num"><?= $r['PEG'] ? number_format($r['PEG'], 2, ',', ' ') : '—' ?></td>
               <td class="num"><?= $r['PR']  ? number_format($r['PR'],  2, ',', ' ') : '—' ?></td>
               <td class="num"><?= $r['PB']  ? number_format($r['PB'],  2, ',', ' ') : '—' ?></td>
               <td class="num" style="padding-right:24px"><span class="score-pill s-4">4/4</span></td>
             </tr>
-            <?php endforeach; endif; ?>
+          <?php endforeach; endif; ?>
           </tbody>
         </table>
       </div>
     </section>
+
+    <div class="dash-footer" style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;color:var(--text-faint);font-size:12px;padding:8px 0 24px">
+      <span><?= $previewAvailable ? te('Cours du jour disponibles') : te('Cours du jour indisponibles') ?></span>
+      <span><?= te('Dernière donnée enregistrée :') ?> <?= $newestDate ? htmlspecialchars($newestDate) : '—' ?></span>
+      <a href="screener.php" style="color:inherit"><?= te('Screener') ?></a>
+      <a href="infoAction.php" style="color:inherit"><?= te('Société') ?></a>
+    </div>
 
     <?php endif; ?>
   </main>
@@ -954,15 +924,29 @@ function switchAuthTab(tab) {
   var isLogin = tab === 'login';
   document.getElementById('formLogin').style.display  = isLogin ? '' : 'none';
   document.getElementById('formSignup').style.display = isLogin ? 'none' : '';
+  document.getElementById('formReset').style.display  = 'none';
+  document.getElementById('resetLinkRow').style.display = isLogin ? '' : 'none';
   document.getElementById('tabLogin').style.background  = isLogin ? 'rgba(34,211,238,0.12)' : '';
   document.getElementById('tabLogin').style.color       = isLogin ? 'var(--cyan)' : '';
   document.getElementById('tabSignup').style.background = isLogin ? '' : 'rgba(34,211,238,0.12)';
   document.getElementById('tabSignup').style.color      = isLogin ? '' : 'var(--cyan)';
 }
-<?php if ($loginError): ?>
+function showResetForm() {
+  document.getElementById('formLogin').style.display = 'none';
+  document.getElementById('formSignup').style.display = 'none';
+  document.getElementById('resetLinkRow').style.display = 'none';
+  document.getElementById('formReset').style.display = '';
+}
+function hideResetForm() {
+  document.getElementById('formReset').style.display = 'none';
+  switchAuthTab('login');
+}
+<?php if ($loginError || $loginNotice): ?>
 document.addEventListener('DOMContentLoaded', function () {
   new bootstrap.Modal(document.getElementById('loginModal')).show();
   switchAuthTab('<?= $isSignUp ? 'signup' : 'login' ?>');
+<?php if (!empty($isResetRequest)): ?>  showResetForm();
+<?php endif; ?>
 });
 <?php endif; ?>
 document.addEventListener('DOMContentLoaded', function () { switchAuthTab('login'); });

@@ -57,10 +57,12 @@ Copy the example and fill in your own Appwrite values (see [`.env.example`](.env
 
 ```bash
 cp .env.example .env
-# set APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, APPWRITE_API_KEY
+# set APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, APPWRITE_API_KEY for local scripts
 ```
 
-- The **Cloud Function** reads `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `APPWRITE_API_KEY` from environment variables.
+- Cloud Functions authenticate with Appwrite's per-execution dynamic key; grant
+  their required scopes in `cloud_function/appwrite.config.json` and do not
+  store a long-lived API key in function variables.
 - The **PHP web app** reads its server key from `config/secrets.php` (gitignored). Create it:
   ```php
   <?php
@@ -76,6 +78,16 @@ cd myinterpreter_app
 flutter pub get
 flutter run            # debug build on a connected device/emulator
 ```
+
+The managed Supabase replacement is available through explicit configuration;
+production cutover is still pending. See [mobile setup and verification](docs/SUPABASE_MOBILE.md)
+and the [migration handoff](docs/MIGRATION_HANDOFF.md). The local config generator
+copies only public client fields into an ignored file; never use a secret key in
+the Flutter app.
+
+The [full non-personal data restoration ledger](docs/ALL_NONPERSONAL_DATA_RESTORE.md)
+covers MASI, company/financial details, market overview, dividends, order-book
+history and archives, including explicit remaining source and cloud-export gaps.
 
 **PHP (web)** — no Composer; serve the repo root with any PHP runtime:
 ```bash

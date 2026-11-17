@@ -1,21 +1,33 @@
 <?php
 /**
  * Saves market enrichment data to the company collection.
- * POST { name, symbol }  →  fetches proxy and updates Appwrite doc.
+ * POST { name, symbol } updates the company through the authenticated adapter.
  */
-session_start();
+require_once __DIR__ . '/../core/session.php';
+app_session_start();
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../core/Appwrite.php';
 require_once __DIR__ . '/../core/auth.php';
 requireAdmin();
 header('Content-Type: application/json');
-// CSRF: accept from POST field or X-CSRF-Token header
-$_POST['_csrf'] = $_POST['_csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
+    echo json_encode(['ok' => false, 'msg' => 'method not allowed']);
+    exit;
+}
+// Preserve an explicit form token; use the header only when it is absent.
+$_POST['csrf_token'] = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
 csrf_verify();
 
+if (!is_string($_POST['name'] ?? null) || !is_string($_POST['symbol'] ?? null)) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'msg' => 'invalid params']);
+    exit;
+}
 $name   = trim($_POST['name']   ?? '');
 $symbol = preg_replace('/[^A-Z0-9]/', '', strtoupper($_POST['symbol'] ?? ''));
-if (!$name || !$symbol) { echo json_encode(['ok'=>false,'msg'=>'missing params']); exit; }
+if (!$name || !$symbol || mb_strlen($name) > 200 || strlen($symbol) > 32) { http_response_code(400); echo json_encode(['ok'=>false,'msg'=>'missing params']); exit; }
 
 // Fetch enrichment data directly (no self-curl)
 require_once __DIR__ . '/market_proxy.php';
@@ -48,10 +60,12 @@ $update = array_filter([
 if (empty($update)) { echo json_encode(['ok'=>true,'msg'=>'nothing to save']); exit; }
 
 try {
-    $docs = aw_list_docs('company', [q_equal('name', $name), q_limit(1)]);
-    if (empty($docs)) { echo json_encode(['ok'=>false,'msg'=>'company not found']); exit; }
-    aw_update_doc('company', $docs[0]['$id'], $update);
-    echo json_encode(['ok'=>true,'saved'=>count($update),'description'=>!empty($update['description'])]);
+    $receipt = sb_admin()->updateCompany(sb_access_token(), $name, $update);
+    if ($receipt['status'] === 'MISSING') {
+        echo json_encode(['ok'=>false,'msg'=>'company not found']); exit;
+    }
+    echo json_encode(['ok'=>true,'saved'=>$receipt['fields'],'description'=>!empty($update['description'])]);
 } catch (Throwable $e) {
-    echo json_encode(['ok'=>false,'msg'=>$e->getMessage()]);
+    error_log('[myInterpreter] save_enrichment error for "' . $name . '": ' . $e->getMessage());
+    echo json_encode(['ok'=>false,'msg'=>'save unavailable']);
 }

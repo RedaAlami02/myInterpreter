@@ -3,7 +3,8 @@ require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/auth.php';
 require_once 'core/Action.php';
-session_start();
+require_once __DIR__ . '/core/session.php';
+app_session_start();
 require_once __DIR__ . '/core/i18n.php';
 require_once 'handlers/storing.php';
 requireAdmin();
@@ -18,26 +19,25 @@ $company = $_SESSION['company'];
 $company->calcul();
 $colors  = $company->test();
 
-// ─── Auto-save if flagged ─────────────────────────────────
-$autoSaved  = false;
-$saveError  = null;
-if (!empty($_SESSION['save'])) {
+// Validate a manual request before any write, including a pending immediate save.
+$isManualSave = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_save']);
+if ($isManualSave) csrf_verify();
+
+$saveNotice = $_SESSION['analysis_save_notice'] ?? null;
+unset($_SESSION['analysis_save_notice']);
+$autoSaved = false;
+$manualSaved = is_array($saveNotice);
+$snapshotSaved = $manualSaved && ($saveNotice['snapshot'] ?? false) === true;
+$saveError = null;
+
+if ($isManualSave || !empty($_SESSION['save'])) {
     unset($_SESSION['save']);
     try {
-        store($company);
-        $autoSaved = true;
-    } catch (Throwable $e) {
-        $saveError = $e->getMessage();
-    }
-}
-
-// ─── Manual save via form ─────────────────────────────────────────────────
-$manualSaved = false;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_save'])) {
-    csrf_verify();
-    try {
-        store($company);
-        $manualSaved = true;
+        $receipt = store($company);
+        $_SESSION['analysis_save_notice'] = ['snapshot' => $receipt['snapshot']];
+        // POST/Redirect/GET prevents browser refresh from repeating a successful write.
+        header('Location: ' . BASE_URL . '/results.php', true, 303);
+        exit();
     } catch (Throwable $e) {
         $saveError = $e->getMessage();
     }
@@ -73,7 +73,7 @@ $labels = ['PER' => 'P.E.R', 'PEG' => 'PEG', 'PR' => 'P/R', 'PB' => 'P/B'];
   <div class="results-wrap animate-up">
 
     <?php if ($manualSaved || $autoSaved): ?>
-      <div class="alert alert-success"><i class="fas fa-check-circle me-2"></i><?= te('Rapport sauvegardé dans l\'historique !') ?></div>
+      <div class="alert alert-success"><i class="fas fa-check-circle me-2"></i><?= $snapshotSaved ? te("Rapport sauvegardé dans l'historique !") : te('Données de la société sauvegardées. Aucun prix fourni : aucun snapshot d’historique créé.') ?></div>
     <?php elseif ($saveError): ?>
       <div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i><?= htmlspecialchars($saveError) ?></div>
     <?php endif; ?>

@@ -7,6 +7,7 @@ class Company {
 
     public string $NAME  = '';
     public bool   $stored = false;
+    public array $providedFields = [];
 
     // Raw inputs
     public float $PA  = 0.0;
@@ -25,6 +26,8 @@ class Company {
     public float $PB  = 0.0;   // Price-to-book
 
     public function __construct(array $data = []) {
+        $this->providedFields = array_keys(array_filter($data,
+            fn($value) => $value !== '' && $value !== null));
         $this->NAME = (string) ($data['NAME'] ?? '');
         $this->PA   = (float) ($data['PA']   ?? 0.0);
         $this->BPA  = (float) ($data['BPA']  ?? 0.0);
@@ -36,6 +39,8 @@ class Company {
     }
 
     public function calcul(): void {
+        // Recalculation must not retain ratios whose denominator is now zero.
+        $this->PER = $this->PEG = $this->PR = $this->PB = 0.0;
         $this->CB = $this->PA * $this->NA;
 
         if ($this->BPA != 0) {

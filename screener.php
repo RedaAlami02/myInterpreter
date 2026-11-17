@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once __DIR__ . '/core/session.php';
+app_session_start();
 require_once __DIR__ . '/core/i18n.php';
 require_once 'config/config.php';
 require_once 'core/Appwrite.php';
@@ -147,7 +148,7 @@ $noPER          = $totalCompanies - count($rated);
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=5" rel="stylesheet">
-  <link href="assets/css/screener.css?v=4" rel="stylesheet">
+  <link href="assets/css/screener.css?v=20261115" rel="stylesheet">
   <?php require 'core/theme.php'; ?>
 </head>
 <body class="workspace workspace-screener">
@@ -158,14 +159,7 @@ $noPER          = $totalCompanies - count($rated);
 
   <div class="screener-wrap animate-up">
 
-    <!-- Header -->
-    <div class="screener-kicker"><?= te('Marché') ?> <span>/</span> <?= te('Sélection') ?></div>
-    <div class="screener-hero">
-      <div>
-        <h1><?= te('Sélection d’actions') ?></h1>
-        <p><?= te('Comparez les sociétés par valorisation et qualité des ratios, sans perdre le contexte du marché.') ?></p>
-      </div>
-    </div>
+    <h1 class="screener-sr-title"><?= te('Sélection d’actions') ?></h1>
 
     <?php if ($dbError): ?>
       <div class="alert alert-danger">
@@ -400,6 +394,7 @@ $noPER          = $totalCompanies - count($rated);
 </div>
 
 <script src="assets/js/app.js?v=2"></script>
+<?php if (!$dbError): ?>
 <script>
 // ── State ────────────────────────────────────────────────
 const PER_COL    = 5;   // index of the PER column
@@ -525,5 +520,6 @@ window.addEventListener('DOMContentLoaded', () => {
   applyFilters();
 });
 </script>
+<?php endif; ?>
 </body>
 </html>

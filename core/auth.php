@@ -1,36 +1,18 @@
 <?php
 /**
  * Call requireLogin() at the top of every protected page.
- * Restores Appwrite session from cookie if aw_secret is missing.
+ * Restores and validates the Supabase session.
  * Redirects to index.php if not authenticated.
  */
 function requireLogin(): void {
-    // Restore aw_cookie from browser cookie if session exists but cookie string is missing
-    if (isset($_SESSION['logged_in']) && empty($_SESSION['aw_cookie']) && isset($_COOKIE['aw_session'])) {
-        $_SESSION['aw_cookie'] = $_COOKIE['aw_session'];
+    try {
+        if (sb_restore_session()) return;
+    } catch (Throwable $error) {
+        http_response_code(503);
+        exit('Authentication service is temporarily unavailable. Please retry.');
     }
-
-    // Full restore: PHP session was wiped but browser cookie still exists
-    if (!isset($_SESSION['logged_in']) && isset($_COOKIE['aw_session'])) {
-        $_SESSION['aw_cookie'] = $_COOKIE['aw_session'];
-        $me = aw_get('/account', $_SESSION['aw_cookie']);
-        if (isset($me['body']['$id'])) {
-            $_SESSION['logged_in']  = true;
-            $_SESSION['USER_ID']    = $me['body']['$id'];
-            $_SESSION['USER_EMAIL'] = $me['body']['email'] ?? '';
-            // Slide the cookie forward another year on each restore
-            setcookie('aw_session', $_COOKIE['aw_session'], time() + 86400 * 365, '/', '', false, true);
-        } else {
-            setcookie('aw_session', '', time() - 3600, '/', '', false, true);
-            unset($_SESSION['aw_cookie']);
-        }
-    }
-
-    if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-        $_SESSION['noLogin'] = true;
-        header('Location: ' . BASE_URL . '/index.php');
-        exit();
-    }
+    header('Location: ' . BASE_URL . '/index.php');
+    exit();
 }
 
 function requireAdmin(): void {

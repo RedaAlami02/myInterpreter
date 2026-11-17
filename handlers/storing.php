@@ -3,12 +3,12 @@ require_once __DIR__ . '/../core/Appwrite.php';
 require_once __DIR__ . '/../core/Action.php';
 
 /**
- * Persist a Company to Appwrite.
- * - UPSERT into company collection (fundamental data)
- * - INSERT snapshot into data collection (price + ratios)
+ * Persist an administrator analysis.
+ * - Updates fundamental fields on the company record (exact name).
+ * - Inserts an explicit operator-entered snapshot into the app history.
  *
- * @return string  The company name saved.
- * @throws RuntimeException on Appwrite failure (details in error_log)
+ * @return array{name:string,fields:int,snapshot:bool}
+ * @throws RuntimeException on a rejected or unavailable write.
  */
 /**
  * TC5 and ROE are stored as percentages ("22.51" means 22.51 %). The manual
@@ -27,58 +27,64 @@ function assert_percent_unit(string $label, float $val): void {
     }
 }
 
-function store(Company $company): string {
+function store(Company $company): array {
     $fundamentals = [];
-    if ($company->BPA) $fundamentals['bpa'] = (float)$company->BPA;
-    if ($company->DPA) $fundamentals['dpa'] = (float)$company->DPA;
-    if ($company->TC5) {
+    if ($company->BPA || in_array('BPA', $company->providedFields, true)) $fundamentals['bpa'] = (float)$company->BPA;
+    if ($company->DPA || in_array('DPA', $company->providedFields, true)) $fundamentals['dpa'] = (float)$company->DPA;
+    if ($company->TC5 || in_array('TC5', $company->providedFields, true)) {
         assert_percent_unit('TC5', (float)$company->TC5);
         $fundamentals['tc5'] = (float)$company->TC5;
     }
-    if ($company->ROE) {
+    if ($company->ROE || in_array('ROE', $company->providedFields, true)) {
         assert_percent_unit('ROE', (float)$company->ROE);
         $fundamentals['roe'] = (float)$company->ROE;
     }
-    if ($company->NA)  $fundamentals['na']  = (float)$company->NA;
-    if ($company->CP)  $fundamentals['cp']  = (float)$company->CP;
+    if ($company->NA || in_array('NA', $company->providedFields, true))  $fundamentals['na']  = (float)$company->NA;
+    if ($company->CP || in_array('CP', $company->providedFields, true))  $fundamentals['cp']  = (float)$company->CP;
 
-    try {
-        if ($company->stored && !empty($company->_awId)) {
-            if (!empty($fundamentals)) {
-                aw_update_doc('company', $company->_awId, $fundamentals);
-            }
-        } else {
-            $existing = aw_list_docs('company', [q_equal('name', $company->NAME), q_limit(1)]);
-            if (!empty($existing)) {
-                if (!empty($fundamentals)) {
-                    aw_update_doc('company', $existing[0]['$id'], $fundamentals);
-                }
-            } else {
-                $fundamentals['name'] = $company->NAME;
-                $fundamentals['date'] = gmdate('Y-m-d\TH:i:s.000+00:00');
-                aw_create_doc('company', $fundamentals);
-            }
+    $saved = 0;
+    if (!empty($fundamentals)) {
+        try {
+            $receipt = sb_admin()->updateCompany(
+                sb_access_token(), $company->NAME, $fundamentals
+            );
+        } catch (SupabaseRequestException $e) {
+            error_log('[myInterpreter] store() company denied or unavailable for "' . $company->NAME . '": ' . $e->httpStatus);
+            throw new RuntimeException('Impossible de sauvegarder la fiche société.');
+        } catch (Throwable $e) {
+            error_log('[myInterpreter] store() company error for "' . $company->NAME . '": ' . $e->getMessage());
+            throw new RuntimeException('Impossible de sauvegarder la fiche société.');
         }
-    } catch (Throwable $e) {
-        error_log('[myInterpreter] store() company error for "' . $company->NAME . '": ' . $e->getMessage());
-        throw new RuntimeException('Impossible de sauvegarder la fiche société.');
+        if ($receipt['status'] === 'MISSING') {
+            throw new RuntimeException(
+                'Société introuvable : la fiche société doit exister avant l\'enregistrement.'
+            );
+        }
+        $saved = (int)($receipt['fields'] ?? 0);
     }
 
-    try {
-        aw_create_doc('data', [
-            'date'   => gmdate('Y-m-d\TH:i:s.000+00:00'),
-            'pa'     => (float)$company->PA,
-            'cb'     => (float)$company->CB,
-            'per'    => (float)$company->PER,
-            'peg'    => (float)$company->PEG,
-            'pr'     => (float)$company->PR,
-            'pb'     => (float)$company->PB,
+    // A zero or missing price is not a market observation and never becomes history.
+    $snapshot = null;
+    if ((float)$company->PA > 0) {
+        $snapshot = array_filter([
             'c_name' => $company->NAME,
-        ]);
-    } catch (Throwable $e) {
-        error_log('[myInterpreter] store() data snapshot error for "' . $company->NAME . '": ' . $e->getMessage());
-        throw new RuntimeException('Impossible de sauvegarder le snapshot.');
+            'pa'     => (float)$company->PA,
+            'cb'     => $company->CB ? (float)$company->CB : null,
+            'per'    => $company->PER ? (float)$company->PER : null,
+            'peg'    => $company->PEG ? (float)$company->PEG : null,
+            'pr'     => $company->PR ? (float)$company->PR : null,
+            'pb'     => $company->PB ? (float)$company->PB : null,
+        ], fn($v) => $v !== null && $v !== '');
+        try {
+            sb_admin()->recordOperatorSnapshot(sb_access_token(), $snapshot);
+        } catch (SupabaseRequestException $e) {
+            error_log('[myInterpreter] store() snapshot denied or unavailable for "' . $company->NAME . '": ' . $e->httpStatus);
+            throw new RuntimeException('Impossible de sauvegarder le snapshot.');
+        } catch (Throwable $e) {
+            error_log('[myInterpreter] store() snapshot error for "' . $company->NAME . '": ' . $e->getMessage());
+            throw new RuntimeException('Impossible de sauvegarder le snapshot.');
+        }
     }
 
-    return $company->NAME;
+    return ['name' => $company->NAME, 'fields' => $saved, 'snapshot' => $snapshot !== null];
 }

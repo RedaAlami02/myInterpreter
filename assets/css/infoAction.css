@@ -1,4 +1,11 @@
 /* infoAction.css */
+.latest-sessions { padding-top: 18px; }
+.latest-sessions h2 { padding: 0 20px; margin: 0 0 14px; font-size: 1.1rem; color: var(--text); }
+.latest-sessions .tbl { min-width: 610px; margin: 0; }
+.latest-sessions .tbl tbody th { font-weight: 500; white-space: nowrap; }
+.latest-sessions .tbl tbody tr:first-child { background: rgba(34, 211, 238, .045); }
+.latest-sessions .latest-sessions__note { margin: 12px 20px 16px; font-size: .76rem; line-height: 1.5; }
+.latest-sessions .session-conflict { opacity: .75; }
 .search-wrap { max-width: 100%; margin: 0; padding: 2.5rem 0 60px; }
 
 .search-hero {
@@ -507,3 +514,18 @@
   font-size: 0.78rem; color: var(--text-dim); line-height: 1.6;
 }
 .per-est-note strong { color: var(--violet); }
+
+.company-market { padding: clamp(16px, 3vw, 26px); }
+.company-market h2 { font-size: 1rem; margin: 0 0 10px; }
+.company-market h3 { font-size: 1rem; margin: 24px 0 10px; }
+.company-market__price { font-size: clamp(2rem, 6vw, 3rem); font-weight: 700; margin: 0 0 8px; }
+.company-market__price span { font-size: 1rem; color: var(--text-dim); }
+.company-market .muted, .company-market__notice { font-size: 0.82rem; line-height: 1.55; }
+.company-market__notice { color: var(--amber); }
+.company-market__book { width: 100%; min-width: 340px; }
+@media (max-width: 480px) {
+  .company-market__book { min-width: 0; }
+  .workspace .company-market__book th,
+  .workspace .company-market__book td { padding: 10px 5px; }
+  .workspace .company-market__book th { white-space: normal; }
+}

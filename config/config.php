@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/secrets.php';
-// ─── Appwrite connection constants are defined in core/Appwrite.php ───────────
+require_once __DIR__ . '/../core/backend.php';
+// Runtime uses public Supabase configuration; migration secrets are never loaded.
 
 // ─── App base URL — derived from the HTTP request, never from __FILE__ ────────
 // Using __FILE__ or realpath() follows symlinks, giving the real filesystem path
@@ -22,7 +22,7 @@ define('BASE_URL', $_root === '/' ? '' : rtrim($_root, '/'));
 unset($_subdirs, $_snDir, $_root);
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
-define('ADMIN_USER_ID', '6a124b8900257649d4c1');
+define('ADMIN_USER_ID', SUPABASE_ADMIN_USER_ID);
 
 // ─── Portfolio ────────────────────────────────────────────────────────────────
 define('TAX_RATE', 0.10);   // 10 % tax applied to gross profit
@@ -260,7 +260,8 @@ function resolve_company(string $input, array $names, array $symbolTo = []): arr
 
 // ─── CSRF helpers ─────────────────────────────────────────────────────────────
 function csrf_token(): string {
-    if (session_status() === PHP_SESSION_NONE) session_start();
+    require_once __DIR__ . '/../core/session.php';
+    app_session_start();
     if (empty($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
@@ -269,7 +270,7 @@ function csrf_token(): string {
 
 function csrf_verify(): void {
     $token = $_POST['csrf_token'] ?? '';
-    if (!hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
+    if (!is_string($token) || empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $token)) {
         http_response_code(403);
         die('Invalid request (CSRF token mismatch).');
     }

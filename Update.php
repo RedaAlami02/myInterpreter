@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once __DIR__ . '/core/session.php';
+app_session_start();
 require_once __DIR__ . '/core/i18n.php';
 require_once 'config/config.php';
 require_once 'core/Appwrite.php';
@@ -50,10 +51,13 @@ $saved = isset($_GET['saved']);
         <h2 class="mb-1" style="font-family:var(--font-display);font-weight:700;font-size:1.5rem;"><?= te('Analyser une société') ?></h2>
         <p class="muted" style="font-size:0.85rem;"><?= te('Renseignez les champs rouges pour calculer. Ajoutez les verts pour sauvegarder.') ?></p>
       </div>
-      <a href="handlers/sync_companies.php" class="btn btn-ghost btn-sm" target="_blank"
-         style="align-self:center" title="<?= te('Enrichir toutes les sociétés des données financières') ?>">
-        <i class="fas fa-cloud-download-alt"></i> <?= te('Sync toutes les sociétés') ?>
-      </a>
+      <div style="align-self:center">
+        <a href="handlers/sync_companies.php" class="btn btn-ghost btn-sm"
+           title="<?= te('Prévisualiser les champs biographiques manquants') ?>">
+          <i class="fas fa-eye" aria-hidden="true"></i> <?= te('Compléter les fiches sociétés') ?>
+        </a>
+        <p class="muted" style="font-size:0.75rem;margin:6px 0 0"><?= te('Aperçu avant application · chiffres financiers inchangés') ?></p>
+      </div>
     </div>
 
     <form action="handlers/operations.php" method="POST" data-loading>

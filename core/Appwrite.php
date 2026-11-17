@@ -1,74 +1,11 @@
 <?php
-/**
- * Appwrite REST API helper — no Composer required.
- * All requests go to APPWRITE_ENDPOINT with APPWRITE_PROJECT_ID.
- * Pass $session (the session secret from login) for user-scoped calls.
- */
-
-define('APPWRITE_ENDPOINT',   'https://fra.cloud.appwrite.io/v1');
-define('APPWRITE_PROJECT_ID', '6a12447800077d5113ae');
-define('APPWRITE_DB_ID',      'myinterpreter');
-
-/**
- * Core curl request.
- * $session: the Appwrite cookie string stored in $_SESSION['aw_cookie']
- * @return array{body: array, status: int, cookies: string}
+require_once __DIR__ . '/backend.php';
+/** Compatibility names for the migrated Supabase clients.
+ * Retired network calls fail closed. Portfolio writes use record_trade instead.
  */
 function aw_request(string $method, string $path, array $data = [], ?string $session = null): array
 {
-    $url = APPWRITE_ENDPOINT . $path;
-
-    $headers = [
-        'Content-Type: application/json',
-        'X-Appwrite-Project: ' . APPWRITE_PROJECT_ID,
-    ];
-    // Client-auth paths must NOT carry the API key — they run as anonymous guest.
-    $isClientAuth = str_starts_with($path, '/account/sessions') || $path === '/account';
-    if ($session !== null && $session !== '') {
-        $headers[] = 'Cookie: ' . $session;
-    } elseif (!$isClientAuth && defined('APPWRITE_API_KEY') && APPWRITE_API_KEY !== '') {
-        $headers[] = 'X-Appwrite-Key: ' . APPWRITE_API_KEY;
-    }
-
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL            => $url,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HEADER         => true,
-        CURLOPT_TIMEOUT        => 15,
-        CURLOPT_CONNECTTIMEOUT => 8,
-        CURLOPT_HTTPHEADER     => $headers,
-        CURLOPT_SSL_VERIFYPEER => true,
-    ]);
-
-    if ($method === 'POST') {
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    } elseif ($method === 'PATCH') {
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    } elseif ($method === 'DELETE') {
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
-    }
-
-    $response = curl_exec($ch);
-    if ($response === false) {
-        $curlError = curl_error($ch);
-        curl_close($ch);
-        throw new RuntimeException('Appwrite request failed (curl): ' . $curlError);
-    }
-    $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-    $status     = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    $rawHeaders = substr($response, 0, $headerSize);
-    $body       = substr($response, $headerSize);
-    $decoded    = json_decode($body ?: '{}', true) ?? [];
-
-    preg_match_all('/^Set-Cookie:\s*([^;\r\n]+)/mi', $rawHeaders, $matches);
-    $cookieString = implode('; ', $matches[1] ?? []);
-
-    return ['body' => $decoded, 'status' => $status, 'cookies' => $cookieString];
+    throw new RuntimeException('The retired backend is unavailable. Use Supabase.');
 }
 
 function aw_get(string $path, ?string $session = null): array
@@ -96,14 +33,10 @@ function aw_delete(string $path, ?string $session = null): array
  */
 function aw_list_docs(string $collectionId, array $queries = [], ?string $session = null): array
 {
-    $params = [];
-    foreach ($queries as $q) {
-        $params[] = 'queries[]=' . urlencode($q);
+    if (in_array($collectionId, ['achats', 'ventes', 'portefeuille', 'benefits'], true)) {
+        return sb_app()->listDocuments($collectionId, $queries, sb_access_token());
     }
-    $qs   = $params ? '?' . implode('&', $params) : '';
-    $path = '/databases/' . APPWRITE_DB_ID . '/collections/' . $collectionId . '/documents' . $qs;
-    $res  = aw_get($path, $session);
-    return $res['body']['documents'] ?? [];
+    return sb_market()->listDocuments($collectionId, $queries);
 }
 
 // ─── Query builder helpers ────────────────────────────────────────────────────
@@ -135,93 +68,20 @@ function q_offset(int $n): string {
  */
 function aw_count_docs(string $collectionId, array $queries = [], ?string $session = null): int
 {
-    $params = [];
-    foreach (array_merge($queries, [q_limit(1)]) as $q) {
-        $params[] = 'queries[]=' . urlencode($q);
-    }
-    $qs   = $params ? '?' . implode('&', $params) : '';
-    $path = '/databases/' . APPWRITE_DB_ID . '/collections/' . $collectionId . '/documents' . $qs;
-    $res  = aw_get($path, $session);
-    return (int)($res['body']['total'] ?? 0);
+    return sb_market()->countDocuments($collectionId, $queries);
 }
 
 /**
- * Fire multiple aw_list_docs calls in parallel using curl_multi.
+ * Read a named batch sequentially through the migrated Supabase adapter.
  * $requests: [ 'key' => ['collection', [queries], $session|null], ... ]
  * Returns:   [ 'key' => [documents], ... ]
  */
 function aw_multi_list_docs(array $requests): array
 {
-    $multiAvailable = true;
-    foreach (['init', 'add_handle', 'exec', 'select', 'getcontent', 'remove_handle', 'close'] as $operation) {
-        if (!function_exists('curl_multi_' . $operation)) $multiAvailable = false;
-    }
-    if (!$multiAvailable) {
-        $results = [];
-        foreach ($requests as $key => [$collection, $queries, $session]) {
-            $results[$key] = aw_list_docs($collection, $queries, $session);
-        }
-        return $results;
-    }
-
-    $mh      = curl_multi_init();
-    $handles = [];
-
-    foreach ($requests as $key => [$collection, $queries, $session]) {
-        $params = [];
-        foreach ($queries as $q) {
-            $params[] = 'queries[]=' . urlencode($q);
-        }
-        $qs  = $params ? '?' . implode('&', $params) : '';
-        $url = APPWRITE_ENDPOINT . '/databases/' . APPWRITE_DB_ID . '/collections/' . $collection . '/documents' . $qs;
-
-        $headers = [
-            'Content-Type: application/json',
-            'X-Appwrite-Project: ' . APPWRITE_PROJECT_ID,
-        ];
-        if ($session !== null && $session !== '') {
-            $headers[] = 'Cookie: ' . $session;
-        } elseif (defined('APPWRITE_API_KEY') && APPWRITE_API_KEY !== '') {
-            $headers[] = 'X-Appwrite-Key: ' . APPWRITE_API_KEY;
-        }
-
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL            => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HEADER         => false,
-            CURLOPT_TIMEOUT        => 15,
-            CURLOPT_CONNECTTIMEOUT => 8,
-            CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_SSL_VERIFYPEER => true,
-        ]);
-        curl_multi_add_handle($mh, $ch);
-        $handles[$key] = $ch;
-    }
-
-    do {
-        $status = curl_multi_exec($mh, $active);
-        if ($active) curl_multi_select($mh);
-    } while ($active > 0 && $status === CURLM_OK);
-
     $results = [];
-    foreach ($handles as $key => $ch) {
-        $errno = curl_errno($ch);
-        if ($errno) {
-            $err = curl_error($ch);
-            curl_multi_remove_handle($mh, $ch);
-            curl_close($ch);
-            curl_multi_close($mh);
-            throw new RuntimeException("aw_multi_list_docs curl error on '{$key}': {$err}");
-        }
-        $body          = curl_multi_getcontent($ch);
-        $decoded       = json_decode($body ?: '{}', true) ?? [];
-        $results[$key] = $decoded['documents'] ?? [];
-        curl_multi_remove_handle($mh, $ch);
-        curl_close($ch);
+    foreach ($requests as $key => [$collection, $queries, $session]) {
+        $results[$key] = aw_list_docs($collection, $queries, $session);
     }
-    curl_multi_close($mh);
-
     return $results;
 }
 
@@ -230,17 +90,7 @@ function aw_multi_list_docs(array $requests): array
  */
 function aw_create_doc(string $collectionId, array $data, array $permissions = [], ?string $session = null): array
 {
-    $payload = ['documentId' => 'unique()', 'data' => $data];
-    if ($permissions) {
-        $payload['permissions'] = $permissions;
-    }
-    $path = '/databases/' . APPWRITE_DB_ID . '/collections/' . $collectionId . '/documents';
-    $res  = aw_post($path, $payload, $session);
-    if ($res['status'] >= 400) {
-        $msg = $res['body']['message'] ?? ('HTTP ' . $res['status']);
-        throw new RuntimeException("aw_create_doc({$collectionId}): {$msg}");
-    }
-    return $res;
+    throw new RuntimeException('Direct document writes are retired. Use the authorized Supabase operation.');
 }
 
 /**
@@ -248,13 +98,7 @@ function aw_create_doc(string $collectionId, array $data, array $permissions = [
  */
 function aw_update_doc(string $collectionId, string $docId, array $data, ?string $session = null): array
 {
-    $path = '/databases/' . APPWRITE_DB_ID . '/collections/' . $collectionId . '/documents/' . $docId;
-    $res  = aw_patch($path, ['data' => $data], $session);
-    if ($res['status'] >= 400) {
-        $msg = $res['body']['message'] ?? ('HTTP ' . $res['status']);
-        throw new RuntimeException("aw_update_doc({$collectionId}/{$docId}): {$msg}");
-    }
-    return $res;
+    throw new RuntimeException('Direct document writes are retired. Use the authorized Supabase operation.');
 }
 
 /**
@@ -262,8 +106,7 @@ function aw_update_doc(string $collectionId, string $docId, array $data, ?string
  */
 function aw_delete_doc(string $collectionId, string $docId, ?string $session = null): array
 {
-    $path = '/databases/' . APPWRITE_DB_ID . '/collections/' . $collectionId . '/documents/' . $docId;
-    return aw_delete($path, $session);
+    throw new RuntimeException('Direct document writes are retired. Use the authorized Supabase operation.');
 }
 
 /**
@@ -271,12 +114,11 @@ function aw_delete_doc(string $collectionId, string $docId, ?string $session = n
  */
 function aw_session(): ?string
 {
-    $c = $_SESSION['aw_cookie'] ?? null;
-    return ($c && $c !== '') ? $c : null;
+    return sb_access_token();
 }
 
 /**
- * Return the current user's Appwrite userId, or null.
+ * Return the current authenticated Supabase user ID, or null.
  */
 function aw_user_id(): ?string
 {

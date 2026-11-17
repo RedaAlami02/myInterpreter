@@ -8,11 +8,13 @@
  * voted are marked
  * "prévu" and styled differently — they must never read as commitments.
  */
-session_start();
+require_once __DIR__ . '/core/session.php';
+app_session_start();
 require_once __DIR__ . '/core/i18n.php';
 require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/dividends.php';
+require_once 'core/current_prices.php';
 
 $today   = date('Y-m-d');
 $thisYr  = (int)date('Y');
@@ -26,7 +28,7 @@ try {
         'year' => ['dividends', [q_equal('year', $year), q_limit(200)], null],
         'prices' => ['latest_prices', [q_limit(200)], null],
     ]);
-    $rows = $calendarData['year'];
+    $rows = array_map('div_review_row', $calendarData['year']);
     foreach ($calendarData['prices'] as $d) {
         $n = $d['c_name'] ?? '';
         if ($n !== '') $priceMap[$n] = (float)($d['pa'] ?? 0);
@@ -34,6 +36,14 @@ try {
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
 }
+
+// Same-day reported quotes, when the preview feed is available. Yields fall back
+// to the recorded reference for companies without a current quote.
+try {
+    foreach (current_market_prices(sb_market_preview()) as $name => $quote) {
+        $priceMap[$name] = (float)$quote['pa'];
+    }
+} catch (Throwable $e) { /* keep recorded references */ }
 
 // Undated rows sort last rather than first — an unknown date is not January.
 usort($rows, fn($a, $b) => strcmp(div_date($a) ?: '9999-99-99', div_date($b) ?: '9999-99-99'));
@@ -58,6 +68,7 @@ $monthCount = array_fill(1, 12, 0);
 $monthTotal = 0;
 try {
     foreach (aw_list_docs('dividends', [q_limit(500)]) as $r) {
+        if (div_verification_issue($r) !== null) continue;
         if (!empty($r['pay_date'])) { $monthCount[(int)substr($r['pay_date'], 5, 2)]++; $monthTotal++; }
     }
 } catch (Throwable $e) { /* the banner is decoration; never break the page for it */ }
@@ -133,7 +144,9 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
             </td>
             <td class="date"><?= div_fmt_date($r) ?></td>
             <td>
-              <?php if (div_confirmed($r)): ?>
+              <?php if (div_verification_issue($r) !== null): ?>
+                <span class="div-badge estimated"><?= te('à vérifier') ?></span>
+              <?php elseif (div_confirmed($r)): ?>
                 <span class="div-badge confirmed"><i class="fas fa-check me-1"></i><?= te('confirmé') ?></span>
               <?php elseif (isset($predictions[$name])): ?>
                 <span class="div-badge forecast"><i class="fas fa-wand-magic-sparkles me-1"></i><?= te('estimé') ?></span>
@@ -158,7 +171,7 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=5" rel="stylesheet">
-  <link href="assets/css/dividendes.css?v=2" rel="stylesheet">
+  <link href="assets/css/dividendes.css?v=20261115-2" rel="stylesheet">
   <?php require 'core/theme.php'; ?>
 </head>
 <body class="workspace workspace-dividends">
@@ -197,13 +210,9 @@ function div_rows_table(array $list, array $priceMap, bool $dim = false, array $
             <span class="div-step-what"><?= te('Détachement puis paiement') ?></span>
           </div>
         </div>
-        <p class="div-cycle-note">
-          <?php if ($monthTotal): ?>
-            <?= te('Sur les') ?> <strong><?= $monthTotal ?> <?= te('versements') ?></strong> <?= te('enregistrés depuis 2022,') ?>
-            <strong><?= $seasonPct ?>&nbsp;%</strong> <?= te('tombent entre mai et septembre, avec un pic très net en') ?> <strong><?= te($MONTHS_FR[$peakMonth] ?? '') ?></strong>.
-          <?php endif; ?>
-          <span class="muted"><?= te('Le dividende versé en') ?> <?= $year ?> <?= te('provient donc de l\'exercice') ?> <?= $year - 1 ?><?= te('. Les dates exactes changent chaque année — elles dépendent de la date de l\'AGO — d\'où les estimations ci-dessous pour les sociétés dont le rythme est régulier.') ?></span>
-        </p>
+        <?php if ($monthTotal): ?>
+        <p class="div-cycle-note"><?= te('Depuis 2022, {percentage} % des versements ont lieu entre mai et septembre.', ['percentage' => $seasonPct]) ?></p>
+        <?php endif; ?>
       </div>
 
       <?php if ($dbError): ?>

@@ -16,6 +16,44 @@
 
 require_once __DIR__ . '/Appwrite.php';
 
+/** Reject a mislabeled payment period without rewriting the saved source row. */
+function div_verification_issue(array $r): ?string
+{
+    if (!empty($r['_verification_issue'])) return $r['_verification_issue'];
+    $year = (int)($r['year'] ?? 0);
+    if ($year < 1900 || $year > 9999) return 'invalid_payment_year';
+    foreach (['ex_date', 'pay_date', 'pay_date_end'] as $key) {
+        $value = trim((string)($r[$key] ?? ''));
+        if ($value === '') continue;
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $value, $parts)
+            || !checkdate((int)$parts[2], (int)$parts[3], (int)$parts[1])) {
+            return 'invalid_calendar_date';
+        }
+        if ($key !== 'ex_date' && (int)$parts[1] !== $year) return 'payment_year_mismatch';
+    }
+    $ex = trim((string)($r['ex_date'] ?? ''));
+    $pay = trim((string)($r['pay_date'] ?? ''));
+    $end = trim((string)($r['pay_date_end'] ?? ''));
+    // A December ex-date followed by a January payment is a valid year boundary.
+    if ($ex !== '' && (int)substr($ex, 0, 4) !== $year
+        && !($pay !== '' && (int)substr($ex, 0, 4) === $year - 1)) return 'payment_year_mismatch';
+    if (($ex !== '' && $pay !== '' && $pay < $ex)
+        || ($end !== '' && ($pay === '' || $end < $pay))) return 'invalid_date_order';
+    if (!empty($r['confirmed']) && $ex === '') return 'missing_confirmation_date';
+    return null;
+}
+
+/** Client projection: unknown values replace conflicting claims; raw DB stays intact. */
+function div_review_row(array $r): array
+{
+    $issue = div_verification_issue($r);
+    if ($issue === null) return $r;
+    $r['_verification_issue'] = $issue;
+    $r['confirmed'] = false;
+    foreach (['amount', 'ex_date', 'pay_date', 'pay_date_end'] as $key) $r[$key] = null;
+    return $r;
+}
+
 /** All dividend rows for one company, newest year first. */
 function div_for_company(string $cName): array
 {
@@ -28,17 +66,17 @@ function div_for_company(string $cName): array
     } catch (Throwable $e) {
         return [];
     }
-    return $rows;
+    return array_map('div_review_row', $rows);
 }
 
 /** Every dividend row for one payment year, cheapest single call for the calendar. */
 function div_for_year(int $year): array
 {
     try {
-        return aw_list_docs('dividends', [
+        return array_map('div_review_row', aw_list_docs('dividends', [
             q_equal('year', $year),
             q_limit(200),
-        ]);
+        ]));
     } catch (Throwable $e) {
         return [];
     }
@@ -55,7 +93,7 @@ function div_next(array $rows, ?string $today = null): array
     $today = $today ?: date('Y-m-d');
     $year  = (int)date('Y', strtotime($today));
 
-    $thisYear = array_values(array_filter($rows, fn($r) => (int)($r['year'] ?? 0) === $year));
+    $thisYear = array_map('div_review_row', array_values(array_filter($rows, fn($r) => (int)($r['year'] ?? 0) === $year)));
     if (!$thisYear) return [null, null];
 
     // Sort by whichever date we have — the window's end still orders correctly.
@@ -65,13 +103,14 @@ function div_next(array $rows, ?string $today = null): array
         $d = div_date_end($r) ?: div_date($r);
         if ($d && $d >= $today) return [$r, 'upcoming'];
     }
-    return [end($thisYear), 'past'];
+    $last = end($thisYear);
+    return [$last, div_date($last) ? 'past' : 'unknown'];
 }
 
 /** Payment date, or the start of the payment window. */
 function div_date(?array $r): ?string
 {
-    if (!$r) return null;
+    if (!$r || div_verification_issue($r) !== null) return null;
     $d = trim((string)($r['pay_date'] ?? ''));
     return $d !== '' ? $d : null;
 }
@@ -79,7 +118,7 @@ function div_date(?array $r): ?string
 /** End of the payment window, when the source gave a range instead of a day. */
 function div_date_end(?array $r): ?string
 {
-    if (!$r) return null;
+    if (!$r || div_verification_issue($r) !== null) return null;
     $d = trim((string)($r['pay_date_end'] ?? ''));
     return $d !== '' ? $d : null;
 }
@@ -87,12 +126,13 @@ function div_date_end(?array $r): ?string
 /** True when the AGM has voted and the dates are firm. */
 function div_confirmed(?array $r): bool
 {
-    return $r && !empty($r['confirmed']);
+    return $r && div_verification_issue($r) === null && !empty($r['confirmed']);
 }
 
 /** Yield against a live price, as a percentage, or null. */
 function div_yield(?array $r, ?float $price): ?float
 {
+    if (!$r || div_verification_issue($r) !== null) return null;
     $amt = (float)($r['amount'] ?? 0);
     if (!$r || $amt <= 0 || !$price || $price <= 0) return null;
     return $amt / $price * 100;
@@ -127,6 +167,7 @@ function div_usual_month(array $rows, int $excludeYear): ?string
 {
     $months = [];
     foreach ($rows as $r) {
+        if (div_verification_issue($r) !== null) continue;
         if ((int)($r['year'] ?? 0) === $excludeYear) continue;
         $d = $r['ex_date'] ?: div_date($r);
         if ($d) $months[] = (int)substr($d, 5, 2);
@@ -176,6 +217,7 @@ function div_predict(array $rows, int $year): ?array
     $byYear = [];
     foreach ($rows as $r) {
         $y = (int)($r['year'] ?? 0);
+        if (div_verification_issue($r) !== null) continue;
         if ($y >= $year || empty($r['ex_date'])) continue;
         $byYear[$y] = $r['ex_date'];          // one ex-date per year is enough
     }
@@ -238,6 +280,7 @@ function div_history(array $rows, int $excludeYear, int $limit = 4): array
     $out = [];
     foreach ($rows as $r) {
         $y = (int)($r['year'] ?? 0);
+        if (div_verification_issue($r) !== null) continue;
         if ($y === $excludeYear || !($r['amount'] ?? null)) continue;
         $out[$y] = ($out[$y] ?? 0) + (float)$r['amount'];   // ordinary + exceptional
     }

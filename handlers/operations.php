@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once __DIR__ . '/../core/session.php';
+app_session_start();
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../core/Appwrite.php';
 require_once __DIR__ . '/../core/auth.php';
@@ -18,6 +19,14 @@ $action = $_POST['action'] ?? '';
 $green_fields = ['BPA', 'DPA', 'TC5', 'ROE', 'NA', 'CP'];
 $errors = [];
 
+// Reject array-shaped form values before string/number conversion.
+foreach (['action', 'NAME', 'PA', 'BPA', 'DPA', 'TC5', 'ROE', 'NA', 'CP'] as $field) {
+    if (isset($_POST[$field]) && !is_string($_POST[$field])) {
+        http_response_code(400);
+        exit('Invalid form input.');
+    }
+}
+
 $inputs = [
     'NAME' => trim($_POST['NAME'] ?? ''),
     'PA'   => $_POST['PA']  ?? '',
@@ -29,6 +38,19 @@ $inputs = [
     'CP'   => $_POST['CP']  ?? '',
 ];
 
+foreach ($inputs as $field => &$value) {
+    $value = trim($value);
+    if ($field !== 'NAME' && $value !== '') {
+        if (!is_numeric($value) || !is_finite((float)$value)) {
+            $errors[] = 'Valeur numérique invalide : ' . $field;
+        }
+    }
+}
+unset($value);
+if (!in_array($action, ['big_update', 'save_changes', 'save_immediately'], true)) {
+    $errors[] = 'Action invalide.';
+}
+
 // ─── Validation ──────────────────────────────────────────────────────────────
 if (empty($inputs['NAME'])) {
     $errors[] = 'Le nom de la société est requis.';
@@ -37,7 +59,7 @@ if (empty($inputs['NAME'])) {
 if ($action === 'big_update') {
     $any_green = false;
     foreach ($green_fields as $f) {
-        if (!empty($inputs[$f])) { $any_green = true; break; }
+        if ($inputs[$f] !== '') { $any_green = true; break; }
     }
     if (!$any_green) {
         $errors[] = '<span style="color:#22d3ee">Remplissez au moins un champ VERT.</span>';
@@ -75,7 +97,7 @@ if (!empty($docs)) {
     // Map lowercase Appwrite fields to Company uppercase properties
     $fieldMap = ['BPA' => 'bpa', 'DPA' => 'dpa', 'TC5' => 'tc5', 'ROE' => 'roe', 'NA' => 'na', 'CP' => 'cp'];
     foreach ($fieldMap as $prop => $awField) {
-        if (empty($inputs[$prop]) && isset($row[$awField])) {
+        if ($inputs[$prop] === '' && isset($row[$awField])) {
             $company->$prop = (float) $row[$awField];
         }
     }
@@ -83,12 +105,14 @@ if (!empty($docs)) {
 
 // Explicit user input always wins
 foreach ($inputs as $key => $val) {
-    if ($key !== 'NAME' && !empty($val)) {
+    if ($key !== 'NAME' && $val !== '') {
         $company->$key = (float) $val;
     }
 }
 
 // ─── Store in session and redirect ───────────────────────────────────────────
+unset($_SESSION['analysis_save_notice']);
+unset($_SESSION['save']); // A previous immediate-save request must not carry forward.
 if ($action === 'save_immediately') {
     $_SESSION['save'] = true;
 }

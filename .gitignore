@@ -34,10 +34,14 @@ Thumbs.db
 .env.local
 .env.*.local
 .env.txt
+.appwrite-ops-key
+.appwrite-orderbook-key
+.appwrite-export-key
 *.env
 
 # PHP
 config/secrets.php
+config/supabase.local.php
 *.log
 session/
 tmp/
@@ -68,6 +72,10 @@ history.txt
 # Agent / Claude Code tooling (local only, may symlink outside repo)
 .claude/
 .agents/
+.playwright-mcp/
+
+# Local recovery bundles and worktree archives — never commit or deploy
+/safety-snapshots/
 
 #git
 .gitignore
@@ -77,6 +85,7 @@ myinterpreter_app/build/
 myinterpreter_app/.dart_tool/
 myinterpreter_app/.flutter-plugins
 myinterpreter_app/.flutter-plugins-dependencies
+myinterpreter_app/backend.local.json
 myinterpreter_app/android/.gradle/
 myinterpreter_app/android/local.properties
 myinterpreter_app/android/.kotlin/
@@ -103,6 +112,10 @@ session.txt
 
 # Local error-watcher state lives in ~/.myinterpreter, nothing to ignore here
 
+# Append-only realtime benchmark scheduler state and raw captures
+research/realtime_next/scheduled_benchmark_state/
+research/realtime_next/scheduled_evidence/
+
 # Upstream data-source endpoints — real hosts stay off GitHub.
 # config/sources.example.php is the committed template.
 config/sources.php
@@ -119,3 +132,6 @@ backfill_history.py
 backfill_masi.py
 backfill_projections.py
 unavoidable_issues.md
+
+# Key documentation must never hold a pasted value
+API_KEYS.md

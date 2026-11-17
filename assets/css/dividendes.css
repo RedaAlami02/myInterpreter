@@ -164,3 +164,19 @@ tr.div-done { opacity: .5; }
   white-space: nowrap;
 }
 .div-badge.forecast { background: var(--violet-dim); color: var(--violet); }
+
+/* Keep the dividend cycle readable as a sequence on every screen size. */
+.div-cycle-steps { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; }
+.div-step:not(:last-child)::after {
+  content: '→'; position: absolute; inset-inline-end: -24px; top: 50%;
+  transform: translateY(-50%); color: var(--text-dim); font-size: 1.35rem;
+}
+[dir="rtl"] .div-step:not(:last-child)::after { content: '←'; }
+@media (max-width: 760px) {
+  .div-cycle-steps { grid-template-columns: 1fr; gap: 28px; }
+  .div-step:not(:last-child)::after,
+  [dir="rtl"] .div-step:not(:last-child)::after {
+    content: '↓'; inset-inline-end: auto; left: 50%; right: auto; top: auto; bottom: -27px;
+    transform: translateX(-50%);
+  }
+}

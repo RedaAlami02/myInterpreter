@@ -7,52 +7,10 @@ require_once __DIR__ . '/core/i18n.php';
 require_once 'core/Appwrite.php';
 
 /* ── FIFO matching ───────────────────────────────────────── */
+require_once __DIR__ . '/core/portfolio_math.php';
 function fifoMatch(array $achats, array $ventes): array
 {
-    $rows      = [];
-    $j         = 0;
-    $remaining = isset($achats[0]) ? (float)$achats[0]['NUMBER'] : 0;
-
-    foreach ($ventes as $v) {
-        $toSell = (float)$v['NUMBER'];
-        if ($toSell <= 0) continue;
-
-        while ($toSell > 0) {
-            while ($j < count($achats) && $remaining <= 0) {
-                $j++;
-                $remaining = isset($achats[$j]) ? (float)$achats[$j]['NUMBER'] : 0;
-            }
-            if ($j >= count($achats)) {
-                $rows[] = ['error' => "Vente sans achat correspondant ({$v['DATE']})"];
-                break;
-            }
-
-            $a       = $achats[$j];
-            $matched = min($toSell, $remaining);
-            $isSplit = $matched < (float)$a['NUMBER'];
-
-            $buyAmt  = $matched * (float)$a['PRIX_ACHAT'];
-            $sellAmt = $matched * (float)$v['PRIX_VENTE'];
-
-            $rows[] = [
-                'achat_date'    => $a['DATE'],
-                'achat_nombre'  => $matched,
-                'achat_prix'    => (float)$a['PRIX_ACHAT'],
-                'achat_montant' => $buyAmt,
-                'vente_date'    => $v['DATE'],
-                'vente_nombre'  => $matched,
-                'vente_prix'    => (float)$v['PRIX_VENTE'],
-                'vente_montant' => $sellAmt,
-                'duree_days'    => (int)(new DateTime($a['DATE']))->diff(new DateTime($v['DATE']))->days,
-                'benefice'      => $sellAmt - $buyAmt,
-                'is_split'      => $isSplit,
-            ];
-
-            $remaining -= $matched;
-            $toSell    -= $matched;
-        }
-    }
-    return $rows;
+    return portfolio_fifo($achats, $ventes);
 }
 
 function monofmt(float $n, int $dec = 2): string
@@ -60,9 +18,10 @@ function monofmt(float $n, int $dec = 2): string
     return number_format($n, $dec, '.', ' ');
 }
 
-// Normalize Appwrite document to the format fifoMatch expects
+// Normalize a backend document to the format fifoMatch expects
 function normalizeAchat(array $doc): array {
     return [
+        'ID'         => $doc['$id'] ?? $doc['id'] ?? '',
         'DATE'       => $doc['date'] ?? '',
         'C_NAME'     => $doc['c_name'] ?? '',
         'NUMBER'     => $doc['quantity'] ?? $doc['number'] ?? 0,
@@ -71,6 +30,7 @@ function normalizeAchat(array $doc): array {
 }
 function normalizeVente(array $doc): array {
     return [
+        'ID'         => $doc['$id'] ?? $doc['id'] ?? '',
         'DATE'       => $doc['date'] ?? '',
         'C_NAME'     => $doc['c_name'] ?? '',
         'NUMBER'     => $doc['quantity'] ?? $doc['number'] ?? 0,
@@ -90,6 +50,31 @@ function stats(): void
     ]);
     $achatDocs = $transactions['buys'];
     $venteDocs = $transactions['sells'];
+    $hasDeclaredDays = (bool)array_filter($achatDocs, fn($row) => ($row['purchase_day_basis'] ?? null) === 'USER_CONFIRMED');
+    if ($achatDocs) {
+        ?>
+        <section class="card-glass mb-4" aria-labelledby="purchaseHistoryTitle">
+          <h2 id="purchaseHistoryTitle" style="padding:18px 20px 0;font-size:1rem"><?= te('Achats enregistrés') ?></h2>
+          <div class="overflow-x-auto"><table class="tbl">
+            <thead><tr><th scope="col"><?= te('Société') ?></th><th scope="col" class="num"><?= te('Actions') ?></th>
+              <th scope="col" class="num"><?= te("Prix d'achat") ?></th><th scope="col"><?= te("Date d'achat") ?></th>
+              <th scope="col"><?= te('Saisi le') ?></th></tr></thead>
+            <tbody><?php foreach (array_reverse($achatDocs) as $purchase):
+                $confirmed = ($purchase['purchase_day_basis'] ?? null) === 'USER_CONFIRMED'
+                    && is_string($purchase['purchase_day'] ?? null);
+            ?><tr>
+              <th scope="row"><?= htmlspecialchars($purchase['c_name']) ?></th>
+              <td class="num mono"><?= number_format((float)$purchase['number'], 0, ',', ' ') ?></td>
+              <td class="num mono"><?= number_format((float)$purchase['prix_achat'], 2, ',', ' ') ?></td>
+              <td class="mono"><?= fmt_date($confirmed ? $purchase['purchase_day'] : $purchase['date']) ?>
+                <?php if ($confirmed): ?><small class="muted"><?= te('Déclarée') ?></small>
+                <?php else: ?><small class="muted"><?= te('Date enregistrée') ?></small><?php endif; ?></td>
+              <td class="mono muted"><?= fmt_datetime($purchase['date']) ?></td>
+            </tr><?php endforeach; ?></tbody>
+          </table></div>
+        </section>
+        <?php
+    }
 
     // Get distinct stocks that have been sold
     $soldStocks = [];
@@ -117,6 +102,7 @@ function stats(): void
 
     $grandTotal = 0.0;
     $grandFrais = 0.0;
+    $unresolvedSales = 0;
     ?>
     <div class="stats-wrap">
       <style>
@@ -139,6 +125,7 @@ function stats(): void
       </style>
       <h2><i class="fas fa-chart-bar me-2 t-amber"></i><?= te('Statistiques P&L') ?></h2>
       <p class="sub"><?= te('Correspondance FIFO des achats et des ventes par valeur.') ?></p>
+      <?php if ($hasDeclaredDays): ?><p class="sub"><?= te("Les dates d'achat déclarées sont conservées séparément. Ces estimations utilisent encore les horodatages enregistrés.") ?></p><?php endif; ?>
 
       <div class="overflow-x-auto">
         <table class="tbl" id="histoTbl">
@@ -167,9 +154,9 @@ function stats(): void
                     <td class="name-cell" rowspan="<?= count($rows) ?>"><?= htmlspecialchars($stock) ?></td>
                   <?php endif; ?>
 
-                  <?php if (isset($r['error'])): ?>
+                  <?php if (isset($r['error'])): $unresolvedSales++; ?>
                     <td colspan="9" style="color:var(--rose);padding:8px 16px">
-                      <i class="fas fa-exclamation-triangle me-2"></i><?= htmlspecialchars($r['error']) ?>
+                      <i class="fas fa-exclamation-triangle me-2"></i>Purchase history is incomplete or its ordering is uncertain. This sale is excluded from estimates.
                     </td>
                   <?php else:
                     $cls = $r['benefice'] > 0 ? 'pos' : ($r['benefice'] < 0 ? 'neg' : 'zero');
@@ -177,12 +164,12 @@ function stats(): void
                     $grandFrais += commission($r['achat_montant']) + commission($r['vente_montant']);
                   ?>
                     <td class="date"><?= fmt_date($r['achat_date']) ?></td>
-                    <td class="num mono"><?= monofmt($r['achat_nombre'], 0) ?><?= $r['is_split'] ? ' <span class="badge-split">S</span>' : '' ?></td>
+                    <td class="num mono"><?= rtrim(rtrim(monofmt($r['achat_nombre'], 8), '0'), '.') ?><?= $r['is_split'] ? ' <span class="badge-split">S</span>' : '' ?></td>
                     <td class="num mono"><?= monofmt($r['achat_prix']) ?></td>
                     <td class="num montant-buy"><?= monofmt($r['achat_montant']) ?></td>
                     <td class="dur"><?= $r['duree_days'] ?><?= te('j') ?></td>
                     <td class="date"><?= fmt_date($r['vente_date']) ?></td>
-                    <td class="num mono"><?= monofmt($r['vente_nombre'], 0) ?></td>
+                    <td class="num mono"><?= rtrim(rtrim(monofmt($r['vente_nombre'], 8), '0'), '.') ?></td>
                     <td class="num mono"><?= monofmt($r['vente_prix']) ?></td>
                     <td class="num montant-sell"><?= monofmt($r['vente_montant']) ?></td>
                     <td class="num benefice <?= $cls ?>">
@@ -194,8 +181,11 @@ function stats(): void
             <?php endforeach; ?>
           </tbody>
           <tfoot>
+            <?php if ($unresolvedSales > 0): ?>
+              <tr><td colspan="11">Incomplete or ambiguous purchase history: <?= $unresolvedSales ?> sale(s) excluded from these estimates.</td></tr>
+            <?php endif; ?>
             <?php
-              $taxAmt  = $grandTotal * TAX_RATE;
+              $taxAmt  = max(0.0, $grandTotal) * TAX_RATE;
               $netAmt  = $grandTotal - $taxAmt - $grandFrais;
               $grossCls= $grandTotal >= 0 ? 'total-pos' : 'total-neg';
               $netCls  = $netAmt   >= 0 ? 'total-pos' : 'total-neg';

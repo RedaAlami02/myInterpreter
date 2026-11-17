@@ -5,11 +5,12 @@
  * Include this file and call mkt_fetch_symbol($symbol) directly (no HTTP needed).
  */
 
-require_once __DIR__ . '/../config/sources.php';
 require_once __DIR__ . '/../core/company_disclosures.php';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function mkt_batch(array $requests): array {
+    if (!defined('MYINTERPRETER_DIRECT_SOURCE_REQUESTS') || !MYINTERPRETER_DIRECT_SOURCE_REQUESTS) return [];
+    require_once __DIR__ . '/../config/sources.php';
     $multiAvailable = true;
     foreach (['init', 'add_handle', 'exec', 'select', 'getcontent', 'remove_handle', 'close'] as $operation) {
         if (!function_exists('curl_multi_' . $operation)) $multiAvailable = false;
@@ -119,10 +120,24 @@ function mkt_cagr(array $r, string $k, int $yr = 5): ?float {
 
 // ── Main fetch function (callable directly or via HTTP) ───────────────────────
 function mkt_fetch_symbol(string $symbol): array {
+    if (function_exists('app_uses_supabase') && app_uses_supabase()) {
+        $docs = sb_market()->listDocuments('company_profiles', [
+            json_encode(['method'=>'equal','attribute'=>'id','values'=>[$symbol]]),
+            json_encode(['method'=>'limit','values'=>[1]]),
+        ]);
+        if (!$docs || !is_array($docs[0]['profile'] ?? null)) {
+            return ['error'=>'Company profile is not available in the captured data.'];
+        }
+        return $docs[0]['profile'];
+    }
     return apply_reviewed_disclosure($symbol, mkt_fetch_upstream_symbol($symbol));
 }
 
 function mkt_fetch_upstream_symbol(string $symbol): array {
+    if (!defined('MYINTERPRETER_DIRECT_SOURCE_REQUESTS') || !MYINTERPRETER_DIRECT_SOURCE_REQUESTS) {
+        return ['error' => 'Market enrichment is unavailable.'];
+    }
+    require_once __DIR__ . '/../config/sources.php';
     $_SRC1 = SRC_FUND_BASE;
     $_SRC2 = SRC_FUND_BASE . '/supabase';
 
@@ -228,10 +243,18 @@ function mkt_fetch_upstream_symbol(string $symbol): array {
 
 // ── Run as HTTP endpoint when called directly ─────────────────────────────────
 if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '')) {
-    session_start();
+    require_once __DIR__ . '/../core/session.php';
+    app_session_start();
     require_once __DIR__ . '/../config/config.php';
     header('Content-Type: application/json; charset=utf-8');
-    header('Cache-Control: public, max-age=3600');
+    header('Cache-Control: private, no-store');
+    if (!defined('MYINTERPRETER_DIRECT_SOURCE_REQUESTS') || !MYINTERPRETER_DIRECT_SOURCE_REQUESTS) {
+        http_response_code(503);
+        echo json_encode(['error' => 'Market enrichment is unavailable.']);
+        exit;
+    }
+    require_once __DIR__ . '/../core/auth.php';
+    requireLogin();
 
     $symbol = preg_replace('/[^A-Z0-9]/', '', strtoupper($_GET['symbol'] ?? ''));
     if (!$symbol) { echo json_encode(['error' => 'symbol required']); exit; }
