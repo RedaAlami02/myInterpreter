@@ -149,12 +149,54 @@ def audit(latest_prices, companies, dividends, formats, as_of=None, max_age_days
             "max_age_days": max_age_days, "summary": summary, "companies": rows}
 
 
+def book_health(books, formats, as_of=None, max_age_hours=96):
+    """Latest order book per symbol, judged against a freshness window.
+
+    The window is a few days, not hours: a Monday morning audit must not call a
+    Friday close stale.
+    """
+    moment = as_of or datetime.now(timezone.utc)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    latest = {}
+    for row in books or []:
+        symbol = row.get("symbol")
+        captured = _moment(row.get("captured_at"))
+        if not isinstance(symbol, str) or not symbol or captured is None:
+            continue
+        if symbol not in latest or captured > latest[symbol]:
+            latest[symbol] = captured
+    summary = {"book_symbols": 0, "book_fresh": 0, "book_stale": 0, "book_missing": 0}
+    statuses = {}
+    ages = {}
+    for row in formats or []:
+        symbol = row.get("symbol")
+        if not isinstance(symbol, str) or not symbol:
+            continue
+        summary["book_symbols"] += 1
+        captured = latest.get(symbol)
+        if captured is None:
+            statuses[symbol] = "MISSING"
+            summary["book_missing"] += 1
+            continue
+        age_hours = (moment - captured).total_seconds() / 3600
+        ages[symbol] = round(age_hours, 1)
+        if age_hours > max_age_hours:
+            statuses[symbol] = "STALE"
+            summary["book_stale"] += 1
+        else:
+            statuses[symbol] = "FRESH"
+            summary["book_fresh"] += 1
+    return summary, statuses, ages
+
+
 def to_csv_rows(report):
     return [{key: row.get(key) for key in (
         "symbol", "name", "price", "price_date", "price_age_days", "price_status",
         "fiscal_year", "fiscal_status", "shares", "dividend_year",
         "dividend_confirmed", "dividend_amount", "dividend_ex_date",
-        "dividend_pay_date", "dividend_type", "dividend_status", "shareholders")}
+        "dividend_pay_date", "dividend_type", "dividend_status", "shareholders",
+        "book_status", "book_age_hours")}
         | {"flags": "; ".join(row.get("flags") or [])}
         for row in report.get("companies") or []]
 
@@ -166,7 +208,8 @@ def to_markdown(report):
     for key in ("companies", "price_ok", "price_stale", "price_missing", "price_zero",
                 "fiscal_ok", "fiscal_stale", "fiscal_missing", "fiscal_current",
                 "shares_missing", "dividend_recent", "dividend_stale", "dividend_missing",
-                "shareholders_missing", "needs_attention"):
+                "shareholders_missing", "book_fresh", "book_stale", "book_missing",
+                "needs_attention"):
         lines.append(f"| {key.replace('_', ' ')} | {summary.get(key, 0)} |")
     lines += ["", "## Needs attention", "",
               "| Symbol | Company | Price | Fiscal | Flags |", "|---|---|---|---|---|"]

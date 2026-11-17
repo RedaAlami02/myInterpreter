@@ -1,0 +1,114 @@
+name: Exchange order-book publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: Optional comma-separated symbols (empty = entire universe)
+        type: string
+        default: ""
+      force:
+        description: Capture even outside the Casablanca session window
+        type: boolean
+        default: true
+  schedule:
+    # Every 15 minutes through the Casablanca session (09:00-15:40 local).
+    # The capture itself refuses to run outside the window, so delayed or
+    # off-hours triggers cost a checkout and nothing else.
+    - cron: "*/15 8-16 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exchange-orderbook-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || vars.EXCHANGE_ORDERBOOK_PUBLICATION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUNBUFFERED: "1"
+      SYMBOLS: ${{ github.event.inputs.symbols }}
+      FORCE: ${{ github.event.inputs.force }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Capture order books
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          extra=""
+          if [ "$FORCE" = "true" ]; then extra="--force"; fi
+          python3 tools/capture_exchange_orderbooks.py \
+            --out-dir "$RUNNER_TEMP/orderbooks/capture" \
+            --symbols "$SYMBOLS" $extra | tee "$RUNNER_TEMP/orderbooks/report.json"
+
+      - name: Publish captured books
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if grep -q SKIPPED_OUTSIDE_SESSION "$RUNNER_TEMP/orderbooks/report.json"; then
+            echo "Outside the session window; nothing to publish." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Retention runs once, on the first trigger after the close.
+          prune=""
+          if [ "$(date -u +%H)" = "16" ]; then prune="--prune"; fi
+          python3 tools/publish_exchange_orderbooks.py \
+            --snapshot "$RUNNER_TEMP/orderbooks/capture/snapshot.json" \
+            --apply $prune | tee "$RUNNER_TEMP/orderbooks/result.json"
+
+      - name: Publish job summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          base = os.environ["RUNNER_TEMP"] + "/orderbooks"
+          print("## Order-book capture")
+          print()
+          try:
+              report = json.load(open(base + "/report.json"))
+              print(f"Captured: `{report.get('captured_at', '')}` · source of identities: `{report.get('identity_source', '')}`")
+              print()
+              print("| Metric | Count |")
+              print("|---|---:|")
+              for key in ("symbols_requested", "books_captured", "medias24", "cdg",
+                          "empty", "failed", "unmapped_isin"):
+                  print(f"| {key.replace('_', ' ')} | {report.get(key, 0)} |")
+              if report.get("universe_error"):
+                  print(f"\nPrimary-source universe error: `{report['universe_error']}`")
+          except Exception:
+              print("Capture report unavailable.")
+          try:
+              result = json.load(open(base + "/result.json"))
+              print()
+              print(f"Publication: `{result.get('status')}`")
+              if isinstance(result.get("result"), dict):
+                  print()
+                  print("| Result | Count |")
+                  print("|---|---:|")
+                  for key in ("applied", "unchanged", "skipped", "missing"):
+                      print(f"| {key} | {result['result'].get(key, 0)} |")
+          except Exception:
+              pass
+          PY
+
+      - name: Upload capture artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exchange-orderbooks-${{ github.run_id }}
+          path: ${{ runner.temp }}/orderbooks
+          retention-days: 14
+          if-no-files-found: warn

@@ -79,12 +79,30 @@ def main():
             moment = moment.replace(tzinfo=timezone.utc)
         dividends = fetch(base, key, "dividends",
                           "c_name,year,amount,ex_date,pay_date,confirmed,type,updated_at")
+        formats = fetch(base, key, "format", "name,symbol")
         report = market_health.audit(
             fetch(base, key, "latest_prices", "c_name,pa,date,origin_collection"),
             fetch(base, key, "company", "name,fiscal_year,na,shareholders,date"),
             dividends,
-            fetch(base, key, "format", "name,symbol"),
+            formats,
             as_of=moment, max_age_days=args.max_age_days)
+        books = fetch(base, key, "market_orderbooks", "symbol,captured_at")
+        book_summary, book_status, book_ages = market_health.book_health(
+            books, formats, as_of=moment)
+        report["summary"].update(book_summary)
+        for row in report["companies"]:
+            symbol = row.get("symbol")
+            if not symbol:
+                continue
+            status = book_status.get(symbol)
+            row["book_status"] = status
+            row["book_age_hours"] = book_ages.get(symbol)
+            if status == "MISSING":
+                row["flags"].append("BOOK_MISSING")
+            elif status == "STALE":
+                row["flags"].append("BOOK_STALE_%dH" % (book_ages.get(symbol) or 0))
+        (args.out_dir / "books.json").write_text(
+            json.dumps(book_status, ensure_ascii=False, indent=1), encoding="utf-8")
         args.out_dir.mkdir(parents=True, exist_ok=True)
         (args.out_dir / "market_health.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -99,7 +117,7 @@ def main():
             market_health.to_markdown(report), encoding="utf-8")
         print(json.dumps({"status": "OK", "summary": report["summary"],
                           "outputs": ["market_health.json", "market_health.csv",
-                                      "market_health.md", "dividends.json"],
+                                      "market_health.md", "dividends.json", "books.json"],
                           "production_writes": 0}, sort_keys=True))
         return 0
     except Exception as error:

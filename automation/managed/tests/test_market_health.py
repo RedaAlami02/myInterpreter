@@ -68,5 +68,29 @@ class MarketHealthTests(unittest.TestCase):
         self.assertIn("Market data health", market_health.to_markdown(report))
 
 
+class BookHealthTests(unittest.TestCase):
+    def test_fresh_stale_and_missing_books(self):
+        summary, statuses, ages = market_health.book_health(
+            [{"symbol": "ADH", "captured_at": "2026-11-17T15:00:00Z"},
+             {"symbol": "ADH", "captured_at": "2026-11-17T14:00:00Z"},
+             {"symbol": "BCP", "captured_at": "2026-11-10T15:00:00Z"}],
+            [{"symbol": "ADH"}, {"symbol": "BCP"}, {"symbol": "NRJ"}],
+            as_of=datetime(2026, 11, 17, 18, 0, tzinfo=timezone.utc))
+        self.assertEqual(statuses["ADH"], "FRESH")
+        self.assertEqual(statuses["BCP"], "STALE")
+        self.assertEqual(statuses["NRJ"], "MISSING")
+        self.assertEqual(ages["ADH"], 3.0)
+        self.assertEqual(summary, {"book_symbols": 3, "book_fresh": 1,
+                                   "book_stale": 1, "book_missing": 1})
+
+    def test_a_friday_close_is_fresh_on_monday_morning(self):
+        summary, statuses, _ages = market_health.book_health(
+            [{"symbol": "ADH", "captured_at": "2026-11-20T15:00:00Z"}],
+            [{"symbol": "ADH"}],
+            as_of=datetime(2026, 11, 23, 8, 0, tzinfo=timezone.utc))
+        self.assertEqual(statuses["ADH"], "FRESH")
+        self.assertEqual(summary["book_fresh"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
