@@ -152,8 +152,22 @@ def cdg_depth(posts, symbol, levels=MAX_LEVELS):
 
 
 def http_json(url, *, data=None, headers=None, timeout=25, attempts=3):
-    request_headers = {"User-Agent": USER_AGENT, "Accept": "application/json,text/plain,*/*",
-                       "Referer": MEDIAS24_REFERER}
+    # Medias24 sits behind a CDN that rejects datacenter clients unless the
+    # request carries the same browser fingerprint the public page sends.
+    if "medias24.com" in url:
+        request_headers = {
+            "User-Agent": ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                           "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.6",
+            "Referer": MEDIAS24_REFERER,
+            "Origin": "https://medias24.com",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Dest": "empty",
+        }
+    else:
+        request_headers = {"User-Agent": USER_AGENT, "Accept": "application/json,text/plain,*/*"}
     request_headers.update(headers or {})
     body = None
     if data is not None:
@@ -197,7 +211,8 @@ def capture(symbols, identities, *, fetch_json_fn, cdg_post, moment=None,
         universe_error = f"{type(error).__name__}: {error}"
     rows = []
     report = {"medias24": 0, "cdg": 0, "empty": 0, "failed": 0,
-              "unmapped_isin": 0, "universe_error": universe_error, "failures": []}
+              "unmapped_isin": 0, "universe_error": universe_error, "failures": [],
+              "empty_symbols": []}
     for symbol in symbols:
         symbol = symbol.upper()
         isin = (identities or {}).get(symbol)
@@ -223,6 +238,7 @@ def capture(symbols, identities, *, fetch_json_fn, cdg_post, moment=None,
                 continue
         if row is None:
             report["empty"] += 1
+            report["empty_symbols"].append(symbol)
             continue
         report["medias24" if row["source"] == "MEDIAS24_PUBLIC" else "cdg"] += 1
         rows.append(row)

@@ -47,6 +47,7 @@ jobs:
           SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
+          mkdir -p "$RUNNER_TEMP/orderbooks"
           extra=""
           if [ "$FORCE" = "true" ]; then extra="--force"; fi
           python3 tools/capture_exchange_orderbooks.py \

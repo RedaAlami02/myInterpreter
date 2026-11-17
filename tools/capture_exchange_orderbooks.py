@@ -135,6 +135,7 @@ def main():
         "books_captured": len(rows),
         **{key: report[key] for key in ("medias24", "cdg", "empty", "failed", "unmapped_isin")},
         "universe_error": report.get("universe_error"),
+        "empty_symbols": report.get("empty_symbols", [])[:40],
         "failures": report.get("failures", [])[:20],
     }
     (args.out_dir / "report.json").write_text(json.dumps(summary, indent=1, ensure_ascii=False),
