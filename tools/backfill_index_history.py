@@ -52,7 +52,11 @@ def rows_for(symbol, history):
         if not isinstance(close, (int, float)) or close <= 0:
             continue
         parsed.append((day, float(close)))
-    parsed.sort()
+    # CDG occasionally returns two rows for one session; keep the last value.
+    by_day = {}
+    for day, close in parsed:
+        by_day[day] = close
+    parsed = sorted(by_day.items())
     rows, previous = [], None
     for day, close in parsed:
         variation = round((close / previous - 1) * 100, 4) if previous else None
