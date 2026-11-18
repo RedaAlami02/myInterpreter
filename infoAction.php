@@ -24,8 +24,6 @@ $labelOf = [];
 $company      = null;
 $history      = [];
 $latestSessions = [];
-$sparkLabels  = [];
-$sparkData    = [];
 $searched     = false;
 $dbError      = null;
 $divRows      = [];
@@ -42,8 +40,10 @@ $fyStale      = false;
 $divPrice     = 0.0;
 $suggestions  = [];
 $symbolTo     = [];   // ticker symbol => stored company name
+$requiresSignIn = aw_user_id() === null;
 
 // ─── Initial company list ─────────────────────────────────
+if (!$requiresSignIn) {
 try {
     $directoryRequests = [
         'companies' => ['company', [q_order_asc('name'), q_limit(500)], null],
@@ -71,6 +71,7 @@ try {
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
 }
+}
 
 $symbolOf = array_flip($symbolTo);
 $directoryBySector = market_sector_directory($allCompanies);
@@ -87,12 +88,12 @@ foreach (['price_min', 'price_max'] as $param) {
 }
 
 // ─── Handle search ────────────────────────────────────────
-if (!$dbError && isset($_GET['name']) && !empty($_GET['name']) && $_SERVER['REQUEST_METHOD'] === 'GET') {
+if (!$requiresSignIn && !$dbError && isset($_GET['name']) && !empty($_GET['name']) && $_SERVER['REQUEST_METHOD'] === 'GET') {
     $_POST['NAME'] = trim($_GET['name']);
     $_SERVER['REQUEST_METHOD'] = 'POST';
 }
 
-if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])) {
+if (!$requiresSignIn && !$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])) {
     $searched = true;
     $typed    = trim($_POST['NAME']);
 
@@ -110,68 +111,33 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
         $company = !empty($companyRes) ? $companyRes[0] : null;
 
         if ($company) {
-            // Paginate to get full history (can exceed 500 after backfill)
-            $historyAll = []; $histOffset = 0;
-            do {
-                $page = aw_list_docs('data', [
-                    q_equal('c_name', $name),
-                    q_order_desc('date'),
-                    q_limit(500),
-                    q_offset($histOffset),
-                ]);
-                $historyAll = array_merge($historyAll, $page);
-                $histOffset += 500;
-            } while (count($page) === 500);
-
-            // Deduplicate: keep one snapshot per calendar day (latest first = first seen)
-            $seenDates = []; $histUniq = [];
-            foreach ($historyAll as $row) {
-                $d = substr($row['date'] ?? '', 0, 10);
-                if (!isset($seenDates[$d])) { $seenDates[$d] = true; $histUniq[] = $row; }
-            }
-            $history = $histUniq;
-
-            foreach (array_reverse($history) as $row) {
-                $sparkLabels[] = substr($row['date'] ?? '', 0, 10);
-                $sparkData[]   = (float)($row['pa'] ?? 0);
-            }
-
-            // Get symbol for financial enrichment
-            // Try from latest history doc first (has symbol since scraper update)
-            $symbol = null;
-            foreach ($history as $row) {
-                if (!empty($row['symbol'])) { $symbol = $row['symbol']; break; }
-            }
-            // Fallback: format collection
-            if (!$symbol) {
-                $symbol = array_flip($symbolTo)[$name] ?? null;
-            }
-            $sessionSymbol=latest_session_symbol($directoryData['symbols'],$name);
+            // Fetch the newest observation and independent panels together.
+            // Full daily chart history loads after the initial page is visible.
+            $sessionSymbol = latest_session_symbol($directoryData['symbols'], $name);
+            $symbol = $sessionSymbol;
+            $requests = [
+                'newest' => ['data', [q_equal('c_name', $name), q_order_desc('date'), q_limit(1)]],
+                'price' => ['latest_prices', [q_equal('c_name', $name), q_order_desc('date'), q_limit(1)]],
+                'dividends' => ['dividends', [q_equal('c_name', $name), q_order_desc('year'), q_limit(50)]],
+            ];
+            if ($sessionSymbol) $requests['book'] = ['market_orderbooks', [q_equal('symbol', $sessionSymbol), q_order_desc('captured_at'), q_limit(1)]];
+            $panels = sb_market()->listDocumentsBatch($requests, true);
+            $history = $panels['newest'] ?? [];
+            $divRows = array_map('div_review_row', $panels['dividends'] ?? []);
+            $priceCandidates = array_merge(array_values($currentPriceRecords), $history, $panels['price'] ?? []);
             if ($sessionSymbol) {
                 try {
-                    $latestSessions=latest_sessions(sb_app()->recentMarketSessions(sb_access_token(),$sessionSymbol),$sessionSymbol,
-                        (new DateTimeImmutable('now',new DateTimeZone('Africa/Casablanca')))->format('Y-m-d'));
-                } catch (Throwable $error) { /* Keep the company page usable when session history is unavailable. */ }
+                    $latestSessions = latest_sessions(sb_app()->recentMarketSessions(sb_access_token(), $sessionSymbol), $sessionSymbol,
+                        (new DateTimeImmutable('now', new DateTimeZone('Africa/Casablanca')))->format('Y-m-d'));
+                } catch (Throwable $error) { /* Optional historical panel. */ }
+                if (!empty($panels['book'])) $detailBook = company_market_book($panels['book'][0], $sessionSymbol);
             }
-
-            // Display reads fail independently so a missing book never hides a price.
-            $priceCandidates = array_merge(array_values($currentPriceRecords), $history);
             foreach ($latestSessions as $session) {
                 if ($session['price'] !== null) $priceCandidates[] = ['c_name' => $name, 'pa' => $session['price'], 'date' => $session['day']];
             }
-            try {
-                $priceCandidates = array_merge($priceCandidates, aw_list_docs('latest_prices', [q_equal('c_name', $name), q_order_desc('date'), q_limit(1)]));
-            } catch (Throwable $error) { /* Dated observations remain available. */ }
             $detailQuote = company_market_quote($name, $priceCandidates);
-            if ($sessionSymbol) {
-                try {
-                    $books = aw_list_docs('market_orderbooks', [q_equal('symbol', $sessionSymbol), q_order_desc('captured_at'), q_limit(1)]);
-                    if ($books) $detailBook = company_market_book($books[0], $sessionSymbol);
-                } catch (Throwable $error) { /* Render an explicit unavailable state. */ }
-            }
 
             // ─── Dividends ───────────────────────────────────
-            $divRows            = div_for_company($name);
             [$divNext, $divWhen] = div_next($divRows);
             $divHistory         = div_history($divRows, (int)date('Y'));
             $divUsualMonth      = ($divNext && !div_confirmed($divNext))
@@ -225,7 +191,7 @@ if (!$dbError && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['NAME'])
 
 $directoryPrices = [];
 $directoryPriceCeiling = 100;
-if (!$searched && !$dbError) {
+if (!$requiresSignIn && !$searched && !$dbError) {
     try {
         $companySet = array_fill_keys($allCompanies, true);
         foreach (overlay_current_prices(($directoryData['prices'] ?? aw_list_docs('latest_prices', [q_limit(200)])), $currentPriceRecords) as $priceDoc) {
@@ -286,7 +252,13 @@ if ($awSession && !empty($name ?? '')) {
 
   <div class="search-wrap">
 
-    <?php if ($dbError): ?>
+    <?php if ($requiresSignIn): ?>
+      <div class="card-glass" style="padding:24px;max-width:640px;margin:40px auto;text-align:center">
+        <h2 style="font-size:1.15rem;margin-bottom:10px"><i class="fas fa-lock me-2 t-cyan"></i><?= te('Connexion requise') ?></h2>
+        <p class="muted mb-4"><?= te('Les fiches sociétés, les cours et les carnets d’ordres sont réservés aux comptes connectés.') ?></p>
+        <a class="btn btn-cyan" href="index.php"><i class="fas fa-sign-in-alt me-1"></i><?= te('Se connecter') ?></a>
+      </div>
+    <?php elseif ($dbError): ?>
       <div class="alert alert-danger">
         <strong><i class="fas fa-bug me-2"></i><?= te('Erreur PHP/DB :') ?></strong>
         <pre style="margin-top:8px;font-size:0.8rem;white-space:pre-wrap"><?= htmlspecialchars($dbError) ?></pre>
@@ -544,10 +516,14 @@ if ($awSession && !empty($name ?? '')) {
 
           <?php render_latest_sessions($latestSessions); ?>
 
-          <?php if (!empty($history)): ?>
-
-            <?php if (count($sparkData) > 1): ?>
-            <div class="sparkline-wrap mb-4">
+          <?php if ($company): ?>
+            <div class="sparkline-wrap mb-4" id="companyHistory"
+                 data-name="<?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>"
+                 data-url="<?= htmlspecialchars('handlers/company_history.php?name=' . rawurlencode($name), ENT_QUOTES, 'UTF-8') ?>"
+                 data-buy-markers="<?= htmlspecialchars(json_encode($buyMarkers), ENT_QUOTES, 'UTF-8') ?>">
+              <p id="companyHistoryStatus" role="status" aria-live="polite"><?= te('Chargement de l’historique…') ?></p>
+              <button type="button" id="companyHistoryRetry" class="btn btn-sm" hidden><?= te('Réessayer') ?></button>
+              <div id="companyHistoryChart" hidden>
               <div class="spark-header">
                 <h5><i class="fas fa-chart-line me-2 t-cyan"></i><?= te('Évolution du prix (PA)') ?></h5>
                 <div class="spark-hover-val" id="sparkHoverVal"></div>
@@ -564,8 +540,8 @@ if ($awSession && !empty($name ?? '')) {
                 <input type="range" id="sliderStart" min="0" max="100" value="0">
                 <input type="range" id="sliderEnd"   min="0" max="100" value="100">
               </div>
+              </div>
             </div>
-            <?php endif; ?>
 
             <?php if ($symbol): ?>
             <!-- Financial enrichment (JS-loaded) -->
@@ -937,193 +913,7 @@ if ($awSession && !empty($name ?? '')) {
 </script>
 <?php endif; ?>
 
-<?php if (!empty($sparkData) && count($sparkData) > 1): ?>
-<script>
-(function() {
-  var fullLabels = <?= json_encode($sparkLabels) ?>;
-  var fullData   = <?= json_encode($sparkData) ?>;
-  var buyMarkers = <?= json_encode($buyMarkers) ?>;
-
-  var currentSlice = fullLabels.map((d, i) => ({ d, v: fullData[i] }));
-  var sliderStart  = document.getElementById('sliderStart');
-  var sliderEnd    = document.getElementById('sliderEnd');
-  var hoverVal     = document.getElementById('sparkHoverVal');
-
-  // ── period filter ─────────────────────────────────────────
-  var periodDays = { '5A': 5*365, '1A': 365, '6M': 182, '3M': 91, '1M': 30 };
-
-  function dateStr(daysAgo) {
-    var d = new Date(); d.setDate(d.getDate() - daysAgo);
-    return d.toISOString().slice(0, 10);
-  }
-
-  function setPeriod(period) {
-    var cutoff = dateStr(periodDays[period]);
-    var filtered = fullLabels.map((d, i) => ({ d, v: fullData[i] })).filter(p => p.d >= cutoff);
-    currentSlice = filtered.length >= 2 ? filtered : fullLabels.map((d, i) => ({ d, v: fullData[i] }));
-    sliderStart.value = 0; sliderEnd.value = 100;
-    renderChart(currentSlice);
-  }
-
-  document.querySelectorAll('.spark-period-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('.spark-period-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      setPeriod(btn.dataset.period);
-    });
-  });
-
-  // ── sliders ───────────────────────────────────────────────
-  function slicedData() {
-    var s = parseInt(sliderStart.value), e = parseInt(sliderEnd.value);
-    if (s > e - 2) { s = Math.max(0, e - 2); sliderStart.value = s; }
-    var n = currentSlice.length;
-    var from = Math.floor(s / 100 * (n - 1));
-    var to   = Math.ceil(e  / 100 * (n - 1));
-    return currentSlice.slice(from, to + 1);
-  }
-
-  [sliderStart, sliderEnd].forEach(function(sl) {
-    sl.addEventListener('input', function() { renderChart(slicedData()); });
-  });
-
-  // ── crosshair plugin ──────────────────────────────────────
-  // Snap to the active tooltip data point x so it's always aligned.
-  var crosshairPlugin = {
-    id: 'crosshair',
-    afterDraw: function(chart) {
-      var active = chart.tooltip && chart.tooltip._active;
-      if (!active || !active.length) return;
-      var x = active[0].element.x;
-      var c = chart.ctx, ca = chart.chartArea;
-      c.save();
-      c.strokeStyle = 'rgba(148,163,184,0.5)';
-      c.lineWidth = 1;
-      c.setLineDash([4, 4]);
-      c.beginPath(); c.moveTo(x, ca.top); c.lineTo(x, ca.bottom); c.stroke();
-      c.restore();
-    },
-    afterEvent: function(chart, args) {
-      if (args.event.type === 'mouseout') {
-        hoverVal.textContent = '';
-        chart.draw();
-      }
-    }
-  };
-
-  // ── buy-pin plugin ────────────────────────────────────────
-  var buyPinPlugin = {
-    id: 'buyPin',
-    afterDraw: function(chart) {
-      if (!buyMarkers.length) return;
-      var c = chart.ctx, ca = chart.chartArea, scales = chart.scales;
-      var chartLabels = chart.data.labels;
-      buyMarkers.forEach(function(marker) {
-        var idx = chartLabels.indexOf(marker.date);
-        if (idx === -1) return;
-        var x = scales.x.getPixelForValue(idx);
-        c.save();
-        c.setLineDash([4, 3]);
-        c.strokeStyle = 'rgba(6,182,212,0.65)'; c.lineWidth = 1.5;
-        c.beginPath(); c.moveTo(x, ca.top); c.lineTo(x, ca.bottom); c.stroke();
-        c.setLineDash([]);
-        c.fillStyle = '#06b6d4';
-        c.beginPath(); c.moveTo(x, ca.top+3); c.lineTo(x-5, ca.top-6); c.lineTo(x+5, ca.top-6); c.closePath(); c.fill();
-        c.fillStyle = '#06b6d4'; c.font = 'bold 9px sans-serif'; c.textAlign = 'center';
-        c.fillText('Achat', x, ca.top - 9);
-        c.restore();
-      });
-    }
-  };
-
-  // ── chart instance ────────────────────────────────────────
-  var chartInst = null;
-
-  function renderChart(slice) {
-    var lbls = slice.map(p => p.d);
-    var vals = slice.map(p => p.v);
-    var first = vals[0], last = vals[vals.length - 1];
-    var color = last >= first ? '#10b981' : '#f43f5e';
-    var gradColor = last >= first ? 'rgba(16,185,129,' : 'rgba(244,63,94,';
-
-    if (chartInst) {
-      chartInst.data.labels = lbls;
-      chartInst.data.datasets[0].data = vals;
-      chartInst.data.datasets[0].borderColor = color;
-      chartInst.data.datasets[0].pointBackgroundColor = color;
-      chartInst.data.datasets[0].pointRadius = vals.length < 25 ? 4 : 0;
-      chartInst.data.datasets[0].backgroundColor = function(ctx) {
-        var g = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height);
-        g.addColorStop(0, gradColor + '0.18)');
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        return g;
-      };
-      chartInst.update('none');
-      return;
-    }
-
-    var ctxEl = document.getElementById('sparklineChart').getContext('2d');
-    chartInst = new Chart(ctxEl, {
-      type: 'line',
-      plugins: [crosshairPlugin, buyPinPlugin],
-      data: {
-        labels: lbls,
-        datasets: [{
-          data: vals,
-          borderColor: color,
-          borderWidth: 2,
-          pointRadius: vals.length < 25 ? 4 : 0,
-          pointHoverRadius: 5,
-          pointBackgroundColor: color,
-          fill: true,
-          backgroundColor: function(ctx) {
-            var g = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height);
-            g.addColorStop(0, gradColor + '0.18)');
-            g.addColorStop(1, 'rgba(0,0,0,0)');
-            return g;
-          },
-          tension: 0.35,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            enabled: true,
-            backgroundColor: 'rgba(15,23,42,0.92)',
-            titleColor: '#94a3b8',
-            bodyColor: '#f1f5f9',
-            borderColor: 'rgba(148,163,184,0.15)',
-            borderWidth: 1,
-            padding: 10,
-            callbacks: {
-              title: function(items) { return items[0].label; },
-              label: function(c) {
-                hoverVal.textContent = c.raw.toFixed(2) + ' MAD  •  ' + c.label;
-                var line = ' PA : ' + c.raw.toFixed(2) + ' MAD';
-                var m = buyMarkers.find(b => b.date === lbls[c.dataIndex]);
-                if (m) line += '   •   Achat ' + m.quantity + ' × ' + m.price.toFixed(2) + ' MAD';
-                return line;
-              }
-            }
-          }
-        },
-        scales: {
-          x: { ticks: { color: '#475569', maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { ticks: { color: '#475569' },                   grid: { color: 'rgba(255,255,255,0.04)' } }
-        }
-      }
-    });
-  }
-
-  // ── init with 1Y ─────────────────────────────────────────
-  setPeriod('1A');
-})();
-</script>
-<?php endif; ?>
+<script src="assets/js/company_history.js?v=1"></script>
 <script>
 const directoryCards = [...document.querySelectorAll('.directory-card')];
 const directoryCount = document.getElementById('directoryCount');
