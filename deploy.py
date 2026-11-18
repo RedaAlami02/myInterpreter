@@ -19,6 +19,7 @@ locally are left alone.
 """
 
 import ftplib
+import argparse
 import os
 import re
 import sys
@@ -34,15 +35,48 @@ ROOT = Path(__file__).resolve().parent
 # Extensions that make up the site. Anything else is local-only tooling.
 SITE_SUFFIXES = {".php", ".css", ".js", ".svg", ".ico", ".png", ".jpg", ".webp", ".woff2"}
 SITE_DIRS = {"assets", "core", "config", "handlers", "locales"}
+# The public reader needs this allowlist at runtime. SQL migrations and backups
+# remain local-only; the ignored backend selector requires an explicit cutover.
+RUNTIME_DATA_FILES = {"migrations/supabase/market_contract.json", "migrations/supabase/supplemental_contract.json"}
+RUNTIME_DEPENDENCIES = {
+    "auth_callback.php", "auth_reset.php",
+    "core/backend.php", "core/SupabaseApp.php", "core/SupabaseMarket.php",
+    "core/supabase_session.php", "core/session.php", "core/portfolio_math.php",
+    "core/portfolio_prices.php",
+    "core/latest_sessions.php", "core/company_market.php",
+    "core/RecoveredHistory.php", "core/holdings_table.php",
+    "core/ShadowMarketFeed.php", "core/market_preview_panel.php",
+    "assets/css/market_preview.css", "assets/js/market_preview.js",
+    "assets/js/holdings_sort.js",
+    "handlers/supabase_auth.php", "handlers/recovered_history.php",
+} | RUNTIME_DATA_FILES
 
 # Gitignored, required at runtime, and therefore easy to forget by hand.
 ALWAYS_INCLUDE = [
     "config/sources.php",   # upstream endpoints — index.php + market_proxy.php require it
-    "config/secrets.php",   # Appwrite server API key
+    "config/supabase.local.php",  # public runtime config; never database/admin keys
 ]
 
 # Local-only files that happen to match SITE_SUFFIXES.
-SKIP_FILES = {"config/sources.example.php", "deploy.py"}
+SKIP_FILES = {"config/sources.example.php", "config/secrets.php", "deploy.py"}
+
+
+def runtime_path(rel):
+    """Use the same publication boundary for automatic and explicit uploads."""
+    path = Path(rel)
+    if (path.is_absolute() or '..' in path.parts or rel in SKIP_FILES
+            or any(part.startswith('.') for part in path.parts)
+            or '.example.' in path.name):
+        return False
+    if rel in ALWAYS_INCLUDE or rel in RUNTIME_DATA_FILES:
+        return True
+    if len(path.parts) > 1 and path.parts[0] not in SITE_DIRS:
+        return False
+    # No arbitrary ignored configuration, backups or local credential files.
+    if path.parts[0] == 'config' and rel != 'config/config.php':
+        return False
+    return (path.suffix.lower() in SITE_SUFFIXES
+            or (path.parent == Path('locales') and path.suffix == '.json'))
 
 
 def credentials():
@@ -75,6 +109,8 @@ def local_files(explicit):
                 sys.exit("Explicit paths must stay inside the project")
             if not (ROOT / rel).is_file():
                 sys.exit(f"Not a file: {rel}")
+            if not runtime_path(rel):
+                sys.exit("Explicit path is outside the runtime publication allowlist")
             out.append(rel)
         return out
 
@@ -83,17 +119,12 @@ def local_files(explicit):
     # never be published. Private runtime config is handled explicitly below.
     tracked = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT).decode().split("\0")
     for rel in tracked:
-        path = Path(rel)
         if not rel or not (ROOT / rel).is_file():
             continue
-        if len(path.parts) > 1 and path.parts[0] not in SITE_DIRS:
-            continue
-        if rel in SKIP_FILES or ".example." in path.name or path.is_absolute():
-            continue
-        if path.suffix.lower() in SITE_SUFFIXES or (path.parent == Path("locales") and path.suffix == ".json"):
+        if runtime_path(rel):
             found.append(rel)
 
-    for rel in ALWAYS_INCLUDE:
+    for rel in [*ALWAYS_INCLUDE, *sorted(RUNTIME_DEPENDENCIES)]:
         if (ROOT / rel).is_file():
             if rel not in found:
                 found.append(rel)
@@ -113,15 +144,15 @@ def ensure_dir(ftp, remote_dir):
             pass  # already exists
 
 
-def main():
-    args = sys.argv[1:]
-    dry = "--dry-run" in args
-    force = "--all" in args
-    explicit = [a for a in args if not a.startswith("--")]
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--dry-run', action='store_true', help='List files without connecting or uploading')
+    parser.add_argument('--all', action='store_true', help='Upload selected files even if their contents match')
+    parser.add_argument('files', nargs='*', help='Explicit runtime paths to upload')
+    args = parser.parse_args(argv)
+    dry, force, explicit = args.dry_run, args.all, args.files
 
     files = local_files(explicit)
-    host, user, password, base = credentials()
-    base = "/" + base.strip("/")
 
     print(f"{len(files)} file(s) → configured website host" + ("  [dry run]" if dry else ""))
     if dry:
@@ -129,6 +160,8 @@ def main():
             print("   ", rel)
         return
 
+    host, user, password, base = credentials()
+    base = "/" + base.strip("/")
     ftp = ftplib.FTP_TLS(context=ssl.create_default_context(), timeout=30)
     ftp.connect(host)
     ftp.login(user, password)

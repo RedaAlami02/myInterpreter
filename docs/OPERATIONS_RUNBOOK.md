@@ -29,6 +29,10 @@ missing variable silently skips the job and the run is green):
 2. Re-run with `apply=true` and the file list (default:
    `reconciliation.php core/SupabaseAdmin.php core/SupabaseMarket.php
    core/backend.php core/sidebar.php`). Add any other changed PHP path.
+   `deploy.py` now also publishes the runtime dependency set the pages require
+   (`core/company_market.php`, `core/latest_sessions.php`, `core/current_prices.php`,
+   `core/supabase_session.php`, the contracts, …) and refuses local-only files, so
+   a page can no longer be uploaded without its helpers.
 3. `master` now matches production, so a full deploy from the repository is
    safe — it no longer reverts to the Appwrite client.
 
