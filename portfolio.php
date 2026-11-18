@@ -460,7 +460,8 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
           <i class="fas fa-info-circle me-1"></i>
           <?= $divPaying ?> <?= te('de vos') ?> <?= count($divQty) ?> <?= te('positions versent un dividende cette année.') ?>
           <?php if ($divNonPayers): ?>
-            <span class="muted"><?= $divPaying === 0 ? '' : te('Sans dividende cette année :') ?> <strong><?= htmlspecialchars(implode(', ', $divNonPayers)) ?></strong>.</span>
+            <span class="muted"><?= $divPaying === 0 ? '' : te('Sans dividende cette année :') ?>
+              <?php foreach ($divNonPayers as $i => $payer): ?><?= $i ? ', ' : '' ?><a class="t-cyan" href="infoAction.php?name=<?= urlencode($payer) ?>"><strong><?= htmlspecialchars($payer) ?></strong></a><?php endforeach; ?>.</span>
           <?php endif; ?>
           <span class="muted"><?= te('Montants bruts, avant retenue à la source · les lignes « prévu » n\'ont pas encore été votées en assemblée générale') ?></span>
         </p>

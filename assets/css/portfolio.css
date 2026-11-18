@@ -88,12 +88,14 @@
 /* Sector page: both cards carry a body of exactly the same height as the
    chart canvases on the first page, so the four cards match. The coverage list
    scrolls inside its body. */
-#allocationSectors .chart-card { display: flex; flex-direction: column; }
 #allocationSectors .sector-list {
   height: clamp(430px, 38vw, 560px);
   max-height: none;
   overflow-y: auto;
-  flex: none;
+  /* Keep the bars clear of the scrollbar and reserve its gutter, so nothing
+     sits underneath it. */
+  padding-right: 16px;
+  scrollbar-gutter: stable;
 }
 @media (max-width: 700px) {
   #allocationSectors .sector-list { height: 320px; }
