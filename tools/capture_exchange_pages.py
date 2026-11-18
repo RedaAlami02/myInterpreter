@@ -27,6 +27,7 @@ from pathlib import Path
 UA = "myInterpreter-exchange-reconciliation/1.0 (+https://myinterpreter.infinityfree.me)"
 DEFAULT_ACTIONS = "https://www.casablanca-bourse.com/live-market/actions"
 DEFAULT_INDICES = "https://www.casablanca-bourse.com/live-market/indices"
+CDG_API = "https://www.cdgcapitalbourse.ma/api/"
 SETTINGS_RE = re.compile(
     r'<script type="application/json" data-drupal-selector="drupal-settings-json">(.*?)</script>',
     re.S,
@@ -179,6 +180,31 @@ def instrument(html, status, sha):
     }
 
 
+def session_probe(symbol="ADH"):
+    """The exchange's own last-trade date (CDG VALEUR-SYNTHESE).
+
+    The public pages keep the previous session's aggregates when the market is
+    closed, so quantity alone cannot prove that a session happened today.
+    """
+    action = {"ACTION": {"NAME": "VALEUR-SYNTHESE", "TYPE": "SELECT", "VALUE": "VALEUR-SYNTHESE"},
+              "PARAMS": [{"NAME": "Lang_", "TYPE": "S", "VALUE": "FR"},
+                         {"NAME": "Espace_", "TYPE": "I", "VALUE": "1"},
+                         {"NAME": "Symbol_", "TYPE": "S", "VALUE": symbol}]}
+    request = urllib.request.Request(
+        CDG_API, data=json.dumps({"ACTIONS": [action]}).encode(), method="POST",
+        headers={"Content-Type": "application/json", "User-Agent": "myInterpreter-capture/1.0"})
+    with urllib.request.urlopen(request, timeout=25) as response:
+        payload = json.load(response)
+    row = ((payload[0].get("VALEUR-SYNTHESE") or {}).get("Data") or [{}])[0]
+    stamp = str(row.get("DateCours") or "")[:10]
+    try:
+        day = datetime.strptime(stamp, "%d/%m/%Y").date().isoformat()
+    except ValueError:
+        return None
+    return {"trading_day": day, "phase": row.get("Phase"), "symbol": symbol,
+            "probed_at": datetime.now(timezone.utc).isoformat()}
+
+
 def summary(records):
     ok = [r for r in records if not r.get("error")]
     years = {}
@@ -234,6 +260,13 @@ def main():
         except Exception as error:
             (args.out_dir / "indices.json").write_text("[]", encoding="utf-8")
             print("indices capture failed", type(error).__name__, file=sys.stderr)
+        try:
+            probed = session_probe()
+        except Exception as error:
+            probed = None
+            print("session probe failed", type(error).__name__, file=sys.stderr)
+        (args.out_dir / "session.json").write_text(
+            json.dumps(probed or {}, ensure_ascii=False, indent=1), encoding="utf-8")
         wanted = {s.strip().upper() for s in args.symbols.split(",") if s.strip()}
         records = []
         for index, row in enumerate(universe, 1):
@@ -268,7 +301,7 @@ def main():
                 sums.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(args.out_dir)}")
         (args.out_dir / "SHA256SUMS").write_text("\n".join(sums) + "\n", encoding="utf-8")
         print(json.dumps({"status": "OK", "summary": summary(records),
-                          "outputs": ["actions.json", "snapshot.json", "SHA256SUMS"]},
+                          "outputs": ["actions.json", "snapshot.json", "session.json", "SHA256SUMS"]},
                          ensure_ascii=False, sort_keys=True))
         return 0
     except Exception as error:

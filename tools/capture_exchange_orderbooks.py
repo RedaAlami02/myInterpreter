@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "automation" / "man
 
 import cloud_auth  # noqa: E402
 import exchange_orderbooks as books  # noqa: E402
+from capture_exchange_pages import session_probe  # noqa: E402
 
 def load_identities_from_db():
     base = (os.environ.get("SUPABASE_PROJECT_URL") or "").rstrip("/")
@@ -89,6 +90,14 @@ def main():
     args = parser.parse_args()
 
     moment = datetime.now(timezone.utc)
+    try:
+        probed = session_probe()
+    except Exception:
+        probed = None
+    if probed and probed.get("trading_day") and probed["trading_day"] != books.casablanca_now(moment).date().isoformat():
+        print(json.dumps({"status": "SKIPPED_NO_SESSION",
+                          "exchange_trading_day": probed["trading_day"]}))
+        return 0
     if not args.force and not books.session_open(moment):
         print(json.dumps({"status": "SKIPPED_OUTSIDE_SESSION",
                           "casablanca_time": books.casablanca_now(moment).isoformat(timespec="seconds")}))

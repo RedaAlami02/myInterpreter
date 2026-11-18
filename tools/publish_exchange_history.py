@@ -43,6 +43,18 @@ def fetch_rows(base, key, table, select):
             raise RuntimeError(f"{table} pagination limit reached")
 
 
+def _no_session(snapshot_path):
+    path = Path(snapshot_path).parent / "session.json"
+    try:
+        probed = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    day = probed.get("trading_day")
+    if not day:
+        return False
+    return day != exchange_history.trade_day(datetime.now(timezone.utc))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--snapshot", required=True, type=Path)
@@ -50,6 +62,9 @@ def main():
     parser.add_argument("--indices", type=Path)
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
+    if _no_session(args.snapshot):
+        print(json.dumps({"status": "NO_SESSION", "reason": "exchange has no session today"}))
+        return 0
     try:
         snapshot = json.loads(args.snapshot.read_text(encoding="utf-8"))
         actions_path = args.actions or args.snapshot.parent / "actions.json"

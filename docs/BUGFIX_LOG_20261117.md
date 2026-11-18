@@ -36,6 +36,7 @@ marked **open** were confirmed by reading the code but are not yet changed.
 | 26 | MASI history had a month-long hole | Even with daily publication, 1M/3M still had almost no points | `backfill_index_history.py` imported 739 CDG closes (735 applied), replacing 1 267 legacy duplicate rows |
 | 27 | Daily valuation was never saved automatically | The official-close path is disabled, so "Valorisation du jour" only changed when the button was pressed — and that path returned DISABLED | New valuation from published closes; autosave once per Casablanca day, a service-role sweep after each publication, and a conservative backfill |
 | 28 | Old valuation days were missing | The P&L history had gaps | `valuations-backfill.yml`: 86 days restored (63 since January + 23 in the October gap). Days after a later trade are skipped because today's holdings are not that day's holdings; company closes were backfilled first (57 227 rows) |
+| 29 | A market holiday produced a fake session | The public pages keep the previous session's aggregates when closed, so `quantite` looked non-zero; an early-morning run wrote 81 history rows and valuations dated 2026-11-18 | Capture probes CDG `DateCours`; prices, history and order books publish `NO_SESSION` when the exchange's last trade is not today. `20261118_remove_holiday_rows.sql` deletes the fake rows |
 
 ## Open — worth fixing next
 

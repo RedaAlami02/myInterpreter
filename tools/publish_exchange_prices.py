@@ -20,12 +20,31 @@ import cloud_auth
 
 URL_RE = re.compile(r"^https://[a-z0-9]{10,40}\.supabase\.co/?$")
 
+def _no_session(snapshot_path):
+    """True when the exchange reports no session today (holiday/weekend)."""
+    import datetime as _dt
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "automation" / "managed"))
+    import exchange_history
+    path = Path(snapshot_path).parent / "session.json"
+    try:
+        probed = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    day = probed.get("trading_day")
+    if not day:
+        return False
+    return day != exchange_history.trade_day(_dt.datetime.now(_dt.timezone.utc))
+
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--snapshot", required=True, type=Path)
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
+    if _no_session(args.snapshot):
+        print(json.dumps({"status": "NO_SESSION", "reason": "exchange has no session today"}))
+        return 0
     raw = args.snapshot.read_text(encoding="utf-8")
     try:
         records = json.loads(raw)
