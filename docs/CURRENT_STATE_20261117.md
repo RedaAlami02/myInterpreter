@@ -62,7 +62,11 @@ variable produces a green no-op run — check it first when a feed stops.
 ## Freshness contract
 
 - Prices: `latest_prices.date` is the publication time; health fails when it is
-  older than `--max-age-days` (7).
+  older than `--max-age-days` (7). Untraded instruments keep their last traded
+  date.
+- Valuations: `public.benefits` gets one row per owner and Casablanca day, from
+  the published closes, after every price publication and on first visit. A
+  historical day is only recomputed when the owner did not trade after it.
 - History: one row per company per Casablanca trading day in `public.data`.
 - Order books: only changed books are stored; intraday changes kept 7 days,
   then one close per day for 400 days.

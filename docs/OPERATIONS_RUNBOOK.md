@@ -48,6 +48,8 @@ Migrations are written to be re-runnable. A publisher that reports
 | `exchange-orderbook-identities.yml` | — | Refreshes ticker → ISIN |
 | `exchange-reconciliation.yml` | `apply_shares`, `stage_annual`, `symbols` | Monthly; writes only when `EXCHANGE_WRITES_ENABLED=true` |
 | `market-health.yml` | `max_age_days` | Read-only; exits non-zero when prices/history are stale |
+| `price-history-backfill.yml` | `symbols` | Fills missing daily company closes from CDG |
+| `valuations-backfill.yml` | `from`, `to` | Recomputes daily portfolio valuations; skips days with later trades |
 
 ## Failure signals
 
