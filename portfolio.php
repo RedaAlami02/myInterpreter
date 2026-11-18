@@ -272,7 +272,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
   <link href="assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="assets/css/global.css?v=5" rel="stylesheet">
-  <link href="assets/css/portfolio.css?v=5" rel="stylesheet">
+  <link href="assets/css/portfolio.css?v=6" rel="stylesheet">
   <link href="assets/css/statistics.css?v=3" rel="stylesheet">
   <?php require 'core/theme.php'; ?>
 </head>
