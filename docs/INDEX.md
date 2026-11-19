@@ -8,6 +8,7 @@ Start here:
 | [APIS_20261117.md](APIS_20261117.md) | Every external endpoint and Supabase RPC, with known failure modes |
 | [BUGFIX_LOG_20261117.md](BUGFIX_LOG_20261117.md) | Bugs fixed on 2026-11-17 and the verified open ones |
 | [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md) | Deploy, migrate, run a feed by hand, restore a snapshot |
+| [cloudflare/scheduler/README.md](../cloudflare/scheduler/README.md) | Cloudflare scheduler and alert Worker setup |
 
 Data and publishing specifics:
 

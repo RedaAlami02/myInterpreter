@@ -1,0 +1,15 @@
+name = "myinterpreter-scheduler"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+# Two triggers only, because the GitHub side is idempotent:
+#  - every 15 minutes through the Casablanca evening, dispatch the close job.
+#    GitHub's own preflight publishes once and exits immediately afterwards.
+#  - once a day, check that a close actually published and that the site and
+#    the health audit are fine; alert if not.
+[triggers]
+crons = ["*/15 16-21 * * 1-5", "0 22 * * *"]
+
+[vars]
+GITHUB_REPO = "RedaAlami02/myInterpreter"
+SITE_URL = "https://myinterpreter.infinityfree.me/"

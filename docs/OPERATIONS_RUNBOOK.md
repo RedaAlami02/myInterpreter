@@ -67,6 +67,15 @@ Migrations are written to be re-runnable. A publisher that reports
 - Reconciliation lists `MISSING_MAPPING` / `SHARE_COUNT_MISMATCH` reasons in
   `market_maintenance.price_publications` (query through the SQL editor).
 
+## Cloudflare scheduler and alerter (optional)
+
+`cloudflare/scheduler/` is a Worker that dispatches the daily publication every
+15 minutes through the evening and alerts on a missing close, a failed health
+audit or an unreachable site. Setup and the exact commands are in
+[cloudflare/scheduler/README.md](../cloudflare/scheduler/README.md). It is
+optional: GitHub's own schedule and the workflow preflight keep working
+without it.
+
 ## Database snapshots
 
 `database-snapshot.yml` runs on the 1st of each month at 03:30 UTC and on
