@@ -7,15 +7,16 @@ on:
         description: Optional comma-separated symbols (empty = entire universe)
         type: string
         default: ""
+      force:
+        description: Publish even when today's close is already stored
+        type: boolean
+        default: true
   schedule:
-    # Weekdays after the Casablanca close. GitHub best-effort scheduling can
-    # delay a run by hours (it fired at 23:39 instead of 16:45 on 2026-11-17),
-    # so two idempotent catch-up slots repeat the same job. Repeated runs are
-    # safe: unchanged prices, history updates and valuations are all keyed or
-    # deduplicated by date.
-    - cron: "45 16 * * 1-5"
-    - cron: "15 18 * * 1-5"
-    - cron: "15 20 * * 1-5"
+    # GitHub skips or delays sparse crons (the 16:45 slot fired at 01:51 the
+    # next day, and not at all on 2026-11-19). A frequent schedule with a cheap
+    # preflight is self-healing: the first run that finds no session data
+    # publishes, every other run exits after two reads.
+    - cron: "*/15 16-21 * * 1-5"
 
 permissions:
   contents: read
@@ -41,7 +42,24 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Preflight — is today's close missing?
+        id: preflight
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FORCE: ${{ github.event.inputs.force }}
+        run: |
+          if [ "$FORCE" = "true" ]; then
+            echo '{"run": true, "reason": "FORCED"}'
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 tools/preflight_daily_close.py | tee "$RUNNER_TEMP/preflight.json"
+          run=$(python3 -c "import json;print('true' if json.load(open('$RUNNER_TEMP/preflight.json')).get('run') else 'false')")
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
       - name: Capture current exchange prices
+        if: steps.preflight.outputs.run == 'true'
         run: |
           python3 tools/capture_exchange_pages.py \
             --out-dir "$RUNNER_TEMP/exchange-prices/capture" \
@@ -49,6 +67,7 @@ jobs:
             --delay 0.7
 
       - name: Publish prices
+        if: steps.preflight.outputs.run == 'true'
         env:
           SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -58,6 +77,7 @@ jobs:
             --apply | tee "$RUNNER_TEMP/exchange-prices/result.json"
 
       - name: Publish daily history
+        if: steps.preflight.outputs.run == 'true'
         env:
           SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -68,6 +88,7 @@ jobs:
             --apply | tee "$RUNNER_TEMP/exchange-prices/result_history.json"
 
       - name: Record daily valuations
+        if: steps.preflight.outputs.run == 'true'
         env:
           SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -75,7 +96,9 @@ jobs:
           python3 tools/record_daily_valuations.py --apply | tee "$RUNNER_TEMP/exchange-prices/result_valuations.json"
 
       - name: Publish dividends
-        if: vars.EXCHANGE_DIVIDEND_PUBLICATION_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+        if: >-
+          steps.preflight.outputs.run == 'true' &&
+          (vars.EXCHANGE_DIVIDEND_PUBLICATION_ENABLED == 'true' || github.event_name == 'workflow_dispatch')
         env:
           SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
