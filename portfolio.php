@@ -335,8 +335,8 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
           <?php if ($referenceTotals['day'] === $referenceTotals['day_latest']): ?>
             <?= htmlspecialchars($referenceTotals['day']) ?> (UTC).
           <?php else: ?>
-            <?= sprintf(te('clôtures du %s au %s (UTC) ; chaque ligne non traitée garde son dernier cours.'),
-                htmlspecialchars($referenceTotals['day']), htmlspecialchars($referenceTotals['day_latest'])) ?>
+            <?= te('clôtures du {from} au {to} (UTC) ; chaque ligne non traitée garde son dernier cours.',
+                ['from' => $referenceTotals['day'], 'to' => $referenceTotals['day_latest']]) ?>
           <?php endif; ?>
         <?php else: ?>
           <?= te('Total indisponible : cours manquants ou positions incomplètes.') ?>
