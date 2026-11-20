@@ -44,6 +44,7 @@ marked **open** were confirmed by reading the code but are not yet changed.
 | 34 | One untraded holding blanked the whole portfolio | The totals required every price to share one day; PROMOPHARM did not trade on 2026-11-20, so the website showed "Valeur actuelle —" / "Gain / Perte —" and the app showed "Estimation incomplète" | Value each line at its latest close on or before the day: `20261120_valuation_last_known_close.sql` for the saved valuation, `portfolio_reference_totals` (PHP and Dart) for the display. Only a line with no price at all withholds the total, and the pages state the oldest/newest close used |
 | 35 | Saved daily valuation was skipped for the same reason | `value_from_history` demanded an exact-day `data` row and returned `PRICE_UNAVAILABLE`, leaving a hole in the P&L history | Same migration: the lookup is "latest close on or before the day"; the basis stays `HISTORY_CLOSE` |
 | 36 | Sector allocation received zero values | `$sectorHoldings` was built with `current_value => 0, has_price => false`, so the sector donut and its per-company values were empty even when prices existed | Pass the computed position value and whether a price was found |
+| 37 | Order-book receipt counted a replay as applied | The insert uses `ON CONFLICT (id) DO NOTHING` but `applied` incremented regardless, so re-sending a capture looked like new data | `20261120_orderbook_receipt_counter.sql`: `ROW_COUNT` decides; a replay counts as unchanged |
 
 ## Open — worth fixing next
 
@@ -51,8 +52,10 @@ Severity is impact on displayed data.
 
 1. **No unique constraints on `company.name` / `format.symbol`**, while updates and
    price mapping select by them. Adding them needs a duplicate check first.
-2. **Order-book receipt counts a replay as applied** (insert uses
-   `ON CONFLICT DO NOTHING`, then increments unconditionally). Reporting only.
+2. **NRJ has no `format` row**, so its price and order book are skipped at publish.
+3. **The app's live market feed is retired**; a Supabase-backed replacement for
+   `read_shadow_application_feed_recurring_v1` is the follow-up to keeping the
+   preview flag off.
 
 ## Not a bug, but worth knowing
 
