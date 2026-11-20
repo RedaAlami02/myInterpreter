@@ -38,6 +38,12 @@ function portfolio_recorded_prices(array $records, ?DateTimeImmutable $now = nul
     return $result;
 }
 
+/**
+ * Latest recorded close per company. A company that did not trade today keeps
+ * its previous close — that is its market value — so a single suspended or
+ * untraded line must not blank the whole portfolio. The oldest close used is
+ * reported as `day`, the newest as `day_latest`, and the page discloses both.
+ */
 function portfolio_reference_totals(array $holdings, array $prices, bool $holdingsComplete = true): array
 {
     $invested = 0.0; $value = 0.0; $covered = 0; $days = []; $valid = true;
@@ -49,14 +55,18 @@ function portfolio_reference_totals(array $holdings, array $prices, bool $holdin
         $quote = $prices[$holding['c_name'] ?? ''] ?? null;
         if ($quote === null || $quote['price'] === null) continue;
         $value += $qty * $quote['price']; $covered++;
-        $days[$quote['day']] = true;
+        if (is_string($quote['day'] ?? null)) $days[$quote['day']] = true;
     }
     $complete = $holdingsComplete && $valid && count($holdings) > 0
-        && $covered === count($holdings) && count($days) === 1
+        && $covered === count($holdings)
         && is_finite($value) && is_finite($invested);
+    $sorted = array_keys($days);
+    sort($sorted);
     return ['invested' => $valid && $holdingsComplete ? $invested : null,
         'value' => $complete ? $value : null, 'pnl' => $complete ? $value - $invested : null,
-        'day' => $complete ? array_key_first($days) : null, 'covered' => $covered,
+        'day' => $complete && $sorted ? $sorted[0] : null,
+        'day_latest' => $complete && $sorted ? end($sorted) : null,
+        'covered' => $covered,
         'positions' => count($holdings), 'complete' => $complete,
         'portfolio_valuation_eligible' => false];
 }

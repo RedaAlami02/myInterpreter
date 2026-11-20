@@ -276,7 +276,9 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                         tilePadding: EdgeInsets.zero,
                         title: Text(
                           estimate.complete
-                              ? 'Estimation · ${estimate.day}'
+                              ? (estimate.day == estimate.dayLatest
+                                    ? 'Estimation · ${estimate.day}'
+                                    : 'Estimation · ${estimate.day} → ${estimate.dayLatest}')
                               : 'Estimation incomplète',
                         ),
                         children: [

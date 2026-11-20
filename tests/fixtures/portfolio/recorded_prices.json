@@ -67,7 +67,7 @@
       }
     },
     {
-      "name": "mixed recorded dates cannot form a total",
+      "name": "an untraded line keeps its last close and the total survives",
       "holdings": [
         {
           "c_name": "Alpha",
@@ -93,9 +93,11 @@
         }
       ],
       "expected": {
-        "value": null,
-        "pnl": null,
-        "complete": false
+        "value": 45,
+        "pnl": 10,
+        "complete": true,
+        "day": "2026-10-29",
+        "day_latest": "2026-10-30"
       }
     },
     {

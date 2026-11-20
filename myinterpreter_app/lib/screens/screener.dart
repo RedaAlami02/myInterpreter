@@ -300,7 +300,9 @@ class _StockCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (!isIndex && per != null) ...[
+                // Loss-making companies keep their negative PER in the data;
+                // showing it as a headline figure would read as a valuation.
+                if (!isIndex && per is num && per > 0) ...[
                   const SizedBox(height: 2),
                   Text(
                     'PER ${per.toStringAsFixed(1)}',

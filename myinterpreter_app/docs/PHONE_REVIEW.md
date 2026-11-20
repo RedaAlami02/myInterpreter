@@ -25,3 +25,28 @@ Fixed legacy MASI cards to use points, round prices to two decimals, and omit eq
 Android production label is now myInterpreter; the separate debug installation is myInterpreter Preview. Existing cyan/dark m icon retained after visual inspection. It is supplied in all five Android bitmap densities; dedicated adaptive/monochrome launcher resources are still absent.
 
 Flutter analysis passed and all 120 tests passed, including new regressions for legacy index controls, decimal-comma trades with keyboard and 150% text at 320×640, and empty-history layouts. No real financial writes were made. This does not establish production readiness across every device: populated portfolio/sale flows still need physical verification, and the app does not yet offer the website’s theme/language switches. Preview backend feature flags differ from production, so authentication/recovery and market-feed parity require release-specific verification.
+
+## Third review — 2026-11-20
+
+Ran the debug build on the physical phone against the Supabase backend with the
+release build's flags. Two findings:
+
+- The phone's clock was 61 minutes behind network time, so closes published the
+  same evening were classified `FUTURE_DATE` and every position showed "prix
+  indisponible". Enabling automatic date/time fixed the valuation display; check
+  the device clock before blaming the app when prices look missing. After the
+  sync, positions show current price, change and P/L.
+- The portfolio summary still withholds the total when one held company did not
+  trade that day (its close keeps the previous session's date), because the
+  estimate requires every price to share one day. The website values at the last
+  available close; aligning that rule is a product decision, not a bug fix.
+
+The release build no longer enables `MYINTERPRETER_MARKET_PREVIEW`: nothing
+writes the `app_feed` tables after the Appwrite cutover, so the flag replaced the
+screener with a stale, non-interactive list. With it off, Marché shows prices,
+ratios and the buy sheet again. A loss-making PER is no longer printed as a
+headline figure ("PER -3.9"), and the dividend line uses the singular for one
+share.
+
+No financial writes were made; the test account's existing positions were read
+only. Flutter analysis and the full test suite passed.

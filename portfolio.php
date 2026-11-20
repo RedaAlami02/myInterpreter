@@ -175,7 +175,8 @@ foreach ($holdingsDocs as $h) {
     $curVal = $pa > 0 ? $qty * $pa : 0;
 
     $holdings[]    = $h;
-    $sectorHoldings[] = ['c_name' => $name, 'quantity' => $qty, 'current_value' => 0, 'has_price' => false];
+    $sectorHoldings[] = ['c_name' => $name, 'quantity' => $qty,
+        'current_value' => round($curVal, 2), 'has_price' => $pa > 0];
     $chartNames[]  = $name;
     $chartValues[] = round($curVal, 2);
     $chartBuys[]   = round($cost, 2);
@@ -331,9 +332,14 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
       </div>
       <p class="muted"><?= $currentQuoteCount > 0 ? te('Dernières cotations collectées et références datées ; valorisation indicative, pas une clôture officielle.') : te('Cours enregistrés, pas de cotations en direct.') ?>
         <?php if ($referenceTotals['complete']): ?>
-          <?= htmlspecialchars($referenceTotals['day']) ?> (UTC).
+          <?php if ($referenceTotals['day'] === $referenceTotals['day_latest']): ?>
+            <?= htmlspecialchars($referenceTotals['day']) ?> (UTC).
+          <?php else: ?>
+            <?= sprintf(te('clôtures du %s au %s (UTC) ; chaque ligne non traitée garde son dernier cours.'),
+                htmlspecialchars($referenceTotals['day']), htmlspecialchars($referenceTotals['day_latest'])) ?>
+          <?php endif; ?>
         <?php else: ?>
-          <?= te('Total indisponible : cours manquants, dates différentes ou positions incomplètes.') ?>
+          <?= te('Total indisponible : cours manquants ou positions incomplètes.') ?>
         <?php endif; ?>
       </p>
 

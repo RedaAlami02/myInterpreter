@@ -26,24 +26,25 @@ void main() {
     {'c_name': 'Alpha', 'pa': 10, 'date': '2026-10-21T12:00:00Z'},
     {'c_name': 'Beta', 'pa': 15, 'date': '2026-10-21T12:00:00Z'},
   ];
-  test(
-    'current quotes overlay display only and mixed dates suppress totals',
-    () {
-      final prices = portfolioDisplayPrices(recorded, [
-        currentRow(now),
-      ], now: now);
-      expect(prices['Alpha']!.price, 20);
-      expect(prices['Alpha']!.status, 'CURRENT_REPORTED_QUOTE');
-      expect(recorded[0]['pa'], 10);
-      expect(prices['Beta']!.day, '2026-10-21');
-      final totals = portfolioReferenceTotals([
-        {'c_name': 'Alpha', 'quantity': 1, 'total_cost': 5},
-        {'c_name': 'Beta', 'quantity': 1, 'total_cost': 6},
-      ], prices);
-      expect(totals.complete, isFalse);
-      expect(totals.portfolioValuationEligible, isFalse);
-    },
-  );
+  test('current quotes overlay display only; untraded line keeps its close', () {
+    final prices = portfolioDisplayPrices(recorded, [
+      currentRow(now),
+    ], now: now);
+    expect(prices['Alpha']!.price, 20);
+    expect(prices['Alpha']!.status, 'CURRENT_REPORTED_QUOTE');
+    expect(recorded[0]['pa'], 10);
+    expect(prices['Beta']!.day, '2026-10-21');
+    final totals = portfolioReferenceTotals([
+      {'c_name': 'Alpha', 'quantity': 1, 'total_cost': 5},
+      {'c_name': 'Beta', 'quantity': 1, 'total_cost': 6},
+    ], prices);
+    expect(totals.complete, isTrue);
+    expect(totals.value, 35);
+    expect(totals.pnl, 24);
+    expect(totals.day, '2026-10-21');
+    expect(totals.dayLatest, '2026-11-03');
+    expect(totals.portfolioValuationEligible, isFalse);
+  });
   test(
     'expired, reference and wrong-day prices never replace dated history',
     () {

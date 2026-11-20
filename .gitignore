@@ -146,3 +146,6 @@ API_KEYS.md
 /backups/db/*.sql.gz
 /backups/db/*.sql
 /backups/db/*.dump
+
+# Wrangler local build output
+cloudflare/scheduler/.wrangler/

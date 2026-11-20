@@ -8,6 +8,7 @@ Actions, where the preflight makes repeated dispatches harmless.
 
 | Trigger (UTC) | Action |
 |---|---|
+| `*/15 8-15 * * 1-5` | Dispatches `exchange-orderbook-publication.yml` with `force=false`, so the capture still refuses to run outside the session window. |
 | `*/15 16-21 * * 1-5` | Dispatches `exchange-price-publication.yml`. The workflow's preflight publishes the first time it finds no close for the day and exits immediately afterwards. |
 | `0 22 * * *` | Checks that a successful price run started after 16:00 today (weekdays), that the newest health audit did not fail, and that the site answers; sends a webhook alert when anything is wrong. |
 
@@ -49,3 +50,14 @@ Actions, where the preflight makes repeated dispatches harmless.
   day; the alert does not cry wolf on closures.
 - The Worker only holds an `Actions: write` token for this repository. It cannot
   read the database, push code, or touch other repositories.
+
+## Troubleshooting
+
+- `{"status":"dispatch_failed","error":"GitHub 403 ..."}` means the token can
+  read the repository but cannot start workflows. A fine-grained PAT needs
+  **Actions: Read and write**; "Metadata: Read" alone is not enough. Replace the
+  secret with `npx wrangler secret put GITHUB_TOKEN`.
+- `error code: 1101` before this check existed meant an unhandled GitHub error;
+  the endpoint now returns the message instead.
+- Without `ALERT_WEBHOOK_URL` the scheduled checks still run but an alert is a
+  no-op, so a silent Worker does not mean a healthy day.

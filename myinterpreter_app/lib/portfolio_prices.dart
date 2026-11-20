@@ -73,7 +73,7 @@ Map<String, RecordedPortfolioPrice> recordedPortfolioPrices(
 
 class PortfolioReferenceTotals {
   final double? invested, value, pnl;
-  final String? day;
+  final String? day, dayLatest;
   final int covered, positions;
   bool get complete => value != null;
   bool get portfolioValuationEligible => false;
@@ -82,6 +82,7 @@ class PortfolioReferenceTotals {
     this.value,
     this.pnl,
     this.day,
+    this.dayLatest,
     this.covered,
     this.positions,
   );
@@ -113,19 +114,23 @@ PortfolioReferenceTotals portfolioReferenceTotals(
     covered++;
     days.add(quote.day);
   }
+  // Each line is valued at its latest recorded close: a company that did not
+  // trade today keeps yesterday's close, which is still its market value. Only
+  // a line with no usable price at all withholds the total.
+  final stamps = days.whereType<String>().toList()..sort();
   final complete =
       holdingsComplete &&
       valid &&
       holdings.isNotEmpty &&
       covered == holdings.length &&
-      days.length == 1 &&
       value.isFinite &&
       invested.isFinite;
   return PortfolioReferenceTotals(
     valid && holdingsComplete ? invested : null,
     complete ? value : null,
     complete ? value - invested : null,
-    complete ? days.single : null,
+    complete && stamps.isNotEmpty ? stamps.first : null,
+    complete && stamps.isNotEmpty ? stamps.last : null,
     covered,
     holdings.length,
   );

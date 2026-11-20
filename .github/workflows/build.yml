@@ -49,8 +49,11 @@ jobs:
           SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           MYINTERPRETER_MOBILE_AUTH_LINKS: 'true'
-          MYINTERPRETER_MARKET_PREVIEW: 'true'
-          MYINTERPRETER_RECURRING_FEED: 'true'
+          # The preview feed reads app_feed tables that nothing writes after the
+          # Appwrite cutover; enabling it replaces the screener with a stale,
+          # non-interactive list. Keep it off until a Supabase feed exists.
+          MYINTERPRETER_MARKET_PREVIEW: 'false'
+          MYINTERPRETER_RECURRING_FEED: 'false'
         run: python3 tools/write_flutter_build_config.py --from-env --backend "$MYINTERPRETER_BACKEND" --output "$RUNNER_TEMP/myinterpreter-backend.json"
 
       - name: Build release APK

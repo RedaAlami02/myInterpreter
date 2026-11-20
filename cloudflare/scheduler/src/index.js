@@ -12,11 +12,19 @@
  *   TELEGRAM_CHAT_ID    only for ALERT_KIND=telegram
  */
 
+const ORDERBOOK_CRON = "*/15 8-15 * * 1-5";
 const DISPATCH_CRON = "*/15 16-21 * * 1-5";
 const ALERT_CRON = "0 22 * * *";
 
 export default {
   async scheduled(event, env, ctx) {
+    if (event.cron === ORDERBOOK_CRON) {
+      // force=false on purpose: a manual dispatch defaults to true, which would
+      // publish the previous session's book as today's during the pre-open.
+      ctx.waitUntil(dispatch(env, "exchange-orderbook-publication.yml", { force: "false" })
+        .catch((error) => alert(env, `Order-book dispatch failed: ${error.message}`)));
+      return;
+    }
     if (event.cron === DISPATCH_CRON) {
       ctx.waitUntil(dispatch(env, "exchange-price-publication.yml")
         .catch((error) => alert(env, `Dispatch failed: ${error.message}`)));
@@ -36,8 +44,26 @@ export default {
       if (!env.RUN_TOKEN || url.searchParams.get("token") !== env.RUN_TOKEN) {
         return json({ status: "forbidden" }, 403);
       }
-      await dispatch(env, "exchange-price-publication.yml");
+      try {
+        await dispatch(env, "exchange-price-publication.yml");
+      } catch (error) {
+        return json({ status: "dispatch_failed", error: error.message }, 502);
+      }
       return json({ status: "dispatched" });
+    }
+    if (url.pathname === "/alert-test") {
+      if (!env.RUN_TOKEN || url.searchParams.get("token") !== env.RUN_TOKEN) {
+        return json({ status: "forbidden" }, 403);
+      }
+      if (!env.ALERT_WEBHOOK_URL) {
+        return json({ status: "no_webhook" }, 409);
+      }
+      try {
+        await alert(env, "Test alert from the myInterpreter scheduler.");
+      } catch (error) {
+        return json({ status: "alert_failed", error: error.message }, 502);
+      }
+      return json({ status: "sent" });
     }
     return json({ status: "alive", repo: env.GITHUB_REPO, site: env.SITE_URL });
   },
@@ -65,10 +91,12 @@ async function github(env, path, init = {}) {
   return response.status === 204 ? null : response.json();
 }
 
-async function dispatch(env, workflow) {
+async function dispatch(env, workflow, inputs) {
+  const body = { ref: "master" };
+  if (inputs) body.inputs = inputs;
   await github(env, `/repos/${env.GITHUB_REPO}/actions/workflows/${workflow}/dispatches`, {
     method: "POST",
-    body: JSON.stringify({ ref: "master" }),
+    body: JSON.stringify(body),
   });
 }
 

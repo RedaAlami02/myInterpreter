@@ -431,7 +431,8 @@ class _DividendsScreenState extends State<DividendsScreen> {
               if (gross != null)
                 _row(
                   'Vous recevrez',
-                  '${gross.toStringAsFixed(2)} MAD  (${qty!.toStringAsFixed(0)} titres)',
+                  '${gross.toStringAsFixed(2)} MAD  '
+                  '(${qty!.toStringAsFixed(0)} ${qty == 1 ? 'titre' : 'titres'})',
                   strong: true,
                 ),
               if (!d.confirmed && forecast != null)

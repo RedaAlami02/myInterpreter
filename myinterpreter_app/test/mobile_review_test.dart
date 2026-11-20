@@ -7,6 +7,19 @@ import 'package:myinterpreter_app/screens/screener.dart';
 import 'package:myinterpreter_app/screens/stock_detail.dart';
 import 'support/fake_backend.dart';
 
+class LossBackend extends FakeBackend {
+  @override
+  Future<DocumentPage> listDocuments({
+    required String collectionId,
+    List<String> queries = const [],
+  }) async => DocumentPage([
+    AppDocument(
+      id: 'loss',
+      data: {'c_name': 'CARTIER SAADA', 'pa': 19.15, 'per': -3.9},
+    ),
+  ]);
+}
+
 class IndexBackend extends FakeBackend {
   @override
   Future<DocumentPage> listDocuments({
@@ -45,6 +58,21 @@ void main() {
     expect(find.byTooltip('Ajouter un achat'), findsNothing);
     expect(find.text('PER'), findsNothing);
     expect(find.text('PER 12.0'), findsNothing);
+  });
+
+  testWidgets('a loss-making PER is not shown as a headline figure', (
+    tester,
+  ) async {
+    backend = LossBackend();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(),
+        home: const Scaffold(body: ScreenerScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('19.15 MAD'), findsOneWidget);
+    expect(find.text('PER -3.9'), findsNothing);
   });
 
   testWidgets('trade scrolls above keyboard and accepts decimal comma', (
