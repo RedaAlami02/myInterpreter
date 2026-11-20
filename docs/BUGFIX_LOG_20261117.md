@@ -45,20 +45,18 @@ marked **open** were confirmed by reading the code but are not yet changed.
 | 35 | Saved daily valuation was skipped for the same reason | `value_from_history` demanded an exact-day `data` row and returned `PRICE_UNAVAILABLE`, leaving a hole in the P&L history | Same migration: the lookup is "latest close on or before the day"; the basis stays `HISTORY_CLOSE` |
 | 36 | Sector allocation received zero values | `$sectorHoldings` was built with `current_value => 0, has_price => false`, so the sector donut and its per-company values were empty even when prices existed | Pass the computed position value and whether a price was found |
 | 37 | Order-book receipt counted a replay as applied | The insert uses `ON CONFLICT (id) DO NOTHING` but `applied` incremented regardless, so re-sending a capture looked like new data | `20261120_orderbook_receipt_counter.sql`: `ROW_COUNT` decides; a replay counts as unchanged |
+| 38 | Company and ticker keys were not unique | Updates and price mapping select by `company.name` and `format.symbol`; a duplicate would silently hit the wrong row | `20261120_market_key_uniqueness.sql`; checked first (81/81 rows, no duplicates or blanks) |
 
 ## Open — worth fixing next
 
 Severity is impact on displayed data.
 
-1. **No unique constraints on `company.name` / `format.symbol`**, while updates and
-   price mapping select by them. Adding them needs a duplicate check first.
-2. **NRJ has no `format` row**, so its price and order book are skipped at publish.
-3. **The app's live market feed is retired**; a Supabase-backed replacement for
+1. **NRJ has no `company` or `format` row**, so its price and order book are skipped at publish. It needs a listing identity, not just a format row.
+2. **The app's live market feed is retired**; a Supabase-backed replacement for
    `read_shadow_application_feed_recurring_v1` is the follow-up to keeping the
    preview flag off.
 
 ## Not a bug, but worth knowing
 
 - Three order-book-free symbols (DIS, DLM, SAM) are suspended, not missing.
-- NRJ has no `format` row, so its price and book are skipped at publish.
 - Medias24 rejects CI egress; CDG serves cloud order books with the same depth.
