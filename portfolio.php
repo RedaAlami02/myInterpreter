@@ -11,6 +11,7 @@ require_once 'core/sector_allocation.php';
 require_once 'core/portfolio_prices.php';
 require_once 'core/current_prices.php';
 requireLogin();
+app_timing_mark('auth');
 
 $uid     = aw_user_id();
 $session = aw_session();
@@ -130,6 +131,7 @@ try {
     error_log('[myInterpreter] portfolio.php data load error: ' . $e->getMessage());
     $loadError = 'Impossible de charger les données. Veuillez réessayer.';
 }
+app_timing_mark('holdings');
 
 // Recovered latest-price rows are dated references, never implicitly current.
 $holdingsComplete = $loadError === null && count($holdingsDocs) < 500;
@@ -149,6 +151,7 @@ foreach ($recordedPriceMap as $name => $quote) {
     if ($quote['price'] !== null) $priceMap[$name] = $quote['price'];
 }
 $referenceTotals = portfolio_reference_totals($holdingsDocs, $recordedPriceMap, $holdingsComplete);
+app_timing_mark('prices');
 
 // ─── Expected dividend income ─────────────────────────────
 // One query for the whole year, then joined in memory against the holdings.
@@ -161,6 +164,7 @@ foreach (div_for_year($divYear) as $d) {
     $n = $d['c_name'] ?? '';
     if ($n !== '') $divByName[$n][] = $d;
 }
+app_timing_mark('dividends');
 
 $holdings = [];
 $sectorHoldings = [];
@@ -832,6 +836,7 @@ new Chart(document.getElementById('chartPnl'), {
   }
 });
 <?php endif; ?>
+<?php app_timing_mark('rendered'); ?>
 
 </script>
 </body>

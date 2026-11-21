@@ -71,3 +71,33 @@ function sb_admin(): SupabaseAdminClient {
 }
 
 require_once __DIR__ . '/supabase_session.php';
+
+/**
+ * Opt-in render timing: add ?timing=1 to a page and the response ends with an
+ * HTML comment giving milliseconds between marks. Nothing is emitted without
+ * the parameter, and no personal data is involved.
+ */
+function app_timing_mark(string $label): void {
+    if (($_GET['timing'] ?? '') !== '1') return;
+    $GLOBALS['app_timing_marks'][$label] = microtime(true);
+}
+
+if (($_GET['timing'] ?? '') === '1') {
+    app_timing_mark('start');
+    register_shutdown_function(static function (): void {
+        $marks = $GLOBALS['app_timing_marks'] ?? [];
+        if (count($marks) < 2) return;
+        $parts = [];
+        $previous = null;
+        foreach ($marks as $label => $at) {
+            $parts[] = $previous === null
+                ? $label
+                : $label . '=' . (int) round(($at - $previous) * 1000) . 'ms';
+            $previous = $at;
+        }
+        $first = reset($marks);
+        $last  = end($marks);
+        echo "\n<!-- timing: " . implode(' ', $parts)
+            . ' total=' . (int) round(($last - $first) * 1000) . "ms -->\n";
+    });
+}

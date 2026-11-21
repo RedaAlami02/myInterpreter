@@ -129,6 +129,7 @@ try {
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
 }
+app_timing_mark('data');
 
 // ─── Summary stats ────────────────────────────────────────
 // Averages and counts are over companies with a meaningful PER only; the total
@@ -525,5 +526,6 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <?php endif; ?>
+<?php app_timing_mark('rendered'); ?>
 </body>
 </html>
