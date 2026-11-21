@@ -1,0 +1,59 @@
+{
+ "contract": "app-market-preview/v3",
+ "mode": "SHADOW_ONLY",
+ "as_of": "2026-11-21T15:14:06.000Z",
+ "status": "AVAILABLE",
+ "captured_at": "2026-11-21T15:04:06.000Z",
+ "acquisition_completeness": null,
+ "market_session_state": "UNKNOWN",
+ "rows": [
+  {
+   "asset_key": "ADH",
+   "c_name": "ADDOHA",
+   "symbol": "ADH",
+   "instrument_type": "STOCK",
+   "status": "REPORTED_DATE_ONLY",
+   "price_decimal": "38.50",
+   "price_basis": "REPORTED_QUOTE",
+   "captured_at": "2026-11-21T15:04:06.000Z",
+   "expires_at": "2026-11-21T16:04:06.000Z",
+   "source_event_at": null,
+   "reported_day": null,
+   "reported_time_timezone": "UNKNOWN",
+   "prediction_eligible": false,
+   "portfolio_valuation_eligible": false,
+   "reference_price": null,
+   "reference_conflict": false,
+   "application_fields": {
+    "date": "2026-11-21T15:04:06.000Z",
+    "c_name": "ADDOHA",
+    "symbol": "ADH",
+    "pa": 38.5,
+    "per": 34.15819764876498,
+    "pb": 1.488701482146028,
+    "market_cap": 15498223279.0
+   },
+   "application_expires_at": "2026-11-21T16:04:06.000Z"
+  },
+  {
+   "c_name": "ALLIANCES",
+   "status": "MISSING_QUOTE",
+   "symbol": "ADI",
+   "asset_key": "ADI",
+   "expires_at": null,
+   "captured_at": "2026-11-20T20:52:19.538Z",
+   "price_basis": "REPORTED_QUOTE",
+   "reported_day": null,
+   "price_decimal": null,
+   "instrument_type": "STOCK",
+   "reference_price": null,
+   "source_event_at": null,
+   "application_fields": null,
+   "reference_conflict": false,
+   "prediction_eligible": false,
+   "application_expires_at": null,
+   "reported_time_timezone": "UNKNOWN",
+   "portfolio_valuation_eligible": false
+  }
+ ]
+}

@@ -435,9 +435,12 @@ class ShadowMarketFeedClient {
         if (client.auth.currentSession == null) {
           throw const BackendFailure('Please sign in to view market data.');
         }
+        // The shadow-application feed lost its writer with the Appwrite
+        // pipeline; read_public_application_feed serves the same contract from
+        // the tables the site already publishes.
         return await client.rpc(
           applicationRows
-              ? 'read_shadow_application_feed'
+              ? 'read_public_application_feed'
               : 'read_shadow_market_feed',
         );
       });
