@@ -1,5 +1,11 @@
 <?php
 /** Separate daily-close preview. Never loads authentication or a market transport. */
+// Development preview only: served by tools/history_preview_router.php on PHP's
+// built-in server. It is not part of the public site, so anything else is a 404.
+if (PHP_SAPI !== 'cli-server' || !in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true)) {
+    http_response_code(404);
+    exit;
+}
 require_once __DIR__ . '/core/RecoveredHistory.php';
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');

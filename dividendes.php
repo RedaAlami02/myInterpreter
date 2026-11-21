@@ -15,6 +15,9 @@ require_once 'config/config.php';
 require_once 'core/Appwrite.php';
 require_once 'core/dividends.php';
 require_once 'core/current_prices.php';
+require_once 'core/auth.php';
+// Only index.php and infoAction.php are public; this calendar needs an account.
+requireLogin();
 
 $today   = date('Y-m-d');
 $thisYr  = (int)date('Y');

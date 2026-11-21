@@ -46,6 +46,7 @@ marked **open** were confirmed by reading the code but are not yet changed.
 | 36 | Sector allocation received zero values | `$sectorHoldings` was built with `current_value => 0, has_price => false`, so the sector donut and its per-company values were empty even when prices existed | Pass the computed position value and whether a price was found |
 | 37 | Order-book receipt counted a replay as applied | The insert uses `ON CONFLICT (id) DO NOTHING` but `applied` incremented regardless, so re-sending a capture looked like new data | `20261120_orderbook_receipt_counter.sql`: `ROW_COUNT` decides; a replay counts as unchanged |
 | 38 | Company and ticker keys were not unique | Updates and price mapping select by `company.name` and `format.symbol`; a duplicate would silently hit the wrong row | `20261120_market_key_uniqueness.sql`; checked first (81/81 rows, no duplicates or blanks) |
+| 39 | Signed-out visitors reached market pages | `screener.php` answered an anonymous request with the internal string "Erreur DB : Please sign in again.", and the dividend calendar and the daily-close preview were reachable too | Only `index.php` and `infoAction.php` are public; the screener and calendar call `requireLogin()`, and the preview — a development page — is limited to PHP's built-in server |
 
 ## Open — worth fixing next
 
