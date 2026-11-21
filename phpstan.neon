@@ -1,0 +1,26 @@
+parameters:
+    level: 2
+    paths:
+        - core
+        - handlers
+    scanDirectories:
+        - core
+        - config
+        - handlers
+    dynamicConstantNames:
+        - BASE_URL
+        - MYINTERPRETER_MARKET_PREVIEW
+        - MYINTERPRETER_DIRECT_SOURCE_REQUESTS
+        - MYINTERPRETER_RECURRING_FEED
+        - MYINTERPRETER_PORTFOLIO_VALUATION
+        - MYINTERPRETER_PUBLIC_URL
+        - MYINTERPRETER_BACKEND
+        - SUPABASE_PROJECT_URL
+        - SUPABASE_PUBLISHABLE_KEY
+        - SUPABASE_ADMIN_USER_ID
+        - SUPABASE_ALLOW_ANONYMOUS_MARKET
+        - TAX_RATE
+        - COMMISSION_RATE
+
+includes:
+    - phpstan-baseline.neon
