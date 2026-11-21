@@ -63,6 +63,23 @@ final class SupabaseMarketReader
                 $orders[$field] = $field . ($method === 'orderAsc' ? '.asc' : '.desc');
                 continue;
             }
+            if ($method === 'in') {
+                // PostgREST needs each listed value quoted: in.("A","B").
+                $values = $query['values'] ?? null;
+                if (!is_array($values) || !array_is_list($values) || !$values
+                    || count($values) > 200 || isset($params[$field])) {
+                    throw new InvalidArgumentException('Unsupported market filter.');
+                }
+                $quoted = [];
+                foreach ($values as $value) {
+                    if (!is_string($value) || $value === '') {
+                        throw new InvalidArgumentException('Invalid market filter value.');
+                    }
+                    $quoted[] = '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $value) . '"';
+                }
+                $params[$field] = 'in.(' . implode(',', $quoted) . ')';
+                continue;
+            }
             $operators = ['equal' => 'eq', 'greaterThan' => 'gt', 'greaterThanEqual' => 'gte'];
             if (!isset($operators[$method]) || !isset($query['values']) || count($query['values']) !== 1
                 || isset($params[$field])) {

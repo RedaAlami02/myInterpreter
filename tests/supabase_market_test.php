@@ -24,6 +24,10 @@ checkMarket($params['limit'] === 500 && $params['offset'] === 500, 'Pagination c
 $rows = $reader->listDocuments('data', [q_greater_equal('date', '2026-01-01T00:00:00Z')]);
 checkMarket($rows[0]['$id'] === 'legacy-id' && $rows[0]['per'] === -70.97 && $rows[0]['pb'] === null, 'Identity, negative ratios and missing values must survive.');
 checkMarket($reader->countDocuments('dividends', [q_equal('year', 2026)]) === 350, 'Exact count changed.');
+$inParams = $reader->queryParameters('latest_prices', [q_in('c_name', ['ADDOHA', 'A"B'])]);
+checkMarket($inParams['c_name'] === 'in.("ADDOHA","A\"B")', 'Key list must be quoted for PostgREST.');
+rejectsMarket(fn() => $reader->queryParameters('latest_prices', [q_in('c_name', [])]));
+rejectsMarket(fn() => $reader->queryParameters('latest_prices', [q_in('c_name', [''])]));
 $profileParams = $reader->queryParameters('company_profiles', [q_equal('id', 'FIX'), q_limit(1)]);
 checkMarket($profileParams['select'] === 'id,c_name,captured_at,profile', 'Profile public columns changed.');
 checkMarket($profileParams['id'] === 'eq.FIX', 'Symbol lookup changed.');

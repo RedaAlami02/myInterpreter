@@ -119,11 +119,15 @@ $earningsDocs = [];
 $loadError    = null;
 
 try {
-    // Independent reads overlap; private queries retain their user and session.
-    $portfolioData = aw_multi_list_docs([
-        'holdings' => ['portefeuille', [q_equal('user_id', $uid), q_limit(500)], $session],
-        'earnings' => ['benefits', [q_equal('user_id', $uid), q_order_desc('date'), q_limit(500)], $session],
-    ]);
+    // Going portfolio → screener → portfolio repeated this whole load. The memo
+    // is keyed by user and skipped on writes, so a trade is never served stale.
+    $portfolioData = app_cache('portfolio/' . $uid, 120, function () use ($uid, $session): array {
+        // Independent reads overlap; private queries retain their user and session.
+        return aw_multi_list_docs([
+            'holdings' => ['portefeuille', [q_equal('user_id', $uid), q_limit(500)], $session],
+            'earnings' => ['benefits', [q_equal('user_id', $uid), q_order_desc('date'), q_limit(500)], $session],
+        ]);
+    }, $_SERVER['REQUEST_METHOD'] === 'POST');
     $holdingsDocs = $portfolioData['holdings'];
 
     $earningsDocs = $portfolioData['earnings'];
@@ -136,8 +140,21 @@ app_timing_mark('holdings');
 // Recovered latest-price rows are dated references, never implicitly current.
 $holdingsComplete = $loadError === null && count($holdingsDocs) < 500;
 $priceMap = [];
-try { $lpDocs = aw_list_docs('latest_prices', [q_limit(500)]); }
-catch (Throwable $error) { $lpDocs = []; error_log('[myInterpreter] recorded prices unavailable'); }
+$heldNames = [];
+foreach ($holdingsDocs as $holding) {
+    $held = trim((string) ($holding['c_name'] ?? ''));
+    if ($held !== '') $heldNames[$held] = true;
+}
+$heldNames = array_keys($heldNames);
+try {
+    // Only the companies actually held: the page needs a handful of rows, not
+    // the whole universe. Shared data, so it survives a detour to another page.
+    $lpDocs = $heldNames === [] ? [] : app_cache('latest_prices/' . sha1(implode('|', $heldNames)), 300,
+        fn(): array => aw_list_docs('latest_prices', [q_in('c_name', $heldNames)]));
+} catch (Throwable $error) {
+    $lpDocs = [];
+    error_log('[myInterpreter] recorded prices unavailable');
+}
 $currentQuoteCount = 0;
 if (MYINTERPRETER_MARKET_PREVIEW) {
     try {
@@ -160,7 +177,7 @@ app_timing_mark('prices');
 $divYear   = (int)date('Y');
 $divToday  = date('Y-m-d');
 $divByName = [];
-foreach (div_for_year($divYear) as $d) {
+foreach (app_cache('dividends/' . $divYear, 300, fn(): array => div_for_year($divYear)) as $d) {
     $n = $d['c_name'] ?? '';
     if ($n !== '') $divByName[$n][] = $d;
 }

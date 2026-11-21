@@ -62,6 +62,10 @@ function q_greater_equal(string $attr, $val): string {
 function q_offset(int $n): string {
     return json_encode(['method' => 'offset', 'values' => [$n]]);
 }
+/** Restrict a read to a list of key values (e.g. the companies actually held). */
+function q_in(string $attr, array $values): string {
+    return json_encode(['method' => 'in', 'attribute' => $attr, 'values' => array_values($values)]);
+}
 
 /**
  * Return the total document count for a collection (ignores the documents array).

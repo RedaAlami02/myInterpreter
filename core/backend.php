@@ -77,6 +77,32 @@ require_once __DIR__ . '/supabase_session.php';
  * HTML comment giving milliseconds between marks. Nothing is emitted without
  * the parameter, and no personal data is involved.
  */
+/**
+ * Short-lived per-session memo for reads a page repeats on every visit.
+ *
+ * Entries live in the PHP session, so they are scoped to one signed-in account
+ * and disappear at logout. Only data that does not depend on the account may be
+ * cached; portfolio rows are stored under a key that includes the user id and
+ * every write path must forget it.
+ */
+function app_cache(string $key, int $ttl, callable $producer, bool $bypass = false): mixed {
+    $entry = $_SESSION['app_cache'][$key] ?? null;
+    if (!$bypass && is_array($entry) && array_key_exists('value', $entry)
+        && ($entry['at'] ?? 0) > time() - $ttl) {
+        return $entry['value'];
+    }
+    $value = $producer();
+    $_SESSION['app_cache'][$key] = ['at' => time(), 'value' => $value];
+    return $value;
+}
+
+/** Drop memo entries whose key starts with $prefix (e.g. after a trade). */
+function app_cache_forget(string $prefix): void {
+    foreach (array_keys($_SESSION['app_cache'] ?? []) as $key) {
+        if (str_starts_with((string) $key, $prefix)) unset($_SESSION['app_cache'][$key]);
+    }
+}
+
 function app_timing_mark(string $label): void {
     if (($_GET['timing'] ?? '') !== '1') return;
     $GLOBALS['app_timing_marks'][$label] = microtime(true);
