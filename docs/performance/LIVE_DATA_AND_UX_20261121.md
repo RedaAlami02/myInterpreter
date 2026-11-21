@@ -130,3 +130,30 @@ What this shows:
 Implication: code-level tuning has reached diminishing returns on this host.
 The remaining lever is the hosting decision, and the authenticated measurement
 that decision was waiting for now exists.
+
+## Measuring without a person in the loop
+
+`tools/measure_authenticated_page.py` creates a throwaway confirmed account
+through the Supabase Auth admin API, signs in through the site's own form,
+reads the `?timing=1` comment and deletes the account in a `finally` block. It
+measures the server path for an empty portfolio, which is what the render and
+auth stages need; personal-data timings still need a real portfolio.
+
+Latest three loads with the retired feed switched off:
+
+```
+cold   auth=107 holdings=693  prices=0 dividends=282 rendered=943  total=2025
+warm   auth=82  holdings=0    prices=0 dividends=0   rendered=1329 total=1412
+warm   auth=142 holdings=0    prices=0 dividends=0   rendered=1182 total=1324
+```
+
+**The retired market preview was costing every load 288–1200 ms.**
+`MYINTERPRETER_MARKET_PREVIEW` was `true` in `config/supabase.local.php`, so each
+page called the shadow feed RPC, which returns nothing because no writer has
+filled `app_feed` since the Appwrite cutover. Turning the flag off removed the
+stage entirely (`prices=0`, no `preview` mark). The page output is unchanged —
+it already showed recorded prices.
+
+What remains on a warm page is `rendered` at 1.2 s: pure PHP assembling the HTML
+on a host whose CPU share varies by a factor of two. That is the number the
+hosting pilot exists to move.

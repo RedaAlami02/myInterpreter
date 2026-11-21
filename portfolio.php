@@ -158,11 +158,13 @@ try {
 app_timing_mark('quote_rows');
 $currentQuoteCount = 0;
 if (MYINTERPRETER_MARKET_PREVIEW) {
+    app_timing_mark('preview');
     try {
         $currentQuotes = current_market_prices(sb_market_preview());
         $currentQuoteCount = count($currentQuotes);
         $lpDocs = overlay_current_prices($lpDocs, $currentQuotes);
     } catch (Throwable $error) { /* Keep old references explicitly dated. */ }
+    app_timing_mark('preview_done');
 }
 $recordedPriceMap = portfolio_recorded_prices($lpDocs);
 foreach ($recordedPriceMap as $name => $quote) {
