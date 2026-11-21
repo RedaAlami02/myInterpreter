@@ -11,7 +11,8 @@
   if (!config) return;
   var data;
   try { data = JSON.parse(config.textContent); } catch (e) { return; }
-  if (!data || !data.endpoint || !Array.isArray(data.holdings)) return;
+  var quotesMode = data && data.mode === 'quotes';
+  if (!data || !data.endpoint || (!quotesMode && !Array.isArray(data.holdings))) return;
 
   var INTERVAL = data.interval || 60000;
   var lastStamp = data.stamp || null;
@@ -42,6 +43,24 @@
     var total = 0;
     var complete = true;
     var changed = 0;
+    if (quotesMode) {
+      // A table of quotes: update the visible number and the sort key together,
+      // otherwise sorting would order by a price the reader can no longer see.
+      Object.keys(quotes).forEach(function (name) {
+        var price = quotes[name];
+        if (typeof price !== 'number' || !(price > 0)) return;
+        each('[data-live-quote="' + escapeName(name) + '"]', function (node) {
+          var text = money(price);
+          if (node.textContent.trim() !== text) { changed++; setText(node, text); }
+          if (node.hasAttribute('data-val')) node.setAttribute('data-val', price);
+          if (node.classList.contains('pa-cell')) {
+            node.setAttribute('data-val', price);
+          }
+        });
+      });
+      stampNote(stamp, changed);
+      return;
+    }
     data.holdings.forEach(function (holding) {
       var price = quotes[holding.name];
       if (typeof price !== 'number' || !(price > 0)) { complete = false; return; }
@@ -62,6 +81,10 @@
       setText(document.querySelector('[data-live-total="pnl"]'),
         (total - invested >= 0 ? '+' : '') + money(total - invested));
     }
+    stampNote(stamp, changed);
+  }
+
+  function stampNote(stamp, changed) {
     var when = stamp || lastStamp;
     if (when) {
       var at = new Date(when);

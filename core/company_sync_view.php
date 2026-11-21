@@ -1,5 +1,14 @@
 <?php
 /** Presentation only; mutation and administrator checks belong to the controller. */
+// The controller defines these; defaults keep the view readable on its own and
+// stop a missing branch from becoming an undefined-variable warning.
+$error          = $error ?? null;
+$receipts       = $receipts ?? [];
+$summary        = $summary ?? ['updated' => 0, 'unchanged' => 0, 'not_applied' => 0];
+$loadFailed     = $loadFailed ?? false;
+$plans          = $plans ?? [];
+$planToken      = $planToken ?? null;
+$applyAttempted = $applyAttempted ?? false;
 $fieldLabels=['ext_name'=>'Nom complet','sector'=>'Secteur','description'=>'Présentation','shareholders'=>'Actionnariat du profil'];
 $statusLabels=['UPDATED'=>'Compléments appliqués','UNCHANGED'=>'Déjà présents',
     'PROTECTED'=>'Valeur existante conservée','STALE'=>'Profil modifié ou trop ancien : nouvel aperçu requis','MISSING'=>'Société introuvable'];

@@ -1,3 +1,9 @@
+<?php
+// portfolio.php defines these before including the partial; the defaults keep
+// the chart arrays defined if this file is ever rendered on its own.
+$chartValues = $chartValues ?? [];
+$chartBuys   = $chartBuys ?? [];
+?>
       <!-- Holdings table -->
       <?php if (!empty($holdings)): ?>
       <style>
@@ -87,4 +93,3 @@
       <?php else: ?>
         <div class="alert alert-info"><i class="fas fa-info-circle me-2"></i><?= te('Aucune position ouverte.') ?></div>
       <?php endif; ?>
-

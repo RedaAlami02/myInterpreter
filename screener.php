@@ -361,7 +361,7 @@ $noPER          = $totalCompanies - count($rated);
                   <?= $r['sector'] !== '' ? te($r['sector']) : '—' ?>
                 </td>
                 <!-- 2: PA -->
-                <td class="pa-cell num" data-val="<?= $r['PA'] ?>">
+                <td class="pa-cell num" data-val="<?= $r['PA'] ?>" data-live-quote="<?= htmlspecialchars($r['name']) ?>">
                   <?= number_format($r['PA'], 2) ?>
                 </td>
                 <!-- 3: Trend -->
@@ -536,5 +536,11 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 <?php endif; ?>
 <?php app_timing_mark('rendered'); ?>
+<script id="live-config" type="application/json"><?= json_encode([
+    'endpoint' => BASE_URL . '/handlers/live_quotes.php',
+    'interval' => 60000,
+    'mode' => 'quotes',
+], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
+<script src="assets/js/live.js?v=2"></script>
 </body>
 </html>

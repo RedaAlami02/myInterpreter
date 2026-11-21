@@ -873,6 +873,6 @@ foreach ($holdingsDocs as $holding) {
     'invested' => $referenceTotals['invested'] ?? null,
     'holdings' => $liveHoldings,
 ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?></script>
-<script src="assets/js/live.js?v=1"></script>
+<script src="assets/js/live.js?v=2"></script>
 </body>
 </html>

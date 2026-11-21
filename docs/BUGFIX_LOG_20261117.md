@@ -47,15 +47,14 @@ marked **open** were confirmed by reading the code but are not yet changed.
 | 37 | Order-book receipt counted a replay as applied | The insert uses `ON CONFLICT (id) DO NOTHING` but `applied` incremented regardless, so re-sending a capture looked like new data | `20261120_orderbook_receipt_counter.sql`: `ROW_COUNT` decides; a replay counts as unchanged |
 | 38 | Company and ticker keys were not unique | Updates and price mapping select by `company.name` and `format.symbol`; a duplicate would silently hit the wrong row | `20261120_market_key_uniqueness.sql`; checked first (81/81 rows, no duplicates or blanks) |
 | 39 | Signed-out visitors reached market pages | `screener.php` answered an anonymous request with the internal string "Erreur DB : Please sign in again.", and the dividend calendar and the daily-close preview were reachable too | Only `index.php` and `infoAction.php` are public; the screener and calendar call `requireLogin()`, and the preview — a development page — is limited to PHP's built-in server |
+| 40 | The app's Marché tab had no feed, and NRJ had no identity | `app_feed` stopped being written at the Appwrite cutover, so the preview answered DISABLED and the app fell back to a flat list; NRJ was missing from `company`/`format`, so its price and order book were skipped at publish | `20261121_public_application_feed.sql` serves the same `app-market-preview/v3` contract from the public tables the site publishes; the app calls it and the preview flag is back on, with a parser test over a fixture taken from real output. NRJ was created as `JET ENERGY` (`NRJ`, ISIN `MA0000012874`, 13 125 000 shares) and mapped to `ELC` |
+| 41 | Every portfolio load called a retired feed | `MYINTERPRETER_MARKET_PREVIEW` was on in the site configuration, so each load spent 288–1200 ms on a shadow-feed RPC that has returned nothing since the cutover | Flag off; the stage disappears and the page is unchanged, because it was already rendering recorded prices |
 
 ## Open — worth fixing next
 
-Severity is impact on displayed data.
-
-1. **NRJ has no `company` or `format` row**, so its price and order book are skipped at publish. It needs a listing identity, not just a format row.
-2. **The app's live market feed is retired**; a Supabase-backed replacement for
-   `read_shadow_application_feed_recurring_v1` is the follow-up to keeping the
-   preview flag off.
+Nothing outstanding at the time of writing. The 188 KB screener HTML is the
+only remaining size problem, and shrinking it means redesigning the table, not
+a tweak.
 
 ## Not a bug, but worth knowing
 

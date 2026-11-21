@@ -21,6 +21,3 @@ parameters:
         - SUPABASE_ALLOW_ANONYMOUS_MARKET
         - TAX_RATE
         - COMMISSION_RATE
-
-includes:
-    - phpstan-baseline.neon
