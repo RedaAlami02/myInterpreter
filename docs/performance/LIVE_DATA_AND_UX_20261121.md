@@ -102,3 +102,31 @@ prefetched page is discarded before the click that would use it. The
 - **PageSpeed Insights** without an API key shares a small daily quota that is
   already exhausted; Lighthouse is not installed. Neither tool can see
   pages behind the login.
+
+## Follow-up samples, same day
+
+Three consecutive authenticated loads:
+
+```
+auth=148 holdings=592  prices=644  dividends=135 rendered=1000 total=2519
+auth=100 holdings=0    prices=449  dividends=0   rendered=1385 total=1933
+auth=124 holdings=0    prices=1264 dividends=0   rendered=710  total=2099
+```
+
+What this shows:
+
+- **The session memo is working**: `holdings` and `dividends` are 0 on the
+  second and third loads.
+- **`auth` fell to 100–150 ms** from 311–585 ms, so the per-request identity
+  check is no longer a dominant cost.
+- **`rendered` is the tell.** It is pure PHP with identical input, and it swung
+  710 → 1385 ms. The host's CPU share varies by roughly a factor of two between
+  requests, which now sets the floor on any page time.
+- **`prices` stays high and erratic** (449, then 1264) even with a 300 s memo.
+  That is either a memo miss or the same CPU jitter; `?timing=1` now appends
+  `cache=++!` ("+" hit, "!" miss, call order) and a `quote_rows` mark so the two
+  can be told apart from one capture.
+
+Implication: code-level tuning has reached diminishing returns on this host.
+The remaining lever is the hosting decision, and the authenticated measurement
+that decision was waiting for now exists.

@@ -155,6 +155,7 @@ try {
     $lpDocs = [];
     error_log('[myInterpreter] recorded prices unavailable');
 }
+app_timing_mark('quote_rows');
 $currentQuoteCount = 0;
 if (MYINTERPRETER_MARKET_PREVIEW) {
     try {

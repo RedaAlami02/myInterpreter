@@ -89,8 +89,12 @@ function app_cache(string $key, int $ttl, callable $producer, bool $bypass = fal
     $entry = $_SESSION['app_cache'][$key] ?? null;
     if (!$bypass && is_array($entry) && array_key_exists('value', $entry)
         && ($entry['at'] ?? 0) > time() - $ttl) {
+        // Surfaced by ?timing=1 so a slow stage can be told apart from a memo
+        // that is not being reused.
+        $GLOBALS['app_cache_stats'] = ($GLOBALS['app_cache_stats'] ?? '') . '+';
         return $entry['value'];
     }
+    $GLOBALS['app_cache_stats'] = ($GLOBALS['app_cache_stats'] ?? '') . '!';
     $value = $producer();
     $_SESSION['app_cache'][$key] = ['at' => time(), 'value' => $value];
     return $value;
@@ -123,7 +127,10 @@ if (($_GET['timing'] ?? '') === '1') {
         }
         $first = reset($marks);
         $last  = end($marks);
+        // "+" is a memo hit, "!" a miss that ran its producer, in call order.
+        $cache = (string) ($GLOBALS['app_cache_stats'] ?? '');
         echo "\n<!-- timing: " . implode(' ', $parts)
-            . ' total=' . (int) round(($last - $first) * 1000) . "ms -->\n";
+            . ' total=' . (int) round(($last - $first) * 1000) . "ms"
+            . ($cache !== '' ? ' cache=' . $cache : '') . " -->\n";
     });
 }
