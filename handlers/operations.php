@@ -93,7 +93,6 @@ try {
 if (!empty($docs)) {
     $row = $docs[0];
     $company->stored  = true;
-    $company->_awId   = $row['$id'];   // store doc ID for update later
     // Map lowercase Appwrite fields to Company uppercase properties
     $fieldMap = ['BPA' => 'bpa', 'DPA' => 'dpa', 'TC5' => 'tc5', 'ROE' => 'roe', 'NA' => 'na', 'CP' => 'cp'];
     foreach ($fieldMap as $prop => $awField) {

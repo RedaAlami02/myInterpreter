@@ -92,11 +92,13 @@ prefetched page is discarded before the click that would use it. The
   before `app_session_start()` runs, and the cache limiter is applied at
   auto-start. Cache headers must be set explicitly with `header()`; the limiter
   call alone does nothing.
-- **PHPStan** at `~/.local/bin/phpstan`, config `phpstan.neon`, baseline of 24
-  existing findings. Notable entries in that baseline: `core/Database.php`
-  references `DB_*` constants that are defined nowhere, and
-  `handlers/operations.php` writes an undeclared `Company::$_awId` (dynamic
-  properties are deprecated since PHP 8.2).
+- **PHPStan** at `~/.local/bin/phpstan`, config `phpstan.neon`, with a baseline
+  of the findings that existed on adoption. Two were real and were removed
+  rather than baselined: `core/Database.php` was a MySQL-era class referencing
+  `DB_*` constants defined nowhere and included by nothing, and
+  `handlers/operations.php` wrote `Company::$_awId`, a dynamic property nothing
+  ever read (deprecated since PHP 8.2). Both deleted 2026-11-21; the baseline
+  now holds 10 findings, all in template partials.
 - **intelephense** must exist for the `php-lsp` plugin to work:
   `npm install -g --prefix ~/.local intelephense`.
 - **PageSpeed Insights** without an API key shares a small daily quota that is

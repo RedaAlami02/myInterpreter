@@ -1,36 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Constant DB_HOST not found\.$#'
-			identifier: constant.notFound
-			count: 1
-			path: core/Database.php
-
-		-
-			message: '#^Constant DB_NAME not found\.$#'
-			identifier: constant.notFound
-			count: 1
-			path: core/Database.php
-
-		-
-			message: '#^Constant DB_PASS not found\.$#'
-			identifier: constant.notFound
-			count: 1
-			path: core/Database.php
-
-		-
-			message: '#^Constant DB_PORT not found\.$#'
-			identifier: constant.notFound
-			count: 1
-			path: core/Database.php
-
-		-
-			message: '#^Constant DB_USER not found\.$#'
-			identifier: constant.notFound
-			count: 1
-			path: core/Database.php
-
-		-
 			message: '#^Variable \$applyAttempted might not be defined\.$#'
 			identifier: variable.undefined
 			count: 1
@@ -89,9 +59,3 @@ parameters:
 			identifier: variable.undefined
 			count: 1
 			path: core/holdings_table.php
-
-		-
-			message: '#^Access to an undefined property Company\:\:\$_awId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: handlers/operations.php
