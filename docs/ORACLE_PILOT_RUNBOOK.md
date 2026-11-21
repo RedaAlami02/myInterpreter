@@ -1,5 +1,19 @@
 # Hosting pilot on Oracle Cloud Always Free
 
+**Parked 2026-11-21.** Oracle requires a payment card for identity verification
+at signup (no bypass; prepaid and virtual cards are refused), and the project is
+still personal. No hosting move is planned for now.
+
+The measurements below are what would justify revisiting it: a warm signed-in
+page costs about 1.3 s, of which ~1.2 s is PHP building the HTML on the shared
+host, whose CPU share varies by a factor of two between requests. Everything
+else on the page — session check, database reads, cached repeats — is already
+under 300 ms.
+
+If it is revisited, the card-free alternative worth trying first is the
+alwaysdata free plan (PHP, SSH, France, no card, personal use), measured with
+`tools/measure_authenticated_page.py` against the same Supabase project.
+
 Goal: run the **same PHP site** on a VM and measure it against the live host.
 Nothing changes for users until the copy is proven. Supabase stays where it is.
 
