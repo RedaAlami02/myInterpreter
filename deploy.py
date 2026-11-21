@@ -44,6 +44,7 @@ RUNTIME_DEPENDENCIES = {
     "core/supabase_session.php", "core/session.php", "core/portfolio_math.php",
     "core/portfolio_prices.php",
     "core/latest_sessions.php", "core/company_market.php",
+    "core/company_history.php", "handlers/company_history.php", "assets/js/company_history.js",
     "core/RecoveredHistory.php", "core/holdings_table.php",
     "core/ShadowMarketFeed.php", "core/market_preview_panel.php",
     "assets/css/market_preview.css", "assets/js/market_preview.js",

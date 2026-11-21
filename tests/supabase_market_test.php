@@ -59,3 +59,16 @@ $closeReader = new SupabaseMarketReader($url, $key, static function ($url, $head
 }, 'fixture.user.signature', true);
 checkMarket($closeReader->listDocuments('latest_prices', [q_equal('c_name','SGTM')])[0]['pa'] === 524, 'Verified closing reference must retain its actual price.');
 echo "Supabase market adapter tests passed.\n";
+
+$batch = new SupabaseMarketReader($url, $key, static function ($url, $headers): array {
+    checkMarket(in_array('Authorization: Bearer fixture.user.signature', $headers, true), 'Batch lost user scope.');
+    if (str_contains($url, '/dividends?')) return ['status'=>503,'body'=>'private-diagnostic'];
+    return ['status'=>200,'body'=>'[{"id":"fixture","name":"Alpha"}]'];
+}, 'fixture.user.signature');
+$requests = ['company'=>['company', [q_limit(1)]], 'dividends'=>['dividends', [q_limit(1)]]];
+$partial = $batch->listDocumentsBatch($requests, true);
+checkMarket($partial['company'][0]['$id'] === 'fixture' && $partial['dividends'] === null, 'Optional failure hid valid panels.');
+rejectsMarket(fn() => $batch->listDocumentsBatch($requests));
+rejectsMarket(fn() => $batch->listDocumentsBatch(['bad'=>['portefeuille',[]]], true));
+checkMarket($batch->listDocumentsBatch([]) === [], 'Empty batch changed.');
+echo "Market batch scope, validation and optional-failure checks passed.\n";

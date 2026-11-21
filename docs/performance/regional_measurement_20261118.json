@@ -1,0 +1,210 @@
+{
+  "measurement_id": "2ghmxW0nFDrW2Nywp00021WoQ",
+  "status": "finished",
+  "target": "public website HTTPS; browser challenge cannot execute on these probes",
+  "results": [
+    {
+      "country": "MA",
+      "city": "Fes",
+      "status": "finished",
+      "statusCode": 200,
+      "timings": {
+        "total": 499,
+        "dns": 311,
+        "tcp": 44,
+        "tls": 64,
+        "firstByte": 56,
+        "download": 24
+      },
+      "result_fields": [
+        "status",
+        "resolvedAddress",
+        "headers",
+        "rawHeaders",
+        "rawBody",
+        "rawOutput",
+        "truncated",
+        "statusCode",
+        "statusCodeName",
+        "timings",
+        "tls"
+      ],
+      "browser_challenge": true,
+      "company_rendered": false
+    },
+    {
+      "country": "FR",
+      "city": "Lauterbourg",
+      "status": "finished",
+      "statusCode": 200,
+      "timings": {
+        "total": 242,
+        "dns": 134,
+        "tcp": 24,
+        "tls": 48,
+        "firstByte": 33,
+        "download": 3
+      },
+      "result_fields": [
+        "status",
+        "resolvedAddress",
+        "headers",
+        "rawHeaders",
+        "rawBody",
+        "rawOutput",
+        "truncated",
+        "statusCode",
+        "statusCodeName",
+        "timings",
+        "tls"
+      ],
+      "browser_challenge": true,
+      "company_rendered": false
+    },
+    {
+      "country": "FR",
+      "city": "Roubaix",
+      "status": "finished",
+      "statusCode": 200,
+      "timings": {
+        "total": 223,
+        "dns": 167,
+        "tcp": 16,
+        "tls": 22,
+        "firstByte": 17,
+        "download": 1
+      },
+      "result_fields": [
+        "status",
+        "resolvedAddress",
+        "headers",
+        "rawHeaders",
+        "rawBody",
+        "rawOutput",
+        "truncated",
+        "statusCode",
+        "statusCodeName",
+        "timings",
+        "tls"
+      ],
+      "browser_challenge": true,
+      "company_rendered": false
+    },
+    {
+      "country": "IE",
+      "city": "Dublin",
+      "status": "finished",
+      "statusCode": 200,
+      "timings": {
+        "total": 255,
+        "dns": 167,
+        "tcp": 23,
+        "tls": 38,
+        "firstByte": 26,
+        "download": 1
+      },
+      "result_fields": [
+        "status",
+        "resolvedAddress",
+        "headers",
+        "rawHeaders",
+        "rawBody",
+        "rawOutput",
+        "truncated",
+        "statusCode",
+        "statusCodeName",
+        "timings",
+        "tls"
+      ],
+      "browser_challenge": true,
+      "company_rendered": false
+    },
+    {
+      "country": "IE",
+      "city": "Dublin",
+      "status": "finished",
+      "statusCode": 200,
+      "timings": {
+        "total": 243,
+        "dns": 168,
+        "tcp": 22,
+        "tls": 29,
+        "firstByte": 23,
+        "download": 1
+      },
+      "result_fields": [
+        "status",
+        "resolvedAddress",
+        "headers",
+        "rawHeaders",
+        "rawBody",
+        "rawOutput",
+        "truncated",
+        "statusCode",
+        "statusCodeName",
+        "timings",
+        "tls"
+      ],
+      "browser_challenge": true,
+      "company_rendered": false
+    },
+    {
+      "country": "DE",
+      "city": "Falkenstein",
+      "status": "finished",
+      "statusCode": 200,
+      "timings": {
+        "total": 146,
+        "dns": 39,
+        "tcp": 32,
+        "tls": 38,
+        "firstByte": 36,
+        "download": 1
+      },
+      "result_fields": [
+        "status",
+        "resolvedAddress",
+        "headers",
+        "rawHeaders",
+        "rawBody",
+        "rawOutput",
+        "truncated",
+        "statusCode",
+        "statusCodeName",
+        "timings",
+        "tls"
+      ],
+      "browser_challenge": true,
+      "company_rendered": false
+    },
+    {
+      "country": "DE",
+      "city": "Nuremberg",
+      "status": "finished",
+      "statusCode": 200,
+      "timings": {
+        "total": 223,
+        "dns": 125,
+        "tcp": 28,
+        "tls": 38,
+        "firstByte": 30,
+        "download": 2
+      },
+      "result_fields": [
+        "status",
+        "resolvedAddress",
+        "headers",
+        "rawHeaders",
+        "rawBody",
+        "rawOutput",
+        "truncated",
+        "statusCode",
+        "statusCodeName",
+        "timings",
+        "tls"
+      ],
+      "browser_challenge": true,
+      "company_rendered": false
+    }
+  ]
+}

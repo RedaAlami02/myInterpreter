@@ -1,0 +1,8 @@
+{
+  "committed_function_visible": true,
+  "security_invoker": true,
+  "stable": true,
+  "anonymous_execution": false,
+  "authenticated_execution": true,
+  "schema_cache_reload_notified": true
+}

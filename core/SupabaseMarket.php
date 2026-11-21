@@ -93,7 +93,12 @@ final class SupabaseMarketReader
     public function listDocuments(string $collection, array $queries = []): array
     {
         $response = $this->request($collection, $this->queryParameters($collection, $queries));
-        $rows = json_decode($response['body'], true, 512, JSON_THROW_ON_ERROR);
+        return $this->decodeDocuments($response['body']);
+    }
+
+    private function decodeDocuments(string $body): array
+    {
+        $rows = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($rows) || !array_is_list($rows)) {
             throw new RuntimeException('Invalid market API response.');
         }
@@ -106,6 +111,79 @@ final class SupabaseMarketReader
         }
         unset($row);
         return $rows;
+    }
+
+    /** Concurrent shared-market reads; partial mode isolates optional panels. */
+    public function listDocumentsBatch(array $requests, bool $partial = false): array
+    {
+        if (!$requests) return [];
+        if (count($requests) > 8) throw new InvalidArgumentException('Market batch is too large.');
+        if ($this->accessToken === null && !$this->allowAnonymous) {
+            throw new RuntimeException('Please sign in to view market data.');
+        }
+        $prepared = [];
+        foreach ($requests as $key => [$collection, $queries]) {
+            $params = $this->queryParameters($collection, $queries);
+            $path = $collection === 'latest_prices' && $this->closingReferences
+                ? 'rpc/read_latest_price_references_v1' : $collection;
+            $prepared[$key] = $this->baseUrl . '/' . $path . '?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+        }
+        $parallel = $this->transport === null;
+        foreach (['curl_multi_init', 'curl_multi_add_handle', 'curl_multi_exec', 'curl_multi_select',
+                  'curl_multi_getcontent', 'curl_multi_remove_handle', 'curl_multi_close'] as $function) {
+            $parallel = $parallel && function_exists($function);
+        }
+        if (!$parallel) {
+            $result = [];
+            foreach ($requests as $key => [$collection, $queries]) {
+                try { $result[$key] = $this->listDocuments($collection, $queries); }
+                catch (Throwable $error) {
+                    if (!$partial) throw $error;
+                    $result[$key] = null;
+                }
+            }
+            return $result;
+        }
+        $headers = ['apikey: ' . $this->publishableKey, 'Accept: application/json'];
+        if ($this->accessToken !== null) $headers[] = 'Authorization: Bearer ' . $this->accessToken;
+        $multi = curl_multi_init();
+        $handles = [];
+        try {
+            foreach ($prepared as $key => $url) {
+                $handle = curl_init($url);
+                curl_setopt_array($handle, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => false,
+                    CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 8, CURLOPT_HTTPHEADER => $headers,
+                    CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2]);
+                $handles[$key] = $handle;
+                curl_multi_add_handle($multi, $handle);
+            }
+            do {
+                $status = curl_multi_exec($multi, $running);
+                if ($status !== CURLM_OK) throw new RuntimeException('Market batch request failed.');
+                if ($running && curl_multi_select($multi, 0.2) === -1) usleep(1000);
+            } while ($running);
+            $result = [];
+            foreach ($handles as $key => $handle) {
+                try {
+                    if (curl_errno($handle) || !in_array(curl_getinfo($handle, CURLINFO_HTTP_CODE), [200, 206], true)) {
+                        throw new RuntimeException('Supabase market request failed.');
+                    }
+                    $body = curl_multi_getcontent($handle);
+                    if (!is_string($body)) throw new RuntimeException('Invalid market API response.');
+                    $result[$key] = $this->decodeDocuments($body);
+                } catch (Throwable $error) {
+                    if (!$partial) throw $error;
+                    $result[$key] = null;
+                }
+            }
+            return $result;
+        } finally {
+            foreach ($handles as $handle) {
+                curl_multi_remove_handle($multi, $handle);
+                curl_close($handle);
+            }
+            curl_multi_close($multi);
+        }
     }
 
     public function countDocuments(string $collection, array $queries = []): int

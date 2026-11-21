@@ -248,13 +248,9 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '')) {
     require_once __DIR__ . '/../config/config.php';
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: private, no-store');
-    if (!defined('MYINTERPRETER_DIRECT_SOURCE_REQUESTS') || !MYINTERPRETER_DIRECT_SOURCE_REQUESTS) {
-        http_response_code(503);
-        echo json_encode(['error' => 'Market enrichment is unavailable.']);
-        exit;
-    }
     require_once __DIR__ . '/../core/auth.php';
     requireLogin();
+    session_write_close();
 
     $symbol = preg_replace('/[^A-Z0-9]/', '', strtoupper($_GET['symbol'] ?? ''));
     if (!$symbol) { echo json_encode(['error' => 'symbol required']); exit; }

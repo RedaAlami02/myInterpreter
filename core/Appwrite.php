@@ -72,12 +72,22 @@ function aw_count_docs(string $collectionId, array $queries = [], ?string $sessi
 }
 
 /**
- * Read a named batch sequentially through the migrated Supabase adapter.
+ * Read shared market batches concurrently; private reads retain their user scope.
  * $requests: [ 'key' => ['collection', [queries], $session|null], ... ]
  * Returns:   [ 'key' => [documents], ... ]
  */
 function aw_multi_list_docs(array $requests): array
 {
+    if (!$requests) return [];
+    $shared = !array_filter($requests, static fn($request) => in_array($request[0],
+        ['achats', 'ventes', 'portefeuille', 'benefits'], true));
+    if ($shared) {
+        $result = [];
+        foreach (array_chunk($requests, 8, true) as $batch) {
+            $result += sb_market()->listDocumentsBatch($batch);
+        }
+        return $result;
+    }
     $results = [];
     foreach ($requests as $key => [$collection, $queries, $session]) {
         $results[$key] = aw_list_docs($collection, $queries, $session);

@@ -525,5 +525,9 @@
   "Vente (MAD)": "بيع (درهم)",
   "Qté vente": "كمية البيع",
   "Aucun ordre dans cet instantané.": "لا توجد أوامر في هذه اللقطة.",
-  "Carnet d’ordres indisponible pour le moment.": "دفتر الأوامر غير متاح حالياً."
+  "Carnet d’ordres indisponible pour le moment.": "دفتر الأوامر غير متاح حالياً.",
+  "Chargement de l’historique…": "جارٍ تحميل السجل…",
+  "Historique insuffisant pour afficher le graphique.": "السجل غير كافٍ لعرض الرسم البياني.",
+  "Historique indisponible pour le moment.": "السجل غير متاح حالياً.",
+  "Réessayer": "إعادة المحاولة"
 }

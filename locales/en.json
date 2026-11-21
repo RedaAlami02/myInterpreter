@@ -525,5 +525,9 @@
   "Vente (MAD)": "Ask (MAD)",
   "Qté vente": "Ask quantity",
   "Aucun ordre dans cet instantané.": "No orders in this snapshot.",
-  "Carnet d’ordres indisponible pour le moment.": "Order book currently unavailable."
+  "Carnet d’ordres indisponible pour le moment.": "Order book currently unavailable.",
+  "Chargement de l’historique…": "Loading history…",
+  "Historique insuffisant pour afficher le graphique.": "Not enough history to display the chart.",
+  "Historique indisponible pour le moment.": "History is currently unavailable.",
+  "Réessayer": "Retry"
 }

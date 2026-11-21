@@ -238,5 +238,9 @@
   "Vente (MAD)": "البيع (درهم)",
   "Qté vente": "كمية البيع",
   "Aucun ordre dans cet instantané.": "ما كاين حتى أمر فهاد اللقطة.",
-  "Carnet d’ordres indisponible pour le moment.": "دفتر الأوامر ما متوفرش دابا."
+  "Carnet d’ordres indisponible pour le moment.": "دفتر الأوامر ما متوفرش دابا.",
+  "Chargement de l’historique…": "كيتحمّل السجل…",
+  "Historique insuffisant pour afficher le graphique.": "السجل ما كافيش باش يبان الرسم البياني.",
+  "Historique indisponible pour le moment.": "السجل ما متوفرش دابا.",
+  "Réessayer": "عاود جرّب"
 }

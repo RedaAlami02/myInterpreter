@@ -139,6 +139,20 @@ final class SupabaseAppClient
         return $result;
     }
 
+    public function companyDailyHistory(string $accessToken, string $name): array
+    {
+        if ($name === '' || strlen($name) > 640 || mb_strlen($name) > 160) {
+            throw new InvalidArgumentException('Invalid company.');
+        }
+        $result = $this->request('POST', '/rest/v1/rpc/read_company_daily_history_v1', ['p_name' => $name], $accessToken);
+        if (!is_array($result) || ($result['contract'] ?? null) !== 'company-daily-history/v1'
+            || ($result['company'] ?? null) !== $name || !is_array($result['rows'] ?? null)
+            || !array_is_list($result['rows']) || count($result['rows']) > 10000) {
+            throw new RuntimeException('Company history is unavailable.');
+        }
+        return $result;
+    }
+
     public function recentMarketSessions(string $accessToken, string $symbol): array
     {
         if (!preg_match('/^[A-Z0-9][A-Z0-9._-]{0,31}$/D',$symbol)) throw new InvalidArgumentException('Invalid instrument.');

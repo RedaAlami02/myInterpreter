@@ -1,0 +1,46 @@
+{
+  "mode": "read-only SQL; authenticated role; synthetic non-user claim for public market RPCs; no HTTP session impersonation",
+  "queries": {
+    "market_feed_rpc": {
+      "n": 5,
+      "median_roundtrip_ms": 118.8,
+      "min_ms": 116.5,
+      "max_ms": 473.6,
+      "rows": 1,
+      "server_execution_ms": 53.588,
+      "feed_status": "AVAILABLE"
+    },
+    "latest_price_rpc": {
+      "n": 5,
+      "median_roundtrip_ms": 63.6,
+      "min_ms": 63.4,
+      "max_ms": 86.5,
+      "rows": 1,
+      "server_execution_ms": 0.549
+    },
+    "recent_sessions_rpc": {
+      "n": 5,
+      "median_roundtrip_ms": 107.0,
+      "min_ms": 105.1,
+      "max_ms": 1009.9,
+      "rows": 1,
+      "server_execution_ms": 52.341
+    },
+    "daily_history_candidate": {
+      "n": 5,
+      "median_roundtrip_ms": 76.7,
+      "min_ms": 75.6,
+      "max_ms": 670.3,
+      "rows": 866,
+      "server_execution_ms": 5.336
+    }
+  },
+  "full_history_baseline": {
+    "n": 5,
+    "requests_per_load": 5,
+    "rows": 2154,
+    "median_ms": 399.2,
+    "min_ms": 343.4,
+    "max_ms": 406.7
+  }
+}

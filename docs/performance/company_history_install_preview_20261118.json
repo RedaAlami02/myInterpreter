@@ -1,0 +1,25 @@
+{
+  "applied": false,
+  "market_data_modified": false,
+  "migration_sha256": "61f7b62770f7e1510fc3ddc492325c6172718251461119d0bff8509f90fd422f",
+  "as_of_utc": "2026-11-18T19:08:48.355258+00:00",
+  "ADDOHA": {
+    "rows": 866,
+    "equivalence": true,
+    "n": 5,
+    "median_rpc_roundtrip_ms": 72.7
+  },
+  "AFMA": {
+    "rows": 867,
+    "equivalence": true,
+    "n": 5,
+    "median_rpc_roundtrip_ms": 71.7
+  },
+  "AFRIC INDUSTRIES": {
+    "rows": 869,
+    "equivalence": true,
+    "n": 5,
+    "median_rpc_roundtrip_ms": 71.9
+  },
+  "auth_and_privileges_passed": true
+}

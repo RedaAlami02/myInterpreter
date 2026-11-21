@@ -1,0 +1,191 @@
+[
+  {
+    "region": "eu-west-1",
+    "measurement_id": "27IcUUMqj5e0DJaOq00021WoS",
+    "note": "Public regional EC2 API network proxy, not our application or a database benchmark",
+    "results": [
+      {
+        "country": "MA",
+        "city": "Fes",
+        "status": "finished",
+        "statusCode": 400,
+        "timings": {
+          "total": 182,
+          "dns": 22,
+          "tcp": 47,
+          "tls": 65,
+          "firstByte": 48,
+          "download": 0
+        }
+      }
+    ]
+  },
+  {
+    "region": "eu-west-3",
+    "measurement_id": "2pgTbvGURObem1O2r00021WoS",
+    "note": "Public regional EC2 API network proxy, not our application or a database benchmark",
+    "results": [
+      {
+        "country": "MA",
+        "city": "Fes",
+        "status": "finished",
+        "statusCode": 400,
+        "timings": {
+          "total": 137,
+          "dns": 21,
+          "tcp": 35,
+          "tls": 44,
+          "firstByte": 34,
+          "download": 3
+        }
+      }
+    ]
+  },
+  {
+    "region": "eu-central-1",
+    "measurement_id": "2wt2AHojc1TpZbseq00021WoS",
+    "note": "Public regional EC2 API network proxy, not our application or a database benchmark",
+    "results": [
+      {
+        "country": "MA",
+        "city": "Fes",
+        "status": "finished",
+        "statusCode": 400,
+        "timings": {
+          "total": 155,
+          "dns": 19,
+          "tcp": 40,
+          "tls": 54,
+          "firstByte": 42,
+          "download": 0
+        }
+      }
+    ]
+  },
+  {
+    "region": "eu-west-1",
+    "measurement_id": "2A0Jh5E2wJ3cr49Ck00021WoT",
+    "note": "Public regional EC2 API network proxy, not our application or a database benchmark",
+    "results": [
+      {
+        "country": "MA",
+        "city": "Fes",
+        "status": "finished",
+        "statusCode": 400,
+        "timings": {
+          "total": 173,
+          "dns": 22,
+          "tcp": 47,
+          "tls": 56,
+          "firstByte": 47,
+          "download": 1
+        }
+      }
+    ]
+  },
+  {
+    "region": "eu-west-3",
+    "measurement_id": "20LjeH8tsFBa4IHfD00021WoT",
+    "note": "Public regional EC2 API network proxy, not our application or a database benchmark",
+    "results": [
+      {
+        "country": "MA",
+        "city": "Fes",
+        "status": "finished",
+        "statusCode": 400,
+        "timings": {
+          "total": 128,
+          "dns": 21,
+          "tcp": 32,
+          "tls": 42,
+          "firstByte": 33,
+          "download": 0
+        }
+      }
+    ]
+  },
+  {
+    "region": "eu-central-1",
+    "measurement_id": "271dko1YBObhuPVdj00021WoT",
+    "note": "Public regional EC2 API network proxy, not our application or a database benchmark",
+    "results": [
+      {
+        "country": "MA",
+        "city": "Fes",
+        "status": "finished",
+        "statusCode": 400,
+        "timings": {
+          "total": 149,
+          "dns": 18,
+          "tcp": 41,
+          "tls": 48,
+          "firstByte": 42,
+          "download": 0
+        }
+      }
+    ]
+  },
+  {
+    "region": "eu-west-1",
+    "measurement_id": "2ZsjoJryMfoLqQDKJ00021WoT",
+    "note": "Public regional EC2 API network proxy, not our application or a database benchmark",
+    "results": [
+      {
+        "country": "MA",
+        "city": "Fes",
+        "status": "finished",
+        "statusCode": 400,
+        "timings": {
+          "total": 158,
+          "dns": 1,
+          "tcp": 54,
+          "tls": 55,
+          "firstByte": 48,
+          "download": 0
+        }
+      }
+    ]
+  },
+  {
+    "region": "eu-west-3",
+    "measurement_id": "2dUqz9bCUPjVNPkBq00021WoT",
+    "note": "Public regional EC2 API network proxy, not our application or a database benchmark",
+    "results": [
+      {
+        "country": "MA",
+        "city": "Fes",
+        "status": "finished",
+        "statusCode": 400,
+        "timings": {
+          "total": 108,
+          "dns": 3,
+          "tcp": 32,
+          "tls": 40,
+          "firstByte": 33,
+          "download": 0
+        }
+      }
+    ]
+  },
+  {
+    "region": "eu-central-1",
+    "measurement_id": "2uitD7yFS89aBUjTQ00021WoT",
+    "note": "Public regional EC2 API network proxy, not our application or a database benchmark",
+    "results": [
+      {
+        "country": "MA",
+        "city": "Fes",
+        "status": "finished",
+        "statusCode": 400,
+        "timings": {
+          "total": 135,
+          "dns": 2,
+          "tcp": 40,
+          "tls": 51,
+          "firstByte": 42,
+          "download": 0
+        }
+      }
+    ]
+  }
+]
