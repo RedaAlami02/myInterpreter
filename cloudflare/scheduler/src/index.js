@@ -13,7 +13,9 @@
  */
 
 const ORDERBOOK_CRON = "*/15 8-15 * * 1-5";
-const DISPATCH_CRON = "*/15 16-21 * * 1-5";
+// Offset from the order-book slots so both triggers fire in the same hour.
+const DISPATCH_CRON = "5,20,35,50 8-15 * * 1-5";
+const EVENING_CRON = "0,30 16-20 * * 1-5";
 const ALERT_CRON = "0 22 * * *";
 
 export default {
@@ -25,7 +27,9 @@ export default {
         .catch((error) => alert(env, `Order-book dispatch failed: ${error.message}`)));
       return;
     }
-    if (event.cron === DISPATCH_CRON) {
+    if (event.cron === DISPATCH_CRON || event.cron === EVENING_CRON) {
+      // The workflow's preflight decides the job: refresh quotes during the
+      // session, publish the close once it exists, otherwise exit in seconds.
       ctx.waitUntil(dispatch(env, "exchange-price-publication.yml")
         .catch((error) => alert(env, `Dispatch failed: ${error.message}`)));
       return;
@@ -118,9 +122,10 @@ async function checkAndAlert(env) {
   // The close only matters on weekdays; the holiday case is handled upstream by
   // the session probe, which makes the run succeed with NO_SESSION.
   if (weekday) {
-    // Only runs started after the close count: an early-morning run exits with
-    // NO_SESSION and must not hide a missing close.
-    const closeWindow = new Date(`${today}T16:00:00Z`).getTime();
+    // Only runs started after the close count: an early run exits with
+    // NO_SESSION and must not hide a missing close. The close slot is 15:45
+    // local, which is 14:45 or 15:45 UTC depending on the offset.
+    const closeWindow = new Date(`${today}T15:00:00Z`).getTime();
     const runs = await latestRuns(env, "exchange-price-publication.yml");
     const published = runs.some((run) =>
       run.conclusion === "success" && new Date(run.created_at).getTime() >= closeWindow);

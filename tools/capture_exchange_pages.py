@@ -235,6 +235,11 @@ def main():
     parser.add_argument("--symbols", default="")
     parser.add_argument("--delay", type=float, default=1.0)
     parser.add_argument("--ca-bundle")
+    # The universe response already carries dernierCours, volume and trade
+    # count for every instrument, so an intraday refresh needs one request
+    # instead of one per instrument. Detail pages still supply the annual
+    # rows, dividends and capital actions that a close publication needs.
+    parser.add_argument("--prices-only", action="store_true")
     args = parser.parse_args()
     if args.out_dir.exists() and any(args.out_dir.iterdir()):
         print(json.dumps({"status": "FAILED", "code": "OUTPUT_DIRECTORY_NOT_EMPTY"}))
@@ -269,6 +274,26 @@ def main():
             json.dumps(probed or {}, ensure_ascii=False, indent=1), encoding="utf-8")
         wanted = {s.strip().upper() for s in args.symbols.split(",") if s.strip()}
         records = []
+        if args.prices_only:
+            digest = hashlib.sha256(body).hexdigest()
+            fetched = datetime.now(timezone.utc).isoformat()
+            for row in universe:
+                symbol = str(row.get("symbol") or "").strip()
+                price = row.get("dernierCours")
+                if wanted and symbol.upper() not in wanted:
+                    continue
+                if not symbol or not isinstance(price, (int, float)):
+                    continue
+                records.append({
+                    "symbol": symbol,
+                    "price": price,
+                    "traded": (_positive(row.get("quantite"))
+                               or _positive(row.get("nbTransactions"))),
+                    "fetched_at": fetched,
+                    "page_sha256": digest,
+                    "source_url": args.actions_url,
+                })
+            universe = []
         for index, row in enumerate(universe, 1):
             symbol = str(row.get("symbol") or "").strip()
             ce = row.get("ce")

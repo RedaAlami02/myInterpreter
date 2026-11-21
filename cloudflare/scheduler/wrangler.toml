@@ -10,7 +10,7 @@ compatibility_date = "2026-11-01"
 #  - once a day, check that a close actually published and that the site and
 #    the health audit are fine; alert if not.
 [triggers]
-crons = ["*/15 8-15 * * 1-5", "*/15 16-21 * * 1-5", "0 22 * * *"]
+crons = ["*/15 8-15 * * 1-5", "5,20,35,50 8-15 * * 1-5", "0,30 16-20 * * 1-5", "0 22 * * *"]
 
 [vars]
 GITHUB_REPO = "RedaAlami02/myInterpreter"

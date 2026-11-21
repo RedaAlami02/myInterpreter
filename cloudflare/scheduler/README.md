@@ -9,8 +9,9 @@ Actions, where the preflight makes repeated dispatches harmless.
 | Trigger (UTC) | Action |
 |---|---|
 | `*/15 8-15 * * 1-5` | Dispatches `exchange-orderbook-publication.yml` with `force=false`, so the capture still refuses to run outside the session window. |
-| `*/15 16-21 * * 1-5` | Dispatches `exchange-price-publication.yml`. The workflow's preflight publishes the first time it finds no close for the day and exits immediately afterwards. |
-| `0 22 * * *` | Checks that a successful price run started after 16:00 today (weekdays), that the newest health audit did not fail, and that the site answers; sends a webhook alert when anything is wrong. |
+| `5,20,35,50 8-15 * * 1-5` | Dispatches `exchange-price-publication.yml` during the session. The preflight decides: refresh quotes only while the session is open, publish the full close once the local clock passes 15:45. |
+| `0,30 16-20 * * 1-5` | Same dispatch after the session, as a safety net for a missed close. Every run is a no-op once the day's `data` row exists. |
+| `0 22 * * *` | Checks that a successful price run started after 15:00 today (weekdays), that the newest health audit did not fail, and that the site answers; sends a webhook alert when anything is wrong. |
 
 ## One-time setup
 
