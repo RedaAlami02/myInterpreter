@@ -160,3 +160,16 @@ rollback runbook are in `docs/CLOUD_RECONCILIATION_DECISIONS_20261116.md`.
 - The `scrapping/` directory is gitignored.
 - Gradle cache was removed from `/media/redachen/windows/gradle_home/` — do not recreate locally.
 - **statistics.php** FIFO P&L not yet verified with real migrated data — test before relying on it.
+
+## Agent tooling (installed, verified 2026-11-21)
+
+These live on the machine, not in the repo. Try them before hand-rolling the same work.
+
+| Tool | What it gives | State |
+|---|---|---|
+| **PHPStan** (`~/.local/bin/phpstan`, config `phpstan.neon`) | Level-2 static analysis of `core/` and `handlers/`. Existing findings are baselined, so `phpstan analyse -c phpstan.neon` reports only **new** defects. | Works. Use it after touching PHP. |
+| **intelephense + `php-lsp` plugin** | PHP symbol lookup, references, hover and live diagnostics through the LSP tool. | Works after `npm install -g --prefix ~/.local intelephense`. Diagnostics are noisy on one line: it flags unused `catch (Throwable $error)` bindings. |
+| **`perf-profiler` / `backend-performance-review` plugins** | Lighthouse/Core Web Vitals workflow; evidence-first backend performance review methodology. | Methodology usable as-is. Lighthouse needs a local install, and PageSpeed Insights needs a Google API key — without one the shared daily quota is already exhausted. Neither sees pages behind the login. |
+
+Measured page stages are in `docs/performance/`; `?timing=1` on `portfolio.php`
+or `screener.php` prints the current server-side breakdown.
