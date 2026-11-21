@@ -50,6 +50,7 @@ RUNTIME_DEPENDENCIES = {
     "assets/css/market_preview.css", "assets/js/market_preview.js",
     "assets/js/holdings_sort.js",
     "handlers/supabase_auth.php", "handlers/recovered_history.php",
+    "handlers/live_quotes.php", "assets/js/live.js",
 } | RUNTIME_DATA_FILES
 
 # Gitignored, required at runtime, and therefore easy to forget by hand.

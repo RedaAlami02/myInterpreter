@@ -337,7 +337,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
       <!-- Summary chips -->
       <div class="pf-summary stagger-children">
         <div class="stat-chip">
-          <span class="stat-chip__value mono t-cyan"><?= $totalCurrentVal !== null ? number_format($totalCurrentVal,2) : '—' ?></span>
+          <span class="stat-chip__value mono t-cyan" data-live-total="value"><?= $totalCurrentVal !== null ? number_format($totalCurrentVal,2) : '—' ?></span>
           <span class="stat-chip__label"><?= te('Valeur actuelle (MAD)') ?></span>
         </div>
         <div class="stat-chip">
@@ -345,7 +345,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
           <span class="stat-chip__label"><?= te('Montant investi (MAD)') ?></span>
         </div>
         <div class="stat-chip">
-          <span class="stat-chip__value mono <?= $diffDisplay === null ? '' : ($diffDisplay >= 0 ? 't-emerald' : 't-rose') ?>">
+          <span class="stat-chip__value mono <?= $diffDisplay === null ? '' : ($diffDisplay >= 0 ? 't-emerald' : 't-rose') ?>" data-live-total="pnl">
             <?= $diffDisplay !== null ? ($diffDisplay >= 0 ? '+' : '') . number_format($diffDisplay, 2) : '—' ?>
           </span>
           <span class="stat-chip__label"><?= te('Gain / Perte') ?></span>
@@ -362,6 +362,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
         <?php else: ?>
           <?= te('Total indisponible : cours manquants ou positions incomplètes.') ?>
         <?php endif; ?>
+        <?php if ($holdingsComplete): ?> · <?= te('actualisé à') ?> <span class="mono" data-live-stamp>—</span><?php endif; ?>
       </p>
 
       <?php require __DIR__ . '/core/holdings_table.php'; ?>
@@ -856,5 +857,19 @@ new Chart(document.getElementById('chartPnl'), {
 <?php app_timing_mark('rendered'); ?>
 
 </script>
+<?php
+$liveHoldings = [];
+foreach ($holdingsDocs as $holding) {
+    $liveHoldings[] = ['name' => (string) $holding['c_name'], 'qty' => (float) ($holding['quantity'] ?? 0)];
+}
+?>
+<script id="live-config" type="application/json"><?= json_encode([
+    'endpoint' => BASE_URL . '/handlers/live_quotes.php',
+    'interval' => 60000,
+    'stamp' => $referenceTotals['day_latest'] ?? null,
+    'invested' => $referenceTotals['invested'] ?? null,
+    'holdings' => $liveHoldings,
+], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?></script>
+<script src="assets/js/live.js?v=1"></script>
 </body>
 </html>

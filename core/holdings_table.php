@@ -71,7 +71,7 @@
               <td class="label-cell"><a href="infoAction.php?name=<?= urlencode($h['c_name']) ?>" class="t-cyan"><?= htmlspecialchars($h['c_name']) ?></a></td>
               <td class="num mono"><?= (int)$h['quantity'] ?></td>
               <td class="num mono"><?= number_format($buy, 2) ?><?php if ($h['quantity'] > 1): ?> <span class="muted">(<?= number_format($buy / $h['quantity'], 2) ?>)</span><?php endif; ?></td>
-              <td class="num mono"><?= $cur > 0 ? number_format($cur, 2) : '<span class="muted">—</span>' ?><?php if ($cur > 0 && $h['quantity'] > 1): ?> <span class="muted">(<?= number_format($cur / $h['quantity'], 2) ?>)</span><?php endif; ?>
+              <td class="num mono"><span data-live-value="<?= htmlspecialchars($h['c_name'], ENT_QUOTES) ?>"><?= $cur > 0 ? number_format($cur, 2) : '—' ?></span><?php if ($cur > 0 && $h['quantity'] > 1): ?> <span class="muted">(<span data-live-price="<?= htmlspecialchars($h['c_name'], ENT_QUOTES) ?>"><?= number_format($cur / $h['quantity'], 2) ?></span>)</span><?php endif; ?>
                 <?php if (!empty($recordedPriceMap[$h['c_name']]['day'])): ?><small class="muted"><?= htmlspecialchars($recordedPriceMap[$h['c_name']]['day']) ?> UTC</small><?php endif; ?>
               </td>
               <td class="num mono <?= $cls ?>"><?php if ($cur > 0): ?><?= ($pnl>=0?'+':'') . number_format($pnl,2) ?><?php if ($pct !== null): ?> <span class="muted">(<?= ($pct>=0?'+':'') . number_format($pct,2) ?>%)</span><?php endif; ?><?php else: ?><span class="muted">—</span><?php endif; ?></td>
