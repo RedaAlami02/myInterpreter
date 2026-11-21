@@ -76,7 +76,7 @@ function aw_count_docs(string $collectionId, array $queries = [], ?string $sessi
 }
 
 /**
- * Read shared market batches concurrently; private reads retain their user scope.
+ * Read a batch concurrently, shared or private, one token per batch.
  * $requests: [ 'key' => ['collection', [queries], $session|null], ... ]
  * Returns:   [ 'key' => [documents], ... ]
  */
@@ -91,6 +91,25 @@ function aw_multi_list_docs(array $requests): array
             $result += sb_market()->listDocumentsBatch($batch);
         }
         return $result;
+    }
+    // All-private sets can also travel together: every request carries the
+    // caller's own token, so RLS decides each row exactly as it would alone.
+    // This is the portfolio's holdings + history pair, which ran back to back
+    // and cost about two seconds when the session memo was cold.
+    $private = array_filter($requests, static fn($request) => in_array($request[0],
+        ['achats', 'ventes', 'portefeuille', 'benefits'], true));
+    if (count($private) === count($requests)) {
+        // One token may serve the whole batch, and only when every caller
+        // supplied the same one.
+        $sessions = array_values(array_unique(array_filter(array_column($requests, 2), 'is_string')));
+        $token = count($sessions) === 0 ? aw_session() : (count($sessions) === 1 ? $sessions[0] : null);
+        if (is_string($token) && $token !== '') {
+            $result = [];
+            foreach (array_chunk($requests, 8, true) as $batch) {
+                $result += sb_app()->listDocumentsBatch($batch, $token);
+            }
+            return $result;
+        }
     }
     $results = [];
     foreach ($requests as $key => [$collection, $queries, $session]) {

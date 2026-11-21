@@ -209,7 +209,114 @@ final class SupabaseAppClient
         return $result;
     }
 
-    /** RLS enforces ownership even if the caller omits a user_id filter. */    public function listDocuments(string $collection, array $queries, string $accessToken): array
+    /** RLS enforces ownership even if the caller omits a user_id filter. */
+    public function listDocuments(string $collection, array $queries, string $accessToken): array
+    {
+        $params = $this->privateQueryParameters($collection, $queries);
+        $this->ensurePortfolioRecovery($accessToken);
+        $rows = $this->request('GET', '/rest/v1/' . $collection . '?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986), [], $accessToken);
+        return $this->normalizePrivateRows($rows);
+    }
+
+    /**
+     * Independent private reads in one round trip. Every request carries the
+     * caller's own token, so RLS applies exactly as it does one at a time; this
+     * only removes the wait between them.
+     *
+     * @param array<string, array{0: string, 1: array}> $requests key => [collection, queries]
+     * @return array<string, array>
+     */
+    public function listDocumentsBatch(array $requests, string $accessToken): array
+    {
+        if (!$requests) return [];
+        if (count($requests) > 8) throw new InvalidArgumentException('Private batch is too large.');
+        if (!preg_match('/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/D', $accessToken)) {
+            throw new InvalidArgumentException('Invalid user session token.');
+        }
+        $urls = [];
+        foreach ($requests as $key => [$collection, $queries]) {
+            $params = $this->privateQueryParameters($collection, $queries);
+            $urls[$key] = $this->baseUrl . '/rest/v1/' . $collection . '?'
+                . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+        }
+        $this->ensurePortfolioRecovery($accessToken);
+
+        $parallel = $this->transport === null;
+        foreach (['curl_multi_init', 'curl_multi_add_handle', 'curl_multi_exec',
+                  'curl_multi_select', 'curl_multi_getcontent', 'curl_multi_remove_handle',
+                  'curl_multi_close'] as $function) {
+            $parallel = $parallel && function_exists($function);
+        }
+        if (!$parallel) {
+            $result = [];
+            foreach ($requests as $key => [$collection, $queries]) {
+                $result[$key] = $this->listDocuments($collection, $queries, $accessToken);
+            }
+            return $result;
+        }
+
+        $headers = ['apikey: ' . $this->publishableKey, 'Accept: application/json',
+                    'Authorization: Bearer ' . $accessToken];
+        $multi = curl_multi_init();
+        $handles = [];
+        try {
+            foreach ($urls as $key => $url) {
+                $handle = curl_init($url);
+                curl_setopt_array($handle, [
+                    CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => false,
+                    CURLOPT_HTTPHEADER => $headers, CURLOPT_CONNECTTIMEOUT => 8,
+                    CURLOPT_TIMEOUT => 20, CURLOPT_SSL_VERIFYPEER => true,
+                    CURLOPT_SSL_VERIFYHOST => 2,
+                ]);
+                $handles[$key] = $handle;
+                curl_multi_add_handle($multi, $handle);
+            }
+            do {
+                $status = curl_multi_exec($multi, $running);
+                if ($status !== CURLM_OK) throw new RuntimeException('Supabase batch request failed.');
+                if ($running && curl_multi_select($multi, 0.2) === -1) usleep(1000);
+            } while ($running > 0);
+            $result = [];
+            foreach ($handles as $key => $handle) {
+                $code = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
+                $body = (string) curl_multi_getcontent($handle);
+                curl_multi_remove_handle($multi, $handle);
+                curl_close($handle);
+                if ($code < 200 || $code >= 300) throw new SupabaseRequestException($code);
+                try {
+                    $rows = json_decode($body ?: 'null', true, 512, JSON_THROW_ON_ERROR);
+                } catch (JsonException $error) {
+                    throw new RuntimeException('Invalid Supabase response.');
+                }
+                $result[$key] = $this->normalizePrivateRows($rows);
+            }
+            return $result;
+        } finally {
+            foreach ($handles as $handle) {
+                @curl_multi_remove_handle($multi, $handle);
+                @curl_close($handle);
+            }
+            curl_multi_close($multi);
+        }
+    }
+
+    /**
+     * Rows as the pages expect them: a list, every record an object with an id,
+     * exposed under the legacy $id key.
+     */
+    private function normalizePrivateRows(mixed $rows): array
+    {
+        if (!is_array($rows) || !array_is_list($rows)) throw new RuntimeException('Invalid private data response.');
+        foreach ($rows as &$row) {
+            if (!is_array($row) || !is_string($row['id'] ?? null)) throw new RuntimeException('Invalid private record.');
+            $row['$id'] = $row['id'];
+            unset($row['id']);
+        }
+        unset($row);
+        return $rows;
+    }
+
+    private function privateQueryParameters(string $collection, array $queries): array
     {
         $fields = match ($collection) {
             'achats' => ['id','user_id','c_name','number','prix_achat','date','purchase_day','purchase_day_basis'],
@@ -218,7 +325,6 @@ final class SupabaseAppClient
             'benefits' => ['id','user_id','date','value'],
             default => throw new InvalidArgumentException('Unsupported private collection.'),
         };
-        $this->ensurePortfolioRecovery($accessToken);
         $params = ['select' => implode(',', $fields), 'limit' => 100, 'offset' => 0];
         $orders = [];
         foreach ($queries as $encoded) {
@@ -246,15 +352,7 @@ final class SupabaseAppClient
         }
         if (!isset($orders['id'])) $orders['id'] = 'id.desc';
         $params['order'] = implode(',', $orders);
-        $rows = $this->request('GET', '/rest/v1/' . $collection . '?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986), [], $accessToken);
-        if (!is_array($rows) || !array_is_list($rows)) throw new RuntimeException('Invalid private data response.');
-        foreach ($rows as &$row) {
-            if (!is_array($row) || !is_string($row['id'] ?? null)) throw new RuntimeException('Invalid private record.');
-            $row['$id'] = $row['id'];
-            unset($row['id']);
-        }
-        unset($row);
-        return $rows;
+        return $params;
     }
 
     private function ensurePortfolioRecovery(string $accessToken): void

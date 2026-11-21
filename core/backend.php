@@ -87,14 +87,23 @@ require_once __DIR__ . '/supabase_session.php';
  */
 function app_cache(string $key, int $ttl, callable $producer, bool $bypass = false): mixed {
     $entry = $_SESSION['app_cache'][$key] ?? null;
+    $stats = $GLOBALS['app_cache_stats'] ?? [];
     if (!$bypass && is_array($entry) && array_key_exists('value', $entry)
         && ($entry['at'] ?? 0) > time() - $ttl) {
-        // Surfaced by ?timing=1 so a slow stage can be told apart from a memo
-        // that is not being reused.
-        $GLOBALS['app_cache_stats'] = ($GLOBALS['app_cache_stats'] ?? '') . '+';
+        // Surfaced by ?timing=1: the age of the entry actually reused, so a
+        // slow stage can be told apart from one that was never stored.
+        $stats[] = '+' . (time() - (int) ($entry['at'] ?? 0)) . 's';
+        $GLOBALS['app_cache_stats'] = $stats;
         return $entry['value'];
     }
-    $GLOBALS['app_cache_stats'] = ($GLOBALS['app_cache_stats'] ?? '') . '!';
+    if ($bypass) {
+        $stats[] = '=post';
+    } elseif (!is_array($entry)) {
+        $stats[] = '-none';
+    } else {
+        $stats[] = '!' . (time() - (int) ($entry['at'] ?? 0)) . 's/' . $ttl . 's';
+    }
+    $GLOBALS['app_cache_stats'] = $stats;
     $value = $producer();
     $_SESSION['app_cache'][$key] = ['at' => time(), 'value' => $value];
     return $value;
@@ -127,10 +136,11 @@ if (($_GET['timing'] ?? '') === '1') {
         }
         $first = reset($marks);
         $last  = end($marks);
-        // "+" is a memo hit, "!" a miss that ran its producer, in call order.
-        $cache = (string) ($GLOBALS['app_cache_stats'] ?? '');
+        // In call order: "+Ns" a hit aged N seconds, "-none" no entry at all,
+        // "!Ns/Ts" an entry older than its T, "=post" a write worth skipping.
+        $cache = $GLOBALS['app_cache_stats'] ?? [];
         echo "\n<!-- timing: " . implode(' ', $parts)
             . ' total=' . (int) round(($last - $first) * 1000) . "ms"
-            . ($cache !== '' ? ' cache=' . $cache : '') . " -->\n";
+            . ($cache !== [] ? ' cache=' . implode(',', $cache) : '') . " -->\n";
     });
 }
