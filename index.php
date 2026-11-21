@@ -786,7 +786,7 @@ $dateLabel = t($_days[(int)$nowParis->format('w')]) . ' ' . $nowParis->format('j
 </div>
 
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
-<script src="assets/js/app.js?v=2"></script>
+<script src="assets/js/app.js?v=3"></script>
 <script>
 // MASI sparkline with period selector + dual range slider
 (function () {

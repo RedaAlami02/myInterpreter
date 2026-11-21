@@ -343,3 +343,37 @@ body.workspace { background: var(--bg); color: var(--text); font-family: var(--f
   html { scroll-behavior: auto; }
   .workspace *, .workspace *::before, .workspace *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ── Navigation feedback ──────────────────────────────────────
+   The server now answers in a few hundred milliseconds, which is fast
+   enough that a blank stall feels like a fault and slow enough that it
+   needs acknowledgement. A slim bar appears on the first click and a
+   cross-document transition carries the old page out, so the wait reads
+   as movement rather than as a freeze. */
+#nav-progress {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  height: 2px;
+  z-index: 9999;
+  pointer-events: none;
+  transform: scaleX(0);
+  transform-origin: left center;
+  opacity: 0;
+  background: linear-gradient(90deg, #22d3ee, #8b5cf6);
+  transition: transform .35s cubic-bezier(.2, .8, .3, 1), opacity .2s ease;
+}
+[dir="rtl"] #nav-progress { transform-origin: right center; }
+#nav-progress.is-active { opacity: 1; transform: scaleX(.78); }
+#nav-progress.is-done { opacity: 0; transform: scaleX(1); transition: transform .2s ease-out, opacity .2s ease .08s; }
+body.is-navigating { cursor: progress; }
+
+/* Cross-document view transitions where the browser supports them: the old
+   page fades out under the new one instead of cutting to white. */
+@view-transition { navigation: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  #nav-progress { transition: none; }
+  #nav-progress.is-active { transform: scaleX(.78); }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+}

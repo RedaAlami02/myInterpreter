@@ -188,3 +188,56 @@ document.addEventListener('DOMContentLoaded', () => {
 function fmtNum(n, dec = 2) {
   return Number(n).toLocaleString('fr-MA', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
+
+/* ── Navigation feedback ─────────────────────────────────── */
+/* Acknowledge a click immediately: the browser shows nothing until the next
+   document arrives, and on a shared host that gap reads as a freeze. The bar
+   is deliberately not a progress estimate — it never claims to be complete. */
+(function () {
+  if (!document.body) return;
+  var bar = document.createElement('div');
+  bar.id = 'nav-progress';
+  bar.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(bar);
+
+  var pending = false;
+  function start() {
+    if (pending) return;
+    pending = true;
+    bar.classList.remove('is-done');
+    bar.classList.add('is-active');
+    document.body.classList.add('is-navigating');
+  }
+  function finish() {
+    pending = false;
+    document.body.classList.remove('is-navigating');
+    bar.classList.remove('is-active');
+    bar.classList.add('is-done');
+    // Leave the element reusable: a same-page link must be able to start again.
+    setTimeout(function () { bar.classList.remove('is-done'); }, 400);
+  }
+
+  document.addEventListener('click', function (event) {
+    if (event.defaultPrevented || event.button !== 0
+        || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    var link = event.target.closest ? event.target.closest('a[href]') : null;
+    if (!link) return;
+    var target = link.getAttribute('target');
+    if (target && target !== '_self') return;
+    var href = link.getAttribute('href') || '';
+    if (href.charAt(0) === '#' || link.hasAttribute('download')) return;
+    var url;
+    try { url = new URL(link.href, location.href); } catch (e) { return; }
+    if (url.origin !== location.origin) return;
+    if (url.pathname === location.pathname && url.search === location.search) return;
+    start();
+  }, true);
+
+  document.addEventListener('submit', function (event) {
+    if (!event.defaultPrevented) start();
+  }, true);
+
+  // Back/forward restore must clear a bar left running by the previous page.
+  window.addEventListener('pageshow', finish);
+  window.addEventListener('pagehide', finish);
+})();

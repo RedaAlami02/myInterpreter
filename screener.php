@@ -407,7 +407,7 @@ $noPER          = $totalCompanies - count($rated);
   </main>
 </div>
 
-<script src="assets/js/app.js?v=2"></script>
+<script src="assets/js/app.js?v=3"></script>
 <?php if (!$dbError): ?>
 <script>
 // ── State ────────────────────────────────────────────────

@@ -608,7 +608,7 @@ $activeTab = $_GET['tab'] ?? 'portfolio';
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
-<script src="assets/js/app.js?v=2"></script>
+<script src="assets/js/app.js?v=3"></script>
 <script src="assets/js/holdings_sort.js?v=1"></script>
 <script>
 /* ── Tab switching ─────────────────────────────────────── */

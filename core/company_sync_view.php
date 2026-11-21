@@ -9,7 +9,7 @@ $statusLabels=['UPDATED'=>'Compléments appliqués','UNCHANGED'=>'Déjà présen
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= te('Compléter les fiches sociétés') ?> | myInterpreter</title>
 <link href="../assets/css/global.css?v=5" rel="stylesheet">
-<link href="../assets/css/workspace.css?v=3" rel="stylesheet">
+<link href="../assets/css/workspace.css?v=4" rel="stylesheet">
 <link href="../assets/css/company_sync.css?v=20261116" rel="stylesheet">
 <script src="../assets/js/theme.js?v=3"></script>
 </head><body><main class="sync-shell">
