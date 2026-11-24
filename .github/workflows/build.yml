@@ -49,12 +49,11 @@ jobs:
           SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           MYINTERPRETER_MOBILE_AUTH_LINKS: 'true'
-          # The replacement feed exists and is tested against the app parser
-          # (read_public_application_feed, contract test in
-          # test/public_feed_contract_test.dart), but it has not been run on a
-          # device. Flip to 'true' once someone has looked at the Marché tab;
-          # the build then shows live quotes and ratios instead of the screener.
-          MYINTERPRETER_MARKET_PREVIEW: 'false'
+          # The Marché tab reads read_public_application_feed: live quotes,
+          # ratios and their rating chips, verified on a Galaxy A32 on
+          # 2026-11-24. The screener remains available as the fallback when the
+          # feed is unreachable.
+          MYINTERPRETER_MARKET_PREVIEW: 'true'
         run: python3 tools/write_flutter_build_config.py --from-env --backend "$MYINTERPRETER_BACKEND" --output "$RUNNER_TEMP/myinterpreter-backend.json"
 
       - name: Build release APK
