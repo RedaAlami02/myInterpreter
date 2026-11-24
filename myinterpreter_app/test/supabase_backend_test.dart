@@ -160,74 +160,65 @@ void main() {
                 ).readAsStringSync(),
               )
               as Map<String, dynamic>;
-      for (final enabled in [false, true]) {
-        backend = SupabaseBackend(
-          client,
-          storage,
-          recurringMarketFeed: enabled,
+      backend = SupabaseBackend(client, storage);
+      for (final scenario in fixture['scenarios'] as List) {
+        calls.clear();
+        respond = (_) async =>
+            jsonResponse(jsonEncode(fixture['references']), 200);
+        final result = await backend.listDocuments(
+          collectionId: 'latest_prices',
         );
-        for (final scenario in fixture['scenarios'] as List) {
-          calls.clear();
-          respond = (_) async =>
-              jsonResponse(jsonEncode(fixture['references']), 200);
-          final result = await backend.listDocuments(
-            collectionId: 'latest_prices',
-          );
-          expect(
-            calls.single.url.path,
-            '/rest/v1/rpc/read_latest_price_references_v1',
-          );
-          final now = DateTime.parse(scenario['now'] as String);
-          final rows = <Map<String, dynamic>>[
-            {
-              'c_name': 'SGTM',
-              '_market_display': {
-                'asset_key': 'company:fixture',
-                'available': true,
-                'price_basis': 'REPORTED_QUOTE',
-                'reported_day': scenario['day'],
-                'price_decimal': '526',
-                'captured_at': scenario['captured'],
-                'expires_at': scenario['expires'],
-              },
+        expect(
+          calls.single.url.path,
+          '/rest/v1/rpc/read_latest_price_references_v1',
+        );
+        final now = DateTime.parse(scenario['now'] as String);
+        final rows = <Map<String, dynamic>>[
+          {
+            'c_name': 'SGTM',
+            '_market_display': {
+              'asset_key': 'company:fixture',
+              'available': true,
+              'price_basis': 'REPORTED_QUOTE',
+              'reported_day': scenario['day'],
+              'price_decimal': '526',
+              'captured_at': scenario['captured'],
+              'expires_at': scenario['expires'],
             },
-          ];
-          final prices = portfolioDisplayPrices(
-            result.documents.map((d) => d.data).toList(),
-            rows,
-            now: now,
-          );
-          expect(
-            prices['SGTM']!.price,
-            scenario['expected'],
-            reason: scenario['name'] as String,
-          );
-          expect(prices['SGTM']!.price, isNot(580));
-        }
+          },
+        ];
+        final prices = portfolioDisplayPrices(
+          result.documents.map((d) => d.data).toList(),
+          rows,
+          now: now,
+        );
+        expect(
+          prices['SGTM']!.price,
+          scenario['expected'],
+          reason: scenario['name'] as String,
+        );
+        expect(prices['SGTM']!.price, isNot(580));
       }
     },
   );
   test(
-    'authenticated display selects the explicit recurring reader without financial writes',
+    'authenticated display reads the public application feed without financial writes',
     () async {
       await login();
-      for (final recurring in [false, true]) {
-        backend = SupabaseBackend(
-          client,
-          storage,
-          marketDisplayEnabled: true,
-          recurringMarketFeed: recurring,
-        );
-        calls.clear();
-        respond = (_) async => jsonResponse('{}', 200);
-        await backend.readMarketDisplay();
-        expect(calls, hasLength(1));
-        expect(
-          calls.single.url.path,
-          '/rest/v1/rpc/read_shadow_application_feed${recurring ? '_recurring_v1' : ''}',
-        );
-        expect(jsonDecode(calls.single.body), isNull);
-      }
+      backend = SupabaseBackend(
+        client,
+        storage,
+        marketDisplayEnabled: true,
+      );
+      calls.clear();
+      respond = (_) async => jsonResponse('{}', 200);
+      await backend.readMarketDisplay();
+      expect(calls, hasLength(1));
+      expect(
+        calls.single.url.path,
+        '/rest/v1/rpc/read_public_application_feed',
+      );
+      expect(jsonDecode(calls.single.body), isNull);
     },
   );
 

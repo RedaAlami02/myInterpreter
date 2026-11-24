@@ -25,13 +25,6 @@ class FlutterBuildConfigTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 module.public_config({**config,'MYINTERPRETER_MARKET_PREVIEW':setting})
 
-    def test_recurring_reader_requires_strict_explicit_flag(self):
-        config={'SUPABASE_PROJECT_URL':'https://abcdefghijklmnopqrst.supabase.co',
-                'SUPABASE_PUBLISHABLE_KEY':'sb_publishable_fixture'}
-        self.assertNotIn('MYINTERPRETER_RECURRING_FEED',module.public_config(config))
-        self.assertEqual(module.public_config({**config,'MYINTERPRETER_RECURRING_FEED':'true'})['MYINTERPRETER_RECURRING_FEED'],'true')
-        with self.assertRaises(ValueError):module.public_config({**config,'MYINTERPRETER_RECURRING_FEED':'TRUE'})
-
     def test_mobile_callbacks_are_explicit_build_configuration(self):
         config = {'SUPABASE_PROJECT_URL':'https://abcdefghijklmnopqrst.supabase.co',
                   'SUPABASE_PUBLISHABLE_KEY':'sb_publishable_fixture'}

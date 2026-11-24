@@ -55,7 +55,6 @@ jobs:
           # device. Flip to 'true' once someone has looked at the Marché tab;
           # the build then shows live quotes and ratios instead of the screener.
           MYINTERPRETER_MARKET_PREVIEW: 'false'
-          MYINTERPRETER_RECURRING_FEED: 'false'
         run: python3 tools/write_flutter_build_config.py --from-env --backend "$MYINTERPRETER_BACKEND" --output "$RUNNER_TEMP/myinterpreter-backend.json"
 
       - name: Build release APK

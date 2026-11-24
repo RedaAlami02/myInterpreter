@@ -34,13 +34,11 @@ class SupabaseBackend
   Future<void>? _claimInFlight;
   @override
   final bool marketDisplayEnabled;
-  final bool recurringMarketFeed;
   SupabaseBackend(
     this.client,
     this.sessionStorage, {
     bool emailLinksEnabled = false,
     this.marketDisplayEnabled = false,
-    this.recurringMarketFeed = false,
     this.portfolioRecoveryEnabled = false,
     DateTime Function()? clock,
   }) : emailAuth = MobileEmailAuth(
@@ -60,11 +58,7 @@ class SupabaseBackend
       throw const BackendFailure('Please sign in to view market data.');
     }
     try {
-      return await client.rpc(
-        recurringMarketFeed
-            ? 'read_shadow_application_feed_recurring_v1'
-            : 'read_shadow_application_feed',
-      );
+      return await client.rpc('read_public_application_feed');
     } catch (_) {
       throw const BackendFailure(
         'Les cours récents sont indisponibles. Réessayez plus tard.',
