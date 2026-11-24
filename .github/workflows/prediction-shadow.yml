@@ -33,7 +33,6 @@ jobs:
       PYTHONUNBUFFERED: "1"
       SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      MPLCONFIGDIR: ${{ runner.temp }}/mpl
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -81,7 +80,8 @@ jobs:
              && [ "${{ github.event.inputs.apply }}" != "true" ]; then
             mode="--dry-run"
           fi
-          python -m research.prediction_model.src.run_supabase_forward "$mode"
+          MPLCONFIGDIR="$RUNNER_TEMP/mpl" \
+            python -m research.prediction_model.src.run_supabase_forward "$mode"
 
       - name: Commit the ledgers
         if: >-
