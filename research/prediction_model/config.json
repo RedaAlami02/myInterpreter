@@ -1,0 +1,17 @@
+{
+  "seed": 42,
+  "horizons": [5, 20, 60],
+  "primary_horizon": 20,
+  "minimum_history_days": 120,
+  "maximum_stale_run": 5,
+  "maximum_unknown_volume_stale_fraction_20d": 0.80,
+  "minimum_known_volume_trading_frequency_20d": 0.20,
+  "corporate_action_return_threshold": 0.20,
+  "stable_excess_return_threshold": 0.02,
+  "minimum_training_dates": 300,
+  "validation_dates": 84,
+  "final_holdout_dates": 126,
+  "top_k": 5,
+  "transaction_cost_bps_one_way": 50,
+  "transaction_cost_scenarios_bps_one_way": [25, 50, 100]
+}

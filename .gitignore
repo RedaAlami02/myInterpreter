@@ -149,3 +149,41 @@ API_KEYS.md
 
 # Wrangler local build output
 cloudflare/scheduler/.wrangler/
+
+# The shadow prediction runner is the only part of research/ that ships:
+# the frozen models, the code that scores them, and the append-only ledger.
+# Exports, evidence, raw data and private provider configuration stay untracked.
+!/research/
+/research/*
+!/research/prediction_model/
+/research/prediction_model/*
+!/research/prediction_model/src/
+/research/prediction_model/src/*
+!/research/prediction_model/src/__init__.py
+!/research/prediction_model/src/common.py
+!/research/prediction_model/src/daily_panel.py
+!/research/prediction_model/src/features_market.py
+!/research/prediction_model/src/labels.py
+!/research/prediction_model/src/paper_trading.py
+!/research/prediction_model/src/run_supabase_forward.py
+!/research/prediction_model/src/stock_models.py
+!/research/prediction_model/src/supabase_source.py
+!/research/prediction_model/src/tradability.py
+!/research/prediction_model/src/v2_models.py
+!/research/prediction_model/src/v3_5_execution.py
+!/research/prediction_model/config.json
+!/research/prediction_model/config_v3.json
+!/research/prediction_model/requirements-v2.lock.txt
+!/research/prediction_model/models/
+/research/prediction_model/models/*
+!/research/prediction_model/models/v3/
+/research/prediction_model/models/v3/*
+!/research/prediction_model/models/v3/xgboost__percentile__rolling_252__5d.joblib
+!/research/prediction_model/models/v3/xgboost__percentile__rolling_252__20d.joblib
+!/research/prediction_model/models/v3/xgboost__dedicated_rank__expanding__5d.joblib
+!/research/prediction_model/models/v3/catboost__raw__expanding__5d.joblib
+!/research/prediction_model/data/
+/research/prediction_model/data/*
+!/research/prediction_model/data/automation/
+/research/prediction_model/data/automation/*
+!/research/prediction_model/data/automation/supabase_forward_*.csv

@@ -1,0 +1,15 @@
+# CPU-only V2 environment, installed in research/prediction_model/.venv-v2
+numpy==2.4.6
+pandas==3.0.3
+scipy==1.17.1
+scikit-learn==1.8.0
+matplotlib==3.10.9
+pyarrow==24.0.0
+joblib==1.5.3
+lightgbm==4.7.0
+xgboost==3.4.1
+catboost==1.2.10
+duckdb==1.5.5
+pytest==9.1.1
+pluggy==1.6.0
+iniconfig==2.3.0

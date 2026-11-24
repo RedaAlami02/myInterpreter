@@ -1,0 +1,52 @@
+{
+  "seed": 42,
+  "horizons": [5, 20],
+  "top_k_values": [3, 5, 10],
+  "cost_bps_one_way": [25, 50, 100, 150],
+  "primary_horizon": 5,
+  "models": {
+    "iterations": 180,
+    "learning_rate": 0.03,
+    "max_depth": 4,
+    "num_leaves": 15,
+    "minimum_leaf_samples": 40,
+    "l2_regularization": 2.0,
+    "cpu_threads": 1
+  },
+  "catboost_ranking_iteration_cap": 60,
+  "finalists": [
+    {"model": "xgboost", "target_formulation": "percentile", "training_strategy": "rolling_252"},
+    {"model": "catboost", "target_formulation": "raw", "training_strategy": "expanding"},
+    {"model": "xgboost", "target_formulation": "dedicated_rank", "training_strategy": "expanding"},
+    {"model": "hist_gradient_boosting", "target_formulation": "raw", "training_strategy": "expanding"}
+  ],
+  "tradability": {
+    "minimum_history": 120,
+    "avoid_stale_run": 6,
+    "caution_stale_run": 2,
+    "caution_stale_fraction_20d": 0.25,
+    "avoid_unknown_volume_stale_fraction_20d": 0.80,
+    "minimum_known_trading_frequency": 0.20,
+    "caution_days_since_trade": 5,
+    "corporate_action_lookback_dates": 20,
+    "maximum_feature_missing_fraction": 0.25
+  },
+  "turnover_methods": [
+    {"name": "daily_top5", "kind": "rebalance", "interval": 1},
+    {"name": "rank_buffer_8", "kind": "rank_buffer", "buffer": 8},
+    {"name": "rank_buffer_10", "kind": "rank_buffer", "buffer": 10},
+    {"name": "rebalance_2", "kind": "rebalance", "interval": 2},
+    {"name": "rebalance_3", "kind": "rebalance", "interval": 3},
+    {"name": "rebalance_5", "kind": "rebalance", "interval": 5},
+    {"name": "smooth_3", "kind": "smoothing", "window": 3}
+  ],
+  "old_holdout_policy": "historical_seen_benchmark_only",
+  "score_semantics": "cross-sectional relative score, not a success probability",
+  "frozen_artifacts": {
+    "reports/V1_REPORT.md": "d963efee7f9db499edcd7d42c63ddf2ab47f154075b6ba096c98111367f7277f",
+    "reports/v2/V2_REPORT.md": "f539fe520de70064d336b7f89963c8afe25a40d6a2349e3fa1bb145341f59aca",
+    "reports/v2/model_summary.csv": "aa857d4451a62d1084024d0854cb31b6d21422ff4c328992cca6d010ab9a33ff",
+    "data/processed/v2/walk_forward_predictions.parquet": "92b8fa284a3ceb6a06bfd37c8311e098055ae11d73c2c10329f6a5afd13e6468",
+    "models/v2/experiment.json": "c0ed74d615e7ad609be4ec4d8e7228133957a08dca7c5ade5bbe70420cdc93f2"
+  }
+}

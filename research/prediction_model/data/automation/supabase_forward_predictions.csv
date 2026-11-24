@@ -1,0 +1,1 @@
+record_id,prediction_market_date,prediction_generated_at,data_available_through,model_hash,model_hashes,data_hash,symbol,company,score_5d,signal_rank_5d,topk_rank_5d,actionable_rank_5d,score_20d,signal_rank_20d,model_agreement_5d,tradability_class,trade_evidence_status,execution_policy,intended_order,confidence,source

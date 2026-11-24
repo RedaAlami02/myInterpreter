@@ -1,0 +1,100 @@
+name: Prediction shadow
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Append to the shadow ledgers (otherwise dry-run)
+        type: boolean
+        default: true
+  schedule:
+    # Casablanca is UTC+0. The session closes at 15:30, but the stored close is
+    # still rewritten for a while afterwards (observed final writes at 20:39 and
+    # 20:55), so scoring waits past the publication window and the runner also
+    # refuses a session whose row is younger than 60 minutes. These slots are
+    # cheap no-ops unless a session date is missing from the ledger.
+    - cron: "15 21 * * 1-5"
+    - cron: "45 22 * * 1-5"
+    # Next-morning catch-up for a session that never landed overnight.
+    - cron: "20 7 * * 1-6"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prediction-shadow
+  cancel-in-progress: false
+
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONUNBUFFERED: "1"
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MPLCONFIGDIR: ${{ runner.temp }}/mpl
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: research/prediction_model/requirements-v2.lock.txt
+
+      - name: Install the frozen research environment
+        run: |
+          python -m pip install --upgrade pip
+          # Same pins as the local .venv-v2; all have cp312 wheels.
+          grep -v '^#' research/prediction_model/requirements-v2.lock.txt \
+            | grep -v '^$' > "$RUNNER_TEMP/requirements.txt"
+          pip install -r "$RUNNER_TEMP/requirements.txt"
+
+      - name: Skip when the newest session is already predicted
+        id: gate
+        run: |
+          latest="$(python -m research.prediction_model.src.run_supabase_forward --check)"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          ledger="research/prediction_model/data/automation/supabase_forward_predictions.csv"
+          if [ -f "$ledger" ]; then
+            last="$(tail -n +2 "$ledger" | cut -d, -f2 | sort -u | tail -1)"
+          else
+            last=""
+          fi
+          echo "last=$last" >> "$GITHUB_OUTPUT"
+          if [ -n "$latest" ] && [ "$latest" = "$last" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Newest session $latest is already in the ledger."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Newest session $latest; ledger has ${last:-nothing}."
+          fi
+
+      - name: Score and append
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          mode="--apply"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] \
+             && [ "${{ github.event.inputs.apply }}" != "true" ]; then
+            mode="--dry-run"
+          fi
+          python -m research.prediction_model.src.run_supabase_forward "$mode"
+
+      - name: Commit the ledgers
+        if: >-
+          steps.gate.outputs.run == 'true' &&
+          (github.event_name != 'workflow_dispatch' || github.event.inputs.apply == 'true')
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add research/prediction_model/data/automation/supabase_forward_*.csv
+          if git diff --cached --quiet; then
+            echo "No ledger change."
+            exit 0
+          fi
+          git commit -m "chore(prediction): append shadow rows for ${{ steps.gate.outputs.latest }}"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          git push
