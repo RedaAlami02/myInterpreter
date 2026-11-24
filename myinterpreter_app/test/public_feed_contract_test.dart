@@ -15,7 +15,7 @@ void main() {
     final snapshot = ShadowMarketSnapshot.fromJson(payload);
 
     expect(snapshot.status, 'AVAILABLE');
-    expect(snapshot.rows, hasLength(2));
+    expect(snapshot.rows, hasLength(3));
 
     final fresh = snapshot.rows.firstWhere(
       (row) => row.status == 'REPORTED_DATE_ONLY',
@@ -26,5 +26,11 @@ void main() {
       (row) => row.status == 'MISSING_QUOTE',
     );
     expect(stale.priceAt(stale.capturedAt ?? DateTime.now()), isNull);
+
+    final index = snapshot.rows.firstWhere(
+      (row) => row.instrumentType == 'INDEX',
+    );
+    expect(index.name, 'MASI');
+    expect(index.priceAt(index.capturedAt!), isNotNull);
   });
 }

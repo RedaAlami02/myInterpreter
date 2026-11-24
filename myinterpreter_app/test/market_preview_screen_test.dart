@@ -295,4 +295,39 @@ void main() {
       }
     },
   );
+
+  testWidgets('price order puts the largest first and keeps the index on top', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: ScreenerScreen(marketClock: () => instant)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cours ↓'));
+    await tester.pump();
+    final indexTop = tester.getTopLeft(find.text('MASI')).dy;
+    final companyBTop = tester.getTopLeft(find.text('Company B')).dy;
+    final companyATop = tester.getTopLeft(find.text('Company A')).dy;
+    expect(indexTop, lessThan(companyBTop));
+    expect(companyBTop, lessThan(companyATop));
+  });
+
+  testWidgets('an open market screen fetches again on its own', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: ScreenerScreen(marketClock: () => instant)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(fixture.previewReads, 1);
+    await tester.pump(const Duration(seconds: 61));
+    await tester.pump();
+    expect(fixture.previewReads, 2);
+    expect(find.text('21.25 MAD'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
