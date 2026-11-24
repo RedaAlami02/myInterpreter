@@ -53,6 +53,7 @@ marked **open** were confirmed by reading the code but are not yet changed.
 | 43 | The index disappeared from the app | MASI was in the retired Appwrite feed; the public feed joined `format`, which holds companies only, so the app showed 82 stocks and no index | The feed emits `index:MASI` from `data` with `instrument_type INDEX` (no ratios, no symbol in its fields, price rounded to the published two decimals) |
 | 44 | The app's market list could not be sorted | The web screener sorts by column; the app was alphabetical only, which 82 rows makes awkward | Sort chips: société, Δ% (desc), PER (asc), cours (desc); the index stays on top and ties fall back to name |
 | 45 | The app's Marché tab still read the retired RPC | `read_shadow_application_feed` (and its recurring twin) answer `DISABLED`, so the tab fell back to the dated recorded-price list even with the preview flag on. The previous fix had been applied to `ShadowMarketFeedClient`, which nothing instantiates | `SupabaseBackend.readMarketDisplay()` calls `read_public_application_feed`; the dead `recurringMarketFeed` flag and its build plumbing are gone; `supabase_backend_test.dart` asserts the new RPC |
+| 46 | A frozen index and a row named `test` sat in `latest_prices` | Neither maps to a company; the app's after-hours fallback listed a 21 October MASI value as a recorded price | `20261124_remove_orphan_latest_prices.sql` deletes rows with no matching company (2 removed). Indices are served from `data` by the app feed |
 
 ## Open — worth fixing next
 
