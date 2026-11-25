@@ -30,7 +30,10 @@ export default {
     if (event.cron === DISPATCH_CRON || event.cron === EVENING_CRON) {
       // The workflow's preflight decides the job: refresh quotes during the
       // session, publish the close once it exists, otherwise exit in seconds.
-      ctx.waitUntil(dispatch(env, "exchange-price-publication.yml")
+      // force must be false for that to happen: a manual dispatch defaults to
+      // true, which short-circuits the preflight into a full CLOSE capture and
+      // made every scheduled run take ten minutes instead of one.
+      ctx.waitUntil(dispatch(env, "exchange-price-publication.yml", { force: "false" })
         .catch((error) => alert(env, `Dispatch failed: ${error.message}`)));
       return;
     }
