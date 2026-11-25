@@ -1,1 +1,2 @@
 market_date,rows,run_mode,source,generation_time,data_hash,note
+2026-11-24,64,AUTOMATED_SUPABASE_FORWARD,SUPABASE_LIVE,2026-11-25T04:12:45.191460+00:00,8cf7c8315aad713f846b9e965545c9d6c54df1a112514af4f201179e52dea32a,scheduled shadow inference on the production market tables
