@@ -4,6 +4,7 @@ on:
     branches: [master]
     paths-ignore:
       - 'cloud_function/**'
+      - 'cloudflare/**'
       - '**.md'
   workflow_dispatch:
     inputs:
