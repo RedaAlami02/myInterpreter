@@ -79,20 +79,34 @@ function json(value, status = 200) {
   });
 }
 
+// GitHub answered 500 to two dispatches on 2026-11-25 and created no run. The
+// next slot is 15 minutes away during the session, so a retry costs nothing and
+// turns a lost slot into a slightly late one. Only transient statuses retry: a
+// bad token or a missing workflow still fails immediately.
+const RETRY_DELAYS_MS = [2000, 5000];
+const TRANSIENT_STATUS = new Set([429, 500, 502, 503, 504]);
+
 async function github(env, path, init = {}) {
   if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is not configured");
-  const response = await fetch(`https://api.github.com${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-      Accept: "application/vnd.github+json",
-      "User-Agent": "myinterpreter-scheduler",
-      "X-GitHub-Api-Version": "2022-11-28",
-      ...(init.headers || {}),
-    },
-  });
-  if (!response.ok) throw new Error(`GitHub ${response.status} on ${path}`);
-  return response.status === 204 ? null : response.json();
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch(`https://api.github.com${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "myinterpreter-scheduler",
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...(init.headers || {}),
+      },
+    });
+    if (response.ok) {
+      return response.status === 204 ? null : response.json();
+    }
+    if (!TRANSIENT_STATUS.has(response.status) || attempt >= RETRY_DELAYS_MS.length) {
+      throw new Error(`GitHub ${response.status} on ${path}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
+  }
 }
 
 async function dispatch(env, workflow, inputs) {

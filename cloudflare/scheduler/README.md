@@ -47,6 +47,9 @@ Actions, where the preflight makes repeated dispatches harmless.
 - Free plan is enough: two cron triggers and a handful of requests per run.
 - The alert fires at most once a day; it repeats the next day if the problem
   persists. It never writes to the database.
+- A dispatch GitHub answers with 429 or 5xx is retried twice (2 s, then 5 s)
+  before the alert fires. Other errors — a bad token, a missing workflow —
+  fail immediately.
 - A holiday run is a success with `NO_SESSION`, so it counts as a published
   day; the alert does not cry wolf on closures.
 - The Worker only holds an `Actions: write` token for this repository. It cannot

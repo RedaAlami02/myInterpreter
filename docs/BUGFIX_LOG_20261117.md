@@ -54,6 +54,7 @@ marked **open** were confirmed by reading the code but are not yet changed.
 | 44 | The app's market list could not be sorted | The web screener sorts by column; the app was alphabetical only, which 82 rows makes awkward | Sort chips: société, Δ% (desc), PER (asc), cours (desc); the index stays on top and ties fall back to name |
 | 45 | The app's Marché tab still read the retired RPC | `read_shadow_application_feed` (and its recurring twin) answer `DISABLED`, so the tab fell back to the dated recorded-price list even with the preview flag on. The previous fix had been applied to `ShadowMarketFeedClient`, which nothing instantiates | `SupabaseBackend.readMarketDisplay()` calls `read_public_application_feed`; the dead `recurringMarketFeed` flag and its build plumbing are gone; `supabase_backend_test.dart` asserts the new RPC |
 | 46 | A frozen index and a row named `test` sat in `latest_prices` | Neither maps to a company; the app's after-hours fallback listed a 21 October MASI value as a recorded price | `20261124_remove_orphan_latest_prices.sql` deletes rows with no matching company (2 removed). Indices are served from `data` by the app feed |
+| 47 | Two dispatches were lost to GitHub 500s | On 2026-11-25 the 15:45 order-book and 15:50 price slots never created runs; the scheduler alerted and gave up | The scheduler retries 429/5xx twice (2 s, then 5 s) before alerting. No data was lost: the close had published at 14:50 and the 16:00/16:30 runs succeeded |
 
 ## Open — worth fixing next
 
