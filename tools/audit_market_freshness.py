@@ -84,21 +84,22 @@ def main():
         dividends = fetch(base, key, "dividends",
                           "c_name,year,amount,ex_date,pay_date,confirmed,type,updated_at")
         formats = fetch(base, key, "format", "name,symbol")
+        history = fetch(base, key, "data", "c_name,date,volume,qty_traded",
+                        "&order=date.desc", max_rows=4000)
+        traded = market_health.traded_in_latest_session(history)
         report = market_health.audit(
             fetch(base, key, "latest_prices", "c_name,pa,date,origin_collection"),
             fetch(base, key, "company", "name,fiscal_year,na,shareholders,date"),
             dividends,
             formats,
-            as_of=moment, max_age_days=args.max_age_days)
+            as_of=moment, max_age_days=args.max_age_days, traded=traded)
         books = fetch(base, key, "market_orderbooks", "symbol,captured_at",
                       "&order=captured_at.desc", max_rows=4000)
-        history = fetch(base, key, "data", "c_name,date",
-                        "&order=date.desc", max_rows=4000)
         history_summary, history_status, history_ages = market_health.history_health(
             history, formats, as_of=moment, max_age_days=args.max_age_days)
         report["summary"].update(history_summary)
         book_summary, book_status, book_ages = market_health.book_health(
-            books, formats, as_of=moment)
+            books, formats, as_of=moment, traded=traded)
         report["summary"].update(book_summary)
         for row in report["companies"]:
             symbol = row.get("symbol")

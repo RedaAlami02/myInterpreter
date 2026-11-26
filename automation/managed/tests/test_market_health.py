@@ -58,6 +58,42 @@ class MarketHealthTests(unittest.TestCase):
         self.assertEqual(by_name["FRESH"]["dividend_amount"], 1.5)
         self.assertEqual(by_name["FRESH"]["dividend_pay_date"], "2026-07-15")
 
+    def test_an_instrument_the_exchange_did_not_trade_is_not_stale(self):
+        history = [
+            {"c_name": "STALE", "date": "2026-11-16T15:00:00Z",
+             "volume": None, "qty_traded": None},
+            {"c_name": "FRESH", "date": "2026-11-16T15:00:00Z",
+             "volume": 1000, "qty_traded": 10},
+        ]
+        traded = market_health.traded_in_latest_session(history)
+        self.assertNotIn("STALE", traded)
+        report = market_health.audit(
+            self.prices, self.companies, self.dividends, self.formats,
+            as_of=self.as_of, max_age_days=7, traded=traded)
+        by_name = {row["name"]: row for row in report["companies"]}
+        self.assertEqual(by_name["STALE"]["price_status"], "NOT_TRADED")
+        self.assertEqual(report["summary"]["price_stale"], 0)
+
+    def test_a_trade_without_a_price_update_is_still_stale(self):
+        history = [
+            {"c_name": "STALE", "date": "2026-11-16T15:00:00Z",
+             "volume": 500, "qty_traded": 5},
+            {"c_name": "FRESH", "date": "2026-11-16T15:00:00Z",
+             "volume": 1000, "qty_traded": 10},
+        ]
+        traded = market_health.traded_in_latest_session(history)
+        self.assertIn("STALE", traded)
+        report = market_health.audit(
+            self.prices, self.companies, self.dividends, self.formats,
+            as_of=self.as_of, max_age_days=7, traded=traded)
+        self.assertEqual(report["summary"]["price_stale"], 1)
+
+    def test_an_empty_trade_map_keeps_the_old_verdict(self):
+        report = market_health.audit(
+            self.prices, self.companies, self.dividends, self.formats,
+            as_of=self.as_of, max_age_days=7, traded=set())
+        self.assertEqual(report["summary"]["price_stale"], 1)
+
     def test_report_shapes(self):
         report = market_health.audit(
             self.prices, self.companies, self.dividends, self.formats,
@@ -81,7 +117,20 @@ class BookHealthTests(unittest.TestCase):
         self.assertEqual(statuses["NRJ"], "MISSING")
         self.assertEqual(ages["ADH"], 3.0)
         self.assertEqual(summary, {"book_symbols": 3, "book_fresh": 1,
-                                   "book_stale": 1, "book_missing": 1})
+                                   "book_stale": 1, "book_missing": 1,
+                                   "book_untraded": 0})
+
+    def test_a_suspended_instrument_has_no_book_to_miss(self):
+        summary, statuses, _ages = market_health.book_health(
+            [{"symbol": "ADH", "captured_at": "2026-11-17T15:00:00Z"}],
+            [{"name": "ADDOHA", "symbol": "ADH"},
+             {"name": "SAMIR", "symbol": "SAM"}],
+            as_of=datetime(2026, 11, 17, 18, 0, tzinfo=timezone.utc),
+            traded={"ADDOHA"})
+        self.assertEqual(statuses["ADH"], "FRESH")
+        self.assertEqual(statuses["SAM"], "NOT_TRADED")
+        self.assertEqual(summary["book_missing"], 0)
+        self.assertEqual(summary["book_untraded"], 1)
 
     def test_a_friday_close_is_fresh_on_monday_morning(self):
         summary, statuses, _ages = market_health.book_health(

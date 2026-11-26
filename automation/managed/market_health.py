@@ -41,7 +41,33 @@ def _shareholders(value):
     return []
 
 
-def audit(latest_prices, companies, dividends, formats, as_of=None, max_age_days=7):
+def traded_in_latest_session(history):
+    """Company names whose newest `data` row records a trade.
+
+    `latest_prices` keeps the last traded date on purpose, so an instrument the
+    exchange reports as NT (suspended, or just illiquid for a week) is not a
+    stale publication. Only a trade with no price update is.
+    """
+    newest = {}
+    for row in history or []:
+        name = row.get("c_name")
+        day = _moment(row.get("date"))
+        if not isinstance(name, str) or not name or day is None:
+            continue
+        current = newest.get(name)
+        if current is None or day > current[0]:
+            newest[name] = (day, row)
+    traded = set()
+    for name, (_, row) in newest.items():
+        volume = _number(row.get("volume"))
+        quantity = _number(row.get("qty_traded"))
+        if (volume is not None and volume > 0) or (quantity is not None and quantity > 0):
+            traded.add(name)
+    return traded
+
+
+def audit(latest_prices, companies, dividends, formats, as_of=None, max_age_days=7,
+          traded=None):
     moment = as_of or datetime.now(timezone.utc)
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=timezone.utc)
@@ -82,10 +108,16 @@ def audit(latest_prices, companies, dividends, formats, as_of=None, max_age_days
             price_status = "ZERO"
             summary["price_zero"] += 1
             flags.append("PRICE_ZERO")
-        elif age is not None and age > max_age_days:
+        elif age is not None and age > max_age_days and not (
+                traded and name not in traded):
             price_status = "STALE"
             summary["price_stale"] += 1
             flags.append("PRICE_STALE_%dD" % age)
+        elif age is not None and age > max_age_days:
+            # The stored date is the instrument's last trade, and the exchange
+            # reports no trade since. Nothing was missed.
+            price_status = "NOT_TRADED"
+            summary["price_ok"] += 1
         else:
             price_status = "OK"
             summary["price_ok"] += 1
@@ -190,7 +222,7 @@ def history_health(history, formats, as_of=None, max_age_days=7):
     return summary, statuses, ages
 
 
-def book_health(books, formats, as_of=None, max_age_hours=96):
+def book_health(books, formats, as_of=None, max_age_hours=96, traded=None):
     """Latest order book per symbol, judged against a freshness window.
 
     The window is a few days, not hours: a Monday morning audit must not call a
@@ -207,24 +239,36 @@ def book_health(books, formats, as_of=None, max_age_hours=96):
             continue
         if symbol not in latest or captured > latest[symbol]:
             latest[symbol] = captured
-    summary = {"book_symbols": 0, "book_fresh": 0, "book_stale": 0, "book_missing": 0}
+    summary = {"book_symbols": 0, "book_fresh": 0, "book_stale": 0,
+               "book_missing": 0, "book_untraded": 0}
     statuses = {}
     ages = {}
     for row in formats or []:
         symbol = row.get("symbol")
+        name = row.get("name")
         if not isinstance(symbol, str) or not symbol:
             continue
         summary["book_symbols"] += 1
+        untraded = bool(traded) and name not in traded
         captured = latest.get(symbol)
         if captured is None:
-            statuses[symbol] = "MISSING"
-            summary["book_missing"] += 1
+            if untraded:
+                # A suspended instrument has no book; that is not a miss.
+                statuses[symbol] = "NOT_TRADED"
+                summary["book_untraded"] += 1
+            else:
+                statuses[symbol] = "MISSING"
+                summary["book_missing"] += 1
             continue
         age_hours = (moment - captured).total_seconds() / 3600
         ages[symbol] = round(age_hours, 1)
         if age_hours > max_age_hours:
-            statuses[symbol] = "STALE"
-            summary["book_stale"] += 1
+            if untraded:
+                statuses[symbol] = "NOT_TRADED"
+                summary["book_untraded"] += 1
+            else:
+                statuses[symbol] = "STALE"
+                summary["book_stale"] += 1
         else:
             statuses[symbol] = "FRESH"
             summary["book_fresh"] += 1
@@ -250,6 +294,7 @@ def to_markdown(report):
                 "fiscal_ok", "fiscal_stale", "fiscal_missing", "fiscal_current",
                 "shares_missing", "dividend_recent", "dividend_stale", "dividend_missing",
                 "shareholders_missing", "book_fresh", "book_stale", "book_missing",
+                "book_untraded",
                 "history_fresh", "history_stale", "history_missing",
                 "history_latest_age_days", "needs_attention"):
         lines.append(f"| {key.replace('_', ' ')} | {summary.get(key, 0)} |")
