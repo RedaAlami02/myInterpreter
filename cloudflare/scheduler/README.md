@@ -52,6 +52,14 @@ Actions, where the preflight makes repeated dispatches harmless.
   fail immediately.
 - A holiday run is a success with `NO_SESSION`, so it counts as a published
   day; the alert does not cry wolf on closures.
+- **Cron triggers are not guaranteed.** On 2026-11-26 20:30 UTC they stopped
+  invoking the Worker entirely: nothing ran on the 27th, a probe trigger never
+  fired, and redeploying or re-registering the schedules did not revive them.
+  Because the alert is also a cron here, the outage was silent. Supabase now
+  runs the same slots through pg_cron as an independent dispatcher
+  (`migrations/supabase/20261127_supabase_cron_dispatch.sql`), and
+  `tools/check_publication_liveness.py` fails the health job when a session is
+  missing. Treat this Worker as the convenience path, not the only one.
 - The Worker only holds an `Actions: write` token for this repository. It cannot
   read the database, push code, or touch other repositories.
 

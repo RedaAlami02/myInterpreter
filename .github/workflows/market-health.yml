@@ -43,6 +43,16 @@ jobs:
             --out-dir "$RUNNER_TEMP/market-health" \
             --max-age-days "$MAX_AGE_DAYS"
 
+      # The audit's windows are a week long, so a dispatcher that stops for a
+      # day leaves no trace there. This check compares the exchange's own last
+      # trade date with the published history and fails the job on a gap.
+      - name: Publication liveness
+        if: always()
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 tools/check_publication_liveness.py
+
       - name: Publish job summary
         if: always()
         run: |
